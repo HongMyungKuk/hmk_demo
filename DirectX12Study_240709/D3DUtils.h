@@ -2,6 +2,8 @@
 
 #include <stdexcept>
 
+using namespace DirectX;
+
 inline std::string HrToString(HRESULT hr)
 {
     char s_str[64] = {};
@@ -72,4 +74,8 @@ class D3DUtils
         memcpy(pVertexDataBegin, (void *)data, size);
         (*buffer)->Unmap(0, nullptr);
     }
+
+    static void CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
+                              ID3D12CommandQueue *commandQueue, const std::string &filename, ID3D12Resource **texture,
+                              D3D12_CPU_DESCRIPTOR_HANDLE &descHandle);
 };

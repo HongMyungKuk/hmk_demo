@@ -21,27 +21,33 @@ cbuffer MaterialConstants : register(b1)
     float3 ambient;
     float3 diffuse;
     float3 specular;
-}
+};
+
+SamplerState linearWrapSS : register(s0);
+Texture2D albedoTexture : register(t0);
 
 struct PSInput
 {
     float4 position : SV_POSITION;
-    float4 color : COLOR;
+    float3 normal : NORMAL;
+    float2 texCoord : TEXCOORD;
 };
 
-PSInput VSMain(float3 position : POSITION, float4 color : COLOR)
+PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 texCoord : TEXCOORD)
 {
     PSInput result;
 
     result.position = mul(float4(position, 1.0), world);
     result.position = mul(result.position, view);
     result.position = mul(result.position, projection);
-    result.color = color;
 
+    result.normal = normal;
+    result.texCoord = texCoord;
+    
     return result;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    return float4(ambient, 1.0);
+    return albedoTexture.Sample(linearWrapSS, input.texCoord);
 }

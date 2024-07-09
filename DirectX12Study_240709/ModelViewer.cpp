@@ -30,7 +30,8 @@ bool ModelViewer::Initialize()
 
     {
         MeshData cube = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
-        m_model->Initialize(m_device, {cube});
+        cube.albedoTextureFilename = "texture.jpg";
+        m_model->Initialize(m_device, m_commandList, m_commandQueue, {cube});
     }
 
     return true;

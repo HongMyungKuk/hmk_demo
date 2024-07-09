@@ -4,24 +4,28 @@ using namespace DirectX;
 
 struct Vertex
 {
-    Vertex() : position(0.0f, 0.0f, 0.0f), normal(0.0f, 0.0f, 0.0f)
+    Vertex() : position(0.0f, 0.0f, 0.0f), normal(0.0f, 0.0f, 0.0f), texCoord(0.0f, 0.0f)
     {
     }
-    Vertex(const XMFLOAT3 &p, const XMFLOAT3 &n) : position(p), normal(n)
+    Vertex(const XMFLOAT3 &p, const XMFLOAT3 &n, const XMFLOAT2 &t) : position(p), normal(n), texCoord(t)
     {
     }
-    Vertex(float px, float py, float pz, float nx, float ny, float nz) : position(px, py, pz), normal(nx, ny, nz)
+    Vertex(float px, float py, float pz, float nx, float ny, float nz, float tx, float ty)
+        : position(px, py, pz), normal(nx, ny, nz), texCoord(tx, ty)
     {
     }
 
     XMFLOAT3 position;
     XMFLOAT3 normal;
+    XMFLOAT2 texCoord;
 };
 
 struct MeshData
 {
     std::vector<Vertex> vertices;
     std::vector<uint16_t> indices;
+
+    std::string albedoTextureFilename = "";
 };
 
 struct Mesh
@@ -31,8 +35,8 @@ struct Mesh
     uint32_t vertexCount         = 0;
     uint32_t indexCount          = 0;
     // Teture
-    std::string albedoTextureFilename = "";
-    ID3D12Resource *albedoTexture     = nullptr;
+    ID3D12Resource *albedoTexture       = nullptr;
+    ID3D12DescriptorHeap *albedoSRVheap = nullptr;
 
     D3D12_VERTEX_BUFFER_VIEW VertexBufferView()
     {

@@ -16,7 +16,8 @@ Model::~Model()
     SAFE_RELEASE(m_rootSignature);
 }
 
-void Model::Initialize(ID3D12Device *device, std::vector<MeshData> meshes)
+void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, ID3D12CommandQueue *commandQueue,
+                       std::vector<MeshData> meshes)
 {
     BuildRootSignature(device);
     BuildShaderAndGraphicsPSO(device);
@@ -26,6 +27,12 @@ void Model::Initialize(ID3D12Device *device, std::vector<MeshData> meshes)
     {
         Mesh newMesh;
         BuildMeshBuffers(device, newMesh, m);
+
+        if (!m.albedoTextureFilename.empty())
+        {
+            this->BuildTexture(device, commandList, commandQueue, m.albedoTextureFilename, &newMesh.albedoTexture,
+                               &newMesh.albedoSRVheap);
+        }
 
         m_meshes.push_back(newMesh);
     }
@@ -43,7 +50,7 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
 
     for (auto &m : m_meshes)
     {
-        ID3D12DescriptorHeap *descHeaps[] = {m_cbvHeap};
+        ID3D12DescriptorHeap *descHeaps[] = {m_cbvHeap, m.albedoSRVheap};
         commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
         commandList->SetGraphicsRootDescriptorTable(0, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 
@@ -56,8 +63,9 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
 
 void Model::BuildRootSignature(ID3D12Device *device)
 {
-    CD3DX12_DESCRIPTOR_RANGE rangeObj[1] = {};
+    CD3DX12_DESCRIPTOR_RANGE rangeObj[2] = {};
     rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 0); // b0, b1
+    rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0
 
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
@@ -66,8 +74,23 @@ void Model::BuildRootSignature(ID3D12Device *device)
     CD3DX12_ROOT_PARAMETER rootParameters[1] = {};
     rootParameters[0].InitAsDescriptorTable(_countof(rangeObj), rangeObj, D3D12_SHADER_VISIBILITY_ALL);
 
+    D3D12_STATIC_SAMPLER_DESC sampler = {};
+    sampler.Filter                    = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    sampler.AddressU                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressV                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressW                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.MipLODBias                = 0;
+    sampler.MaxAnisotropy             = 0;
+    sampler.ComparisonFunc            = D3D12_COMPARISON_FUNC_NEVER;
+    sampler.BorderColor               = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    sampler.MinLOD                    = 0.0f;
+    sampler.MaxLOD                    = D3D12_FLOAT32_MAX;
+    sampler.ShaderRegister            = 0;
+    sampler.RegisterSpace             = 0;
+    sampler.ShaderVisibility          = D3D12_SHADER_VISIBILITY_PIXEL;
+
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
+    rootSignatureDesc.Init(_countof(rootParameters), rootParameters, 1, &sampler, rootSignatureFlags);
 
     ID3DBlob *signature = nullptr;
     ID3DBlob *error     = nullptr;
@@ -96,7 +119,8 @@ void Model::BuildShaderAndGraphicsPSO(ID3D12Device *device)
     // Define the vertex input layout.
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
 
     // Describe and create the graphics pipeline state object (PSO).
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -142,6 +166,19 @@ void Model::BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshDat
                                   meshData.indices.size() * sizeof(uint16_t));
     mesh.vertexCount = meshData.vertices.size();
     mesh.indexCount  = meshData.indices.size();
+}
+
+void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, ID3D12CommandQueue *commandQueue,
+                         const std::string &filename, ID3D12Resource **texture, ID3D12DescriptorHeap **srvHeap)
+{
+    D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+    srvHeapDesc.NumDescriptors             = 1;
+    srvHeapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    srvHeapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    ThrowIfFailed(device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(srvHeap)));
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle((*srvHeap)->GetCPUDescriptorHandleForHeapStart());
+    D3DUtils::CreateTexture(device, commandList, commandQueue, filename, texture, srvHandle);
 }
 
 void Model::DestroyMeshBuffers()
