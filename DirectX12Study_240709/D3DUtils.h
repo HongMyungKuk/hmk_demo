@@ -12,7 +12,7 @@ inline std::string HrToString(HRESULT hr)
 
 class HrException : public std::runtime_error
 {
-    public:
+  public:
     HrException(HRESULT hr) : std::runtime_error(HrToString(hr)), m_hr(hr)
     {
     }
@@ -21,7 +21,7 @@ class HrException : public std::runtime_error
         return m_hr;
     }
 
-    private:
+  private:
     const HRESULT m_hr;
 };
 
@@ -32,3 +32,30 @@ inline void ThrowIfFailed(HRESULT hr)
         throw HrException(hr);
     }
 }
+
+class D3DUtils
+{
+  public:
+    template <typename T_CONST>
+    static void CreateConstantBuffer(ID3D12Device *device, ID3D12Resource *buffer, uint8_t *gpu, T_CONST* data,
+                              D3D12_CPU_DESCRIPTOR_HANDLE &descHandle = {})
+    {
+        const uint32_t constBufferSize = sizeof(T_CONST);
+
+        ThrowIfFailed(
+            device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
+                                            &CD3DX12_RESOURCE_DESC::Buffer(constBufferSize),
+                                            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buffer)));
+
+        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvBufferDesc = {};
+        cbvBufferDesc.BufferLocation                  = buffer->GetGPUVirtualAddress();
+        cbvBufferDesc.SizeInBytes                     = constBufferSize;
+        device->CreateConstantBufferView(&cbvBufferDesc, descHandle);
+
+        // Map and initialize the constant buffer. We don't unmap this until the
+        // app closes. Keeping things mapped for the lifetime of the resource is okay.
+        CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+        ThrowIfFailed(buffer->Map(0, &readRange, reinterpret_cast<void **>(&gpu)));
+        memcpy(gpu, data, constBufferSize);
+    }
+};
