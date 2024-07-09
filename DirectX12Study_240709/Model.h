@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Mesh.h"
-#include <d3d12.h>
+
+using namespace DirectX;
 
 __declspec(align(256)) struct MeshConsts
 {
@@ -21,26 +22,39 @@ class Model
 {
   public:
     Model();
-    ~Model();
+    virtual ~Model();
 
-  protected:
+  public:
     virtual void Initialize(ID3D12Device *device, std::vector<MeshData> meshes); // const buffer, mesh data
     virtual void Update();
-    virtual void Render();
+    virtual void Render(ID3D12GraphicsCommandList *commandList);
 
   private:
     void BuildRootSignature(ID3D12Device *device);
     void BuildShaderAndGraphicsPSO(ID3D12Device *device);
     void BuildConstantBufferView(ID3D12Device *device);
+    void BuildMeshBuffers(ID3D12Device *device, Mesh& mesh, MeshData &meshData);
+    void DestroyMeshBuffers();
+
+  public:
+    ID3D12PipelineState *GetPSO()
+    {
+        return m_pipelineState;
+    }
+    MeshConsts &GetMeshConstCPU()
+    {
+        return m_meshConstBufferData;
+    }
 
   private:
-    ID3D12RootSignature *m_rootSignature     = nullptr;
-    ID3D12PipelineState *m_pipelineState     = nullptr;
-    ID3D12Resource *m_meshConstBuffer        = nullptr;
-    ID3D12Resource *m_materialConstBuffer    = nullptr;
-    ID3D12DescriptorHeap *m_cbvHeap          = nullptr;
-    uint8_t *m_meshDataBeign                 = nullptr;
-    uint8_t *m_materialDataBeign             = nullptr;
-    MeshConsts m_meshConstBufferData         = {};
-    MaterialConsts m_materialConstBufferData = {};
+    ID3D12RootSignature *m_rootSignature        = nullptr;
+    ID3D12PipelineState *m_pipelineState        = nullptr;
+    ID3D12Resource *m_meshConstBuffer           = nullptr;
+    ID3D12Resource *m_materialConstBuffer       = nullptr;
+    ID3D12DescriptorHeap *m_cbvHeap             = nullptr;
+    uint8_t *m_meshDataBeign                    = nullptr;
+    uint8_t *m_materialDataBeign                = nullptr;
+    MeshConsts m_meshConstBufferData            = {};
+    MaterialConsts m_materialConstBufferData    = {};
+    std::vector<Mesh> m_meshes                  = {};
 };

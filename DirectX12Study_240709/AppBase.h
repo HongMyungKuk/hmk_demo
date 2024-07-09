@@ -1,17 +1,5 @@
 #pragma once
 
-#include "D3DUtils.h"
-#include "Macro.h"
-#include "d3dx12.h"
-#include <d3d12.h>
-#include <d3dcompiler.h>
-#include <directxmath.h>
-#include <dxgi1_6.h>
-
-#pragma comment(lib, "d3d12.lib")
-#pragma comment(lib, "dxgi.lib")
-#pragma comment(lib, "d3dcompiler.lib")
-
 class AppBase
 {
   public:
@@ -72,6 +60,6 @@ class AppBase
     bool m_useWarpDevice = false;
 
   public:
-    const static uint32_t s_screenWidth   = 1920;
-    const static uint32_t s_screenHeight = 1080;
+    static const uint32_t s_screenWidth  = 1920;
+    static const uint32_t s_screenHeight = 1080;
 };

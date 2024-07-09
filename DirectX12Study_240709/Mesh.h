@@ -1,8 +1,5 @@
 #pragma once
 
-#include <directxmath.h>
-#include <vector>
-
 using namespace DirectX;
 
 struct Vertex
@@ -25,4 +22,33 @@ struct MeshData
 {
     std::vector<Vertex> vertices;
     std::vector<uint16_t> indices;
+};
+
+struct Mesh
+{
+    ID3D12Resource *vertexBuffer = nullptr;
+    ID3D12Resource *indexBuffer  = nullptr;
+    uint32_t vertexCount         = 0;
+    uint32_t indexCount          = 0;
+    // Teture
+    std::string albedoTextureFilename = "";
+    ID3D12Resource *albedoTexture     = nullptr;
+
+    D3D12_VERTEX_BUFFER_VIEW VertexBufferView()
+    {
+        D3D12_VERTEX_BUFFER_VIEW view;
+        view.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+        view.StrideInBytes  = sizeof(Vertex);
+        view.SizeInBytes    = vertexCount * view.StrideInBytes;
+        return view;
+    }
+
+    D3D12_INDEX_BUFFER_VIEW IndexBufferView()
+    {
+        D3D12_INDEX_BUFFER_VIEW view;
+        view.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+        view.SizeInBytes    = indexCount * sizeof(uint16_t);
+        view.Format         = DXGI_FORMAT_R16_UINT;
+        return view;
+    }
 };

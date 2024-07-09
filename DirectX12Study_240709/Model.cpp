@@ -1,7 +1,6 @@
+#include "pch.h"
 #include "Model.h"
-#include "D3DUtils.h"
-#include "d3dx12.h"
-#include <d3dcompiler.h>
+
 
 Model::Model()
 {
@@ -9,20 +8,50 @@ Model::Model()
 
 Model::~Model()
 {
+    DestroyMeshBuffers();
+    SAFE_RELEASE(m_cbvHeap);
+    SAFE_RELEASE(m_materialConstBuffer);
+    SAFE_RELEASE(m_meshConstBuffer);
+    SAFE_RELEASE(m_pipelineState);
+    SAFE_RELEASE(m_rootSignature);
 }
 
 void Model::Initialize(ID3D12Device *device, std::vector<MeshData> meshes)
 {
     BuildRootSignature(device);
     BuildShaderAndGraphicsPSO(device);
+    BuildConstantBufferView(device);
+
+    for (auto &m : meshes)
+    {
+        Mesh newMesh;
+        BuildMeshBuffers(device, newMesh, m);
+
+        m_meshes.push_back(newMesh);
+    }
 }
 
 void Model::Update()
 {
+    memcpy(m_meshDataBeign, &m_meshConstBufferData, sizeof(MeshConsts));
+    memcpy(m_materialDataBeign, &m_materialConstBufferData, sizeof(MaterialConsts));
 }
 
-void Model::Render()
+void Model::Render(ID3D12GraphicsCommandList *commandList)
 {
+    commandList->SetGraphicsRootSignature(m_rootSignature);
+
+    for (auto &m : m_meshes)
+    {
+        ID3D12DescriptorHeap *descHeaps[] = {m_cbvHeap};
+        commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+        commandList->SetGraphicsRootDescriptorTable(0, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+
+        commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        commandList->IASetVertexBuffers(0, 1, &m.VertexBufferView());
+        commandList->IASetIndexBuffer(&m.IndexBufferView());
+        commandList->DrawIndexedInstanced(m.indexCount, 1, 0, 0, 0);
+    }
 }
 
 void Model::BuildRootSignature(ID3D12Device *device)
@@ -98,8 +127,28 @@ void Model::BuildConstantBufferView(ID3D12Device *device)
     auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle1(m_cbvHeap->GetCPUDescriptorHandleForHeapStart(), 0, cbvDescriptorSize);
-    D3DUtils::CreateConstantBuffer(device, m_meshConstBuffer, m_meshDataBeign, &m_meshConstBufferData, cbvHandle1);
+    D3DUtils::CreateConstantBuffer(device, &m_meshConstBuffer, &m_meshDataBeign, &m_meshConstBufferData, cbvHandle1);
     CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle2(m_cbvHeap->GetCPUDescriptorHandleForHeapStart(), 1, cbvDescriptorSize);
-    D3DUtils::CreateConstantBuffer(device, m_materialConstBuffer, m_materialDataBeign, &m_materialConstBufferData,
+    D3DUtils::CreateConstantBuffer(device, &m_materialConstBuffer, &m_materialDataBeign, &m_materialConstBufferData,
                                    cbvHandle2);
+}
+
+void Model::BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshData)
+{
+    // Create vertex buffer view
+    D3DUtils::CreateDefaultBuffer(device, &mesh.vertexBuffer, meshData.vertices.data(),
+                                  meshData.vertices.size() * sizeof(Vertex));
+    D3DUtils::CreateDefaultBuffer(device, &mesh.indexBuffer, meshData.indices.data(),
+                                  meshData.indices.size() * sizeof(uint16_t));
+    mesh.vertexCount = meshData.vertices.size();
+    mesh.indexCount  = meshData.indices.size();
+}
+
+void Model::DestroyMeshBuffers()
+{
+    for (auto &m : m_meshes)
+    {
+        SAFE_RELEASE(m.vertexBuffer);
+        SAFE_RELEASE(m.indexBuffer);
+    }
 }

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <directxmath.h>
-
 namespace DirectX
 {
 namespace Math

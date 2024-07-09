@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "GeometryGenerator.h"
 
 MeshData GeometryGenerator::MakeCube(const float w, const float h, const float d)
