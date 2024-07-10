@@ -25,9 +25,6 @@ class AppBase
     bool InitGui();
     void GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdapter,
                             bool requestHighPerformanceAdapter = false);
-    void BuidRootSignature();
-    void BuildGlobalConsts();
-    void UpdateGlobalConsts();
     void BeginRender();
     void EndRender();
 
@@ -51,19 +48,13 @@ class AppBase
     ID3D12CommandQueue *m_commandQueue            = nullptr;
     ID3D12DescriptorHeap *m_rtvHeap               = nullptr;
     ID3D12DescriptorHeap *m_dsvHeap               = nullptr;
-    ID3D12DescriptorHeap *m_globalConstsHeap      = nullptr;
-    ID3D12Resource *m_globalConstsBuffer          = nullptr;
     ID3D12GraphicsCommandList *m_commandList      = nullptr;
     ID3D12Resource *m_depthStencilBuffer          = nullptr;
-    ID3D12RootSignature *m_rootSignature          = nullptr;
     ID3D12Resource *m_renderTargets[s_frameCount] = {
         nullptr,
     };
-    uint8_t *m_globalConstsBegin  = nullptr;
     uint32_t m_rtvDescriptorSize = 0;
     uint32_t m_dsvDescriptorSize = 0;
-
-    GlobalConsts m_globalConstsData = {};
 
     // Synchronization objects.
     uint32_t m_frameIndex = 0;

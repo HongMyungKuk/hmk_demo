@@ -3,6 +3,8 @@
 __declspec(align(256)) struct MeshConsts
 {
     XMMATRIX world;
+    XMMATRIX view;
+    XMMATRIX projection;
 };
 
 __declspec(align(256)) struct GlobalConsts

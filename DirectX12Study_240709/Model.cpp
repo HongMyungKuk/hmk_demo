@@ -20,7 +20,7 @@ Model::~Model()
 void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, ID3D12CommandQueue *commandQueue,
                        std::vector<MeshData> meshes)
 {
-    // BuildRootSignature(device);
+    BuildRootSignature(device);
     BuildShaderAndGraphicsPSO(device);
     BuildConstantBufferView(device);
 
@@ -47,6 +47,8 @@ void Model::Update()
 
 void Model::Render(ID3D12GraphicsCommandList *commandList)
 {
+    commandList->SetGraphicsRootSignature(m_rootSignature);
+
     for (auto &m : m_meshes)
     {
         ID3D12DescriptorHeap *descHeaps[] = {m_descriptorHeap};
@@ -63,8 +65,8 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
 void Model::BuildRootSignature(ID3D12Device *device)
 {
     CD3DX12_DESCRIPTOR_RANGE rangeObj[2] = {};
-    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 0); // b0, b1
-    rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0
+    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 0); // b1 : Mesh Consts, Material, b2 : Material Consts
+    rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0 : Texture
 
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
