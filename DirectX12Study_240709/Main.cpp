@@ -1,15 +1,16 @@
 #include "pch.h"
+
 #include "ModelViewer.h"
 #include <iostream>
 
 int main()
 {
-    ModelViewer viewer;
+    AppBase app;
 
-    if (!viewer.Initialize())
+    if (!app.Initialize())
     {
         return false;
     }
 
-    return viewer.Run();
+    return app.Run();
 }

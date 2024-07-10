@@ -3,8 +3,13 @@
 __declspec(align(256)) struct MeshConsts
 {
     XMMATRIX world;
+};
+
+__declspec(align(256)) struct GlobalConsts
+{
     XMMATRIX view;
     XMMATRIX projeciton;
+    XMFLOAT3 eyeWorld;
 };
 
 __declspec(align(256)) struct MaterialConsts

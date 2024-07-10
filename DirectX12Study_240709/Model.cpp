@@ -20,9 +20,8 @@ Model::~Model()
 void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, ID3D12CommandQueue *commandQueue,
                        std::vector<MeshData> meshes)
 {
-    BuildRootSignature(device);
+    // BuildRootSignature(device);
     BuildShaderAndGraphicsPSO(device);
-    BuildDescriptor(device);
     BuildConstantBufferView(device);
 
     for (auto &m : meshes)
@@ -48,8 +47,6 @@ void Model::Update()
 
 void Model::Render(ID3D12GraphicsCommandList *commandList)
 {
-    commandList->SetGraphicsRootSignature(m_rootSignature);
-
     for (auto &m : m_meshes)
     {
         ID3D12DescriptorHeap *descHeaps[] = {m_descriptorHeap};
@@ -144,6 +141,8 @@ void Model::BuildShaderAndGraphicsPSO(ID3D12Device *device)
 
 void Model::BuildConstantBufferView(ID3D12Device *device)
 {
+    D3DUtils::CreateDscriptor(device, 3, &m_descriptorHeap);
+
     auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle1(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 0,
@@ -174,15 +173,6 @@ void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *comman
     CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 2,
                                             cbvDescriptorSize);
     *uploadTexture = D3DUtils::CreateTexture(device, commandList, commandQueue, filename, texture, srvHandle);
-}
-
-void Model::BuildDescriptor(ID3D12Device *device)
-{
-    D3D12_DESCRIPTOR_HEAP_DESC desciptorHeapDesc = {};
-    desciptorHeapDesc.NumDescriptors             = 3;
-    desciptorHeapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    desciptorHeapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    ThrowIfFailed(device->CreateDescriptorHeap(&desciptorHeapDesc, IID_PPV_ARGS(&m_descriptorHeap)));
 }
 
 void Model::DestroyMeshBuffers()

@@ -1,5 +1,6 @@
-#include "D3DUtils.h"
 #include "pch.h"
+
+#include "D3DUtils.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -64,6 +65,15 @@ ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsComm
     SAFE_ARR_DELETE(image);
 
     return textureUploadHeap;
+}
+
+void D3DUtils::CreateDscriptor(ID3D12Device *device, uint32_t numDesc, ID3D12DescriptorHeap **descHeap)
+{
+    D3D12_DESCRIPTOR_HEAP_DESC desciptorHeapDesc = {};
+    desciptorHeapDesc.NumDescriptors             = numDesc;
+    desciptorHeapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    desciptorHeapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    ThrowIfFailed(device->CreateDescriptorHeap(&desciptorHeapDesc, IID_PPV_ARGS(descHeap)));
 }
 
 void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int &c)

@@ -1,5 +1,8 @@
 #include "pch.h"
+
 #include "AppBase.h"
+#include "GeometryGenerator.h"
+#include "Model.h"
 
 AppBase::AppBase()
 {
@@ -7,6 +10,11 @@ AppBase::AppBase()
 
 AppBase::~AppBase()
 {
+    WaitForPreviousFrame();
+    CloseHandle(m_fenceEvent);
+
+    SAFE_DELETE(m_model);
+    SAFE_RELEASE(m_rootSignature);
     SAFE_RELEASE(m_fence);
     SAFE_RELEASE(m_commandList);
     SAFE_RELEASE(m_commandAllocator);
@@ -26,25 +34,55 @@ bool AppBase::Initialize()
     {
         return false;
     }
-
     if (!InitD3D())
     {
         return false;
     }
-
     if (!InitGui())
     {
         return false;
+    }
+
+    BuidRootSignature();
+    BuildGlobalConsts();
+
+    // Create the model.
+    {
+        m_model = new Model;
+        if (!m_model)
+        {
+            return false;
+        }
+
+        {
+            MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
+            cube.albedoTextureFilename = "texture.jpg";
+            m_model->Initialize(m_device, m_commandList, m_commandQueue, {cube});
+            WaitForPreviousFrame();
+        }
     }
 
     return true;
 }
 void AppBase::Update()
 {
+    static float dt = 0.0f;
+    dt += 1.0f / 60.0f;
+
+    m_model->GetMeshConstCPU().world = XMMatrixTranspose(XMMatrixRotationY(dt));
+    m_model->Update();
+
+    UpdateGlobalConsts();
 }
 
 void AppBase::Render()
 {
+    ID3D12DescriptorHeap *descHeaps[] = {m_globalConstsHeap};
+    m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+    m_commandList->SetGraphicsRootDescriptorTable(0, m_globalConstsHeap->GetGPUDescriptorHandleForHeapStart());
+
+    m_commandList->SetPipelineState(m_model->GetPSO());
+    m_model->Render(m_commandList);
 }
 
 int32_t AppBase::Run()
@@ -62,7 +100,9 @@ int32_t AppBase::Run()
         else
         {
             Update();
+            AppBase::BeginRender();
             Render();
+            AppBase::EndRender();
         }
     }
     // Return this part of the WM_QUIT message to Windows.
@@ -271,13 +311,6 @@ bool AppBase::InitD3D()
                                                                                 D3D12_RESOURCE_STATE_COMMON,
                                                                                 D3D12_RESOURCE_STATE_DEPTH_WRITE));
     }
-
-    //ThrowIfFailed(m_commandList->Close());
-    //ID3D12CommandList *cmdsLists[] = {m_commandList};
-    //m_commandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-    WaitForPreviousFrame();
-
     SAFE_RELEASE(factory);
 
     return true;
@@ -350,6 +383,118 @@ void AppBase::GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdap
     adapter    = nullptr;
 
     SAFE_RELEASE(factory6);
+}
+
+void AppBase::BuidRootSignature()
+{
+    CD3DX12_DESCRIPTOR_RANGE rangeObj[2] = {};
+    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 0); // b0 : MeshConsts, b1 : GlobalConsts
+    rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0
+
+    D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+    CD3DX12_ROOT_PARAMETER rootParameters[1] = {};
+    rootParameters[0].InitAsDescriptorTable(_countof(rangeObj), rangeObj, D3D12_SHADER_VISIBILITY_ALL);
+
+    D3D12_STATIC_SAMPLER_DESC sampler = {};
+    sampler.Filter                    = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    sampler.AddressU                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressV                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressW                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.MipLODBias                = 0;
+    sampler.MaxAnisotropy             = 0;
+    sampler.ComparisonFunc            = D3D12_COMPARISON_FUNC_NEVER;
+    sampler.BorderColor               = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    sampler.MinLOD                    = 0.0f;
+    sampler.MaxLOD                    = D3D12_FLOAT32_MAX;
+    sampler.ShaderRegister            = 0;
+    sampler.RegisterSpace             = 0;
+    sampler.ShaderVisibility          = D3D12_SHADER_VISIBILITY_ALL;
+
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+    rootSignatureDesc.Init(_countof(rootParameters), rootParameters, 1, &sampler, rootSignatureFlags);
+
+    ID3DBlob *signature = nullptr;
+    ID3DBlob *error     = nullptr;
+    ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+    ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(),
+                                                IID_PPV_ARGS(&m_rootSignature)));
+}
+
+void AppBase::BuildGlobalConsts()
+{
+    D3DUtils::CreateDscriptor(m_device, 1, &m_globalConstsHeap);
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_globalConstsHeap->GetCPUDescriptorHandleForHeapStart(), 0);
+    D3DUtils::CreateConstantBuffer(m_device, &m_globalConstsBuffer, &m_globalConstsBegin, &m_globalConstsData, handle);
+}
+
+void AppBase::UpdateGlobalConsts()
+{
+    XMFLOAT3 eye = XMFLOAT3(0.0f, 0.0f, -3.0f);
+    XMFLOAT3 dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
+    XMFLOAT3 up  = XMFLOAT3(0.0f, 1.0f, 0.0f);
+
+    auto eyeVec = XMLoadFloat3(&eye);
+    auto dirVec = XMLoadFloat3(&dir);
+    auto upVec  = XMLoadFloat3(&up);
+
+    m_globalConstsData.view = XMMatrixTranspose(XMMatrixLookToLH(eyeVec, dirVec, upVec));
+    m_globalConstsData.projeciton =
+        XMMatrixTranspose(XMMatrixPerspectiveFovLH(XMConvertToRadians(70.0f), AppBase::GetAspect(), 0.01f, 1000.0f));
+
+    memcpy(m_globalConstsBegin, &m_globalConstsData, sizeof(m_globalConstsData));
+}
+
+void AppBase::BeginRender()
+{
+    // Command list allocators can only be reset when the associated
+    // command lists have finished execution on the GPU; apps should use
+    // fences to determine GPU execution progress.
+    ThrowIfFailed(m_commandAllocator->Reset());
+
+    // However, when ExecuteCommandList() is called on a particular command
+    // list, that command list can then be reset at any time and must be before
+    // re-recording.
+    ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
+
+    m_commandList->SetGraphicsRootSignature(m_rootSignature);
+    m_commandList->RSSetViewports(1, &m_viewport);
+    m_commandList->RSSetScissorRects(1, &m_scissorRect);
+
+    // Indicate that the back buffer will be used as a render target.
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex],
+                                                                            D3D12_RESOURCE_STATE_PRESENT,
+                                                                            D3D12_RESOURCE_STATE_RENDER_TARGET));
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex,
+                                            m_rtvDescriptorSize);
+    m_commandList->OMSetRenderTargets(1, &rtvHandle, false, &m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+    // Record commands.
+    const float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
+    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
+                                         D3D12_CLEAR_FLAG_STENCIL | D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+}
+
+void AppBase::EndRender()
+{
+    // Indicate that the back buffer will now be used to present.
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex],
+                                                                            D3D12_RESOURCE_STATE_RENDER_TARGET,
+                                                                            D3D12_RESOURCE_STATE_PRESENT));
+    ThrowIfFailed(m_commandList->Close());
+    // Execute the command list.
+    ID3D12CommandList *ppCommandLists[] = {m_commandList};
+    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+    // Present the frame.
+    ThrowIfFailed(m_swapChain->Present(1, 0));
+
+    WaitForPreviousFrame();
+
+    m_frameIndex = (m_frameIndex + 1) % s_frameCount;
 }
 
 LRESULT AppBase::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
