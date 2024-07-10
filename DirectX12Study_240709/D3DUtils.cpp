@@ -70,6 +70,11 @@ void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int
 {
     uint8_t *img = stbi_load(filename.c_str(), &w, &h, &c, 0);
 
+    if (img)
+        std::cout << filename << " " << w << ", " << h << ", " << c << std::endl;
+    else
+        std::cout << filename << "is not found." << std::endl;
+
     uint64_t size = uint64_t(w * h * 4);
 
     *image = new uint8_t[size];
@@ -80,26 +85,34 @@ void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int
 
     if (c == 3)
     {
-        // for (int32_t j = 0; j < h; j++)
-        //{
-        //     for (int32_t i = 0; i < w; i++)
-        //     {
-        //         for (int32_t k = 0; k < c; k++)
-        //         {
-        //             (*image)[4 * (w * j + i) + k] = img[3 * (w * j + i) + k];
-        //         }
-        //         (*image)[4 + (w * j + i) + 3] = 255;
-        //     }
-        // }
-
-        for (size_t i = 0; i < w * h; i++)
+        for (int32_t j = 0; j < h; j++)
         {
-            for (size_t k = 0; k < 3; k++)
+            for (int32_t i = 0; i < w; i++)
             {
-                (*image)[4 * i + k] = img[i * c + k];
+                for (int32_t k = 0; k < c; k++)
+                {
+                    (*image)[4 * (w * j + i) + k] = img[3 * (w * j + i) + k];
+                }
+                (*image)[4 * (w * j + i) + 3] = 255;
             }
-            (*image)[4 * i + 3] = 255;
         }
+    }
+    else if (c == 4)
+    {
+        for (int32_t j = 0; j < h; j++)
+        {
+            for (int32_t i = 0; i < w; i++)
+            {
+                for (int32_t k = 0; k < c; k++)
+                {
+                    (*image)[4 * (w * j + i) + k] = img[4 * (w * j + i) + k];
+                }
+            }
+        }
+    }
+    else
+    {
+        std::cout << filename << " is not 3 or 4 channels. This image file`s channel is " << c << std::endl;
     }
 
     SAFE_ARR_DELETE(img);

@@ -1,22 +1,9 @@
 #pragma once
 
 #include "Mesh.h"
+#include "ConstantBuffer.h"
 
 using namespace DirectX;
-
-__declspec(align(256)) struct MeshConsts
-{
-    XMMATRIX world;
-    XMMATRIX view;
-    XMMATRIX projeciton;
-};
-
-__declspec(align(256)) struct MaterialConsts
-{
-    XMFLOAT3 ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
-    XMFLOAT3 diffuse;
-    XMFLOAT3 specular;
-};
 
 class Model
 {

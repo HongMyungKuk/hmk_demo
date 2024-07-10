@@ -3,6 +3,7 @@
 #include "GeometryGenerator.h"
 #include "Model.h"
 
+
 ModelViewer::ModelViewer() : AppBase()
 {
 }
@@ -29,7 +30,7 @@ bool ModelViewer::Initialize()
     }
 
     {
-        MeshData cube = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
+        MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
         cube.albedoTextureFilename = "texture.jpg";
         m_model->Initialize(m_device, m_commandList, m_commandQueue, {cube});
         WaitForPreviousFrame();
@@ -69,7 +70,7 @@ void ModelViewer::Render()
     // However, when ExecuteCommandList() is called on a particular command
     // list, that command list can then be reset at any time and must be before
     // re-recording.
-    ThrowIfFailed(m_commandList->Reset(m_commandAllocator, m_model->GetPSO()));
+    ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
 
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
@@ -87,6 +88,7 @@ void ModelViewer::Render()
     m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
                                          D3D12_CLEAR_FLAG_STENCIL | D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
+    m_commandList->SetPipelineState(m_model->GetPSO());
     m_model->Render(m_commandList);
 
     // Indicate that the back buffer will now be used to present.
