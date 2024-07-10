@@ -7,6 +7,20 @@ namespace Graphics
 D3D12_STATIC_SAMPLER_DESC slinearWrapSamplerDesc;
 std::vector<D3D12_STATIC_SAMPLER_DESC> vecSamplerDesc;
 
+std::vector<D3D12_INPUT_ELEMENT_DESC> basicILDesc;
+
+ID3DBlob *basicVS;
+ID3DBlob *basicPS;
+
+ID3D12PipelineState *defaultPSO;
+
+void InitGraphicsCommon(ID3D12Device *device, ID3D12RootSignature *rootSignature)
+{
+    InitSamplers();
+    InitShader();
+    InitPipeLineState(device, rootSignature);
+}
+
 void InitSamplers()
 {
     slinearWrapSamplerDesc.Filter           = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -26,46 +40,43 @@ void InitSamplers()
     vecSamplerDesc.push_back(slinearWrapSamplerDesc);
 }
 
-void InitRootSignature(ID3D12Device *device)
+void InitShader()
 {
-    CD3DX12_DESCRIPTOR_RANGE rangeObj[2] = {};
-    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 0); // b1 : Mesh Consts, Material, b2 : Material Consts
-    rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0 : Texture
+#if defined(_DEBUG)
+    // Enable better shader debugging with the graphics debugging tools.
+    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+    UINT compileFlags = 0;
+#endif
 
-    D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-    CD3DX12_ROOT_PARAMETER rootParameters[1] = {};
-    rootParameters[0].InitAsDescriptorTable(_countof(rangeObj), rangeObj, D3D12_SHADER_VISIBILITY_ALL);
+    ThrowIfFailed(
+        D3DCompileFromFile(L"Shaders.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &basicVS, nullptr));
+    ThrowIfFailed(
+        D3DCompileFromFile(L"Shaders.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &basicPS, nullptr));
 
-    D3D12_STATIC_SAMPLER_DESC sampler = {};
-    sampler.Filter                    = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    sampler.AddressU                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sampler.AddressV                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sampler.AddressW                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sampler.MipLODBias                = 0;
-    sampler.MaxAnisotropy             = 0;
-    sampler.ComparisonFunc            = D3D12_COMPARISON_FUNC_NEVER;
-    sampler.BorderColor               = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-    sampler.MinLOD                    = 0.0f;
-    sampler.MaxLOD                    = D3D12_FLOAT32_MAX;
-    sampler.ShaderRegister            = 0;
-    sampler.RegisterSpace             = 0;
-    sampler.ShaderVisibility          = D3D12_SHADER_VISIBILITY_ALL;
+    basicILDesc = {{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+                   {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+                   {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
 
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(_countof(rootParameters), rootParameters, 1, &sampler, rootSignatureFlags);
-
-    ID3DBlob *signature = nullptr;
-    ID3DBlob *error     = nullptr;
-    ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-    ThrowIfFailed(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(),
-                                              IID_PPV_ARGS(&defaultRS)));
 }
 
-void InitPipeLineState(ID3D12Device *device)
+void InitPipeLineState(ID3D12Device *device, ID3D12RootSignature *rootSignature)
 {
-
+    // Describe and create the graphics pipeline state object (PSO).
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+    psoDesc.InputLayout                        = {basicILDesc.data(), UINT(basicILDesc.size())};
+    psoDesc.pRootSignature                     = rootSignature;
+    psoDesc.VS                                 = CD3DX12_SHADER_BYTECODE(basicVS);
+    psoDesc.PS                                 = CD3DX12_SHADER_BYTECODE(basicPS);
+    psoDesc.RasterizerState                    = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    psoDesc.BlendState                         = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    psoDesc.DepthStencilState.DepthEnable      = FALSE;
+    psoDesc.DepthStencilState.StencilEnable    = FALSE;
+    psoDesc.SampleMask                         = UINT_MAX;
+    psoDesc.PrimitiveTopologyType              = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    psoDesc.NumRenderTargets                   = 1;
+    psoDesc.RTVFormats[0]                      = DXGI_FORMAT_R8G8B8A8_UNORM;
+    psoDesc.SampleDesc.Count                   = 1;
+    ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&defaultPSO)));
 }
 } // namespace Graphics

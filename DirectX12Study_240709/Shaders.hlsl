@@ -9,14 +9,32 @@
 //
 //*********************************************************
 
-cbuffer MeshConsts : register(b0)
+#define MAX_LIGHTS 3
+
+struct Light
 {
-    Matrix world;
-    Matrix view;
-    Matrix projection;
+    float3 direction;
+    float3 position;
+    float3 irRadiance;
+    float shininess;
+    float spotPower;
 };
 
-cbuffer MaterialConstants : register(b1)
+cbuffer GloabalConsts : register(b0)
+{
+    Matrix view;
+    Matrix projection;
+    float3 eyeWorld;
+
+    Light light[MAX_LIGHTS];
+}
+
+cbuffer MeshConsts : register(b1)
+{
+    Matrix world;
+};
+
+cbuffer MaterialConstants : register(b2)
 {
     float3 ambient;
     float3 diffuse;

@@ -2,6 +2,7 @@
 
 #include "AppBase.h"
 #include "GeometryGenerator.h"
+#include "GraphicsCommon.h"
 #include "Model.h"
 
 AppBase::AppBase()
@@ -13,7 +14,10 @@ AppBase::~AppBase()
     WaitForPreviousFrame();
     CloseHandle(m_fenceEvent);
 
+    DestroyPSO();
+
     SAFE_DELETE(m_model);
+    SAFE_RELEASE(m_rootSignature)
     SAFE_RELEASE(m_fence);
     SAFE_RELEASE(m_commandList);
     SAFE_RELEASE(m_commandAllocator);
@@ -42,6 +46,12 @@ bool AppBase::Initialize()
         return false;
     }
 
+    this->BuildRootSignature();
+    this->BuildGlobalConsts();
+
+    // Init graphics common.
+    Graphics::InitGraphicsCommon(m_device, m_rootSignature);
+
     // Create the model.
     {
         m_model = new Model;
@@ -66,6 +76,7 @@ void AppBase::Update()
     dt += 1.0f / 60.0f;
 
     m_model->GetMeshConstCPU().world = XMMatrixTranspose(XMMatrixRotationY(dt));
+    m_model->Update();
 
     XMFLOAT3 eye = XMFLOAT3(0.0f, 0.0f, -3.0f);
     XMFLOAT3 dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
@@ -75,11 +86,11 @@ void AppBase::Update()
     auto dirVec = XMLoadFloat3(&dir);
     auto upVec  = XMLoadFloat3(&up);
 
-    m_model->GetMeshConstCPU().view = XMMatrixTranspose(XMMatrixLookToLH(eyeVec, dirVec, upVec));
-    m_model->GetMeshConstCPU().projection =
+    m_globalConstData.eyeWorld = eye;
+    m_globalConstData.view     = XMMatrixTranspose(XMMatrixLookToLH(eyeVec, dirVec, upVec));
+    m_globalConstData.projeciton =
         XMMatrixTranspose(XMMatrixPerspectiveFovLH(XMConvertToRadians(70.0f), AppBase::GetAspect(), 0.01f, 1000.0f));
-
-    m_model->Update();
+    m_globalConstsBuffer.Upload(0, &m_globalConstData);
 }
 
 void AppBase::Render()
@@ -388,6 +399,51 @@ void AppBase::GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdap
     SAFE_RELEASE(factory6);
 }
 
+void AppBase::BuildRootSignature()
+{
+    // Create root signature.
+    CD3DX12_DESCRIPTOR_RANGE rangeObj[2] = {};
+    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1); // b1 : Mesh Consts, Material, b2 : Material Consts
+    rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0 : Texture
+
+    D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+    CD3DX12_ROOT_PARAMETER rootParameters[2] = {};
+    rootParameters[0].InitAsConstantBufferView(0); // b0 : Global Consts
+    rootParameters[1].InitAsDescriptorTable(_countof(rangeObj), rangeObj, D3D12_SHADER_VISIBILITY_ALL);
+
+    D3D12_STATIC_SAMPLER_DESC sampler = {};
+    sampler.Filter                    = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    sampler.AddressU                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressV                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.AddressW                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    sampler.MipLODBias                = 0;
+    sampler.MaxAnisotropy             = 0;
+    sampler.ComparisonFunc            = D3D12_COMPARISON_FUNC_NEVER;
+    sampler.BorderColor               = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+    sampler.MinLOD                    = 0.0f;
+    sampler.MaxLOD                    = D3D12_FLOAT32_MAX;
+    sampler.ShaderRegister            = 0;
+    sampler.RegisterSpace             = 0;
+    sampler.ShaderVisibility          = D3D12_SHADER_VISIBILITY_ALL;
+
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+    rootSignatureDesc.Init(_countof(rootParameters), rootParameters, 1, &sampler, rootSignatureFlags);
+
+    ID3DBlob *signature = nullptr;
+    ID3DBlob *error     = nullptr;
+    ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+    ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(),
+                                                IID_PPV_ARGS(&m_rootSignature)));
+}
+
+void AppBase::BuildGlobalConsts()
+{
+    m_globalConstsBuffer.Initialize(m_device, 1);
+}
+
 void AppBase::BeginRender()
 {
     // Command list allocators can only be reset when the associated
@@ -402,6 +458,10 @@ void AppBase::BeginRender()
 
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
+
+    m_commandList->SetGraphicsRootSignature(m_rootSignature);
+    //  Global consts
+    m_commandList->SetGraphicsRootConstantBufferView(0, m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
 
     // Indicate that the back buffer will be used as a render target.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex],
@@ -434,6 +494,11 @@ void AppBase::EndRender()
     WaitForPreviousFrame();
 
     m_frameIndex = (m_frameIndex + 1) % s_frameCount;
+}
+
+void AppBase::DestroyPSO()
+{
+    SAFE_RELEASE(Graphics::defaultPSO);
 }
 
 LRESULT AppBase::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)

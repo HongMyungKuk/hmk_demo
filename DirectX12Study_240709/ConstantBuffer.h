@@ -3,23 +3,11 @@
 __declspec(align(256)) struct MeshConsts
 {
     XMMATRIX world;
-    XMMATRIX view;
-    XMMATRIX projection;
+    // XMMATRIX view;
+    // XMMATRIX projection;
 };
 
-__declspec(align(256)) struct GlobalConsts
-{
-    XMMATRIX view;
-    XMMATRIX projeciton;
-    XMFLOAT3 eyeWorld;
-};
-
-__declspec(align(256)) struct MaterialConsts
-{
-    XMFLOAT3 ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
-    XMFLOAT3 diffuse;
-    XMFLOAT3 specular;
-};
+#define MAX_LIGHTS 3
 
 struct Light
 {
@@ -28,6 +16,22 @@ struct Light
     XMFLOAT3 irRadiance;
     float shininess;
     float spotPower;
+};
+
+__declspec(align(256)) struct GlobalConsts
+{
+    XMMATRIX view;
+    XMMATRIX projeciton;
+    XMFLOAT3 eyeWorld;
+
+    Light lights[MAX_LIGHTS];
+};
+
+__declspec(align(256)) struct MaterialConsts
+{
+    XMFLOAT3 ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
+    XMFLOAT3 diffuse;
+    XMFLOAT3 specular;
 };
 
 template <typename T_CONST> class UploadBuffer
@@ -41,6 +45,7 @@ template <typename T_CONST> class UploadBuffer
         if (m_uploadBuffer)
         {
             m_uploadBuffer->Unmap(0, nullptr);
+            SAFE_RELEASE(m_uploadBuffer);
         }
         m_mappedData = nullptr;
     }
@@ -56,14 +61,14 @@ template <typename T_CONST> class UploadBuffer
         ThrowIfFailed(m_uploadBuffer->Map(0, nullptr, reinterpret_cast<void **>(&m_mappedData)));
     }
 
-    ID3D12Resource* GetResource()
+    ID3D12Resource *GetResource()
     {
         return m_uploadBuffer;
     }
 
-    void Upload(int idx, const T_CONST data)
+    void Upload(int idx, void* data)
     {
-        memcpy(m_mappedData, &data, sizeof(T_CONST));
+        memcpy(m_mappedData, data, sizeof(T_CONST));
     }
 
   private:

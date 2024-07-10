@@ -25,8 +25,11 @@ class AppBase
     bool InitGui();
     void GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdapter,
                             bool requestHighPerformanceAdapter = false);
+    void BuildRootSignature();
+    void BuildGlobalConsts();
     void BeginRender();
     void EndRender();
+    void DestroyPSO();
 
     static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -49,10 +52,15 @@ class AppBase
     ID3D12DescriptorHeap *m_rtvHeap               = nullptr;
     ID3D12DescriptorHeap *m_dsvHeap               = nullptr;
     ID3D12GraphicsCommandList *m_commandList      = nullptr;
+    ID3D12RootSignature *m_rootSignature          = nullptr;
     ID3D12Resource *m_depthStencilBuffer          = nullptr;
     ID3D12Resource *m_renderTargets[s_frameCount] = {
         nullptr,
     };
+
+    GlobalConsts m_globalConstData = {};
+    UploadBuffer<GlobalConsts> m_globalConstsBuffer;
+
     uint32_t m_rtvDescriptorSize = 0;
     uint32_t m_dsvDescriptorSize = 0;
 

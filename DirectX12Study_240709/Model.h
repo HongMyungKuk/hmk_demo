@@ -19,8 +19,6 @@ class Model
     virtual void Render(ID3D12GraphicsCommandList *commandList);
 
   private:
-    void BuildRootSignature(ID3D12Device *device);
-    void BuildShaderAndGraphicsPSO(ID3D12Device *device);
     void BuildConstantBufferView(ID3D12Device *device);
     void BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshData);
     void BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, ID3D12CommandQueue *commandQueue,
@@ -32,7 +30,7 @@ class Model
   public:
     ID3D12PipelineState *GetPSO()
     {
-        return m_pipelineState;
+        return Graphics::defaultPSO;
     }
     MeshConsts &GetMeshConstCPU()
     {
