@@ -272,9 +272,9 @@ bool AppBase::InitD3D()
                                                                                 D3D12_RESOURCE_STATE_DEPTH_WRITE));
     }
 
-    ThrowIfFailed(m_commandList->Close());
-    ID3D12CommandList *cmdsLists[] = {m_commandList};
-    m_commandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+    //ThrowIfFailed(m_commandList->Close());
+    //ID3D12CommandList *cmdsLists[] = {m_commandList};
+    //m_commandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
     WaitForPreviousFrame();
 

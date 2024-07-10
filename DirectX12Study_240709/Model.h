@@ -37,8 +37,10 @@ class Model
     void BuildConstantBufferView(ID3D12Device *device);
     void BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshData);
     void BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, ID3D12CommandQueue *commandQueue,
-                      const std::string &filename, ID3D12Resource **texture, ID3D12DescriptorHeap** srvHeap);
+                      const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture);
+    void BuildDescriptor(ID3D12Device *device);
     void DestroyMeshBuffers();
+    void DestroyTextureResource();
 
   public:
     ID3D12PipelineState *GetPSO()
@@ -55,7 +57,8 @@ class Model
     ID3D12PipelineState *m_pipelineState     = nullptr;
     ID3D12Resource *m_meshConstBuffer        = nullptr;
     ID3D12Resource *m_materialConstBuffer    = nullptr;
-    ID3D12DescriptorHeap *m_cbvHeap          = nullptr;
+    ID3D12DescriptorHeap *m_descriptorHeap   = nullptr;
+    ID3D12Resource *m_textureUploadHeap      = nullptr;
     uint8_t *m_meshDataBeign                 = nullptr;
     uint8_t *m_materialDataBeign             = nullptr;
     MeshConsts m_meshConstBufferData         = {};

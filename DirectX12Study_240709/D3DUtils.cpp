@@ -1,15 +1,18 @@
-#include "pch.h"
 #include "D3DUtils.h"
+#include "pch.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-void D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
-                             ID3D12CommandQueue *commandQueue, const std::string &filename, ID3D12Resource **texture,
-                             D3D12_CPU_DESCRIPTOR_HANDLE &descHandle)
-{
-    int32_t width, height, channels;
+void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int &c);
 
-    uint8_t *image = stbi_load(filename.c_str(), &width, &height, &channels, 0);
+ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
+                                        ID3D12CommandQueue *commandQueue, const std::string &filename,
+                                        ID3D12Resource **texture, D3D12_CPU_DESCRIPTOR_HANDLE &descHandle)
+{
+    int32_t width = 0, height = 0, channels = 0;
+
+    uint8_t *image = nullptr;
+    ReadImage(&image, filename, width, height, channels);
 
     channels = 4;
 
@@ -29,13 +32,13 @@ void D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *co
                                                   D3D12_HEAP_FLAG_NONE, &textureDesc, D3D12_RESOURCE_STATE_COPY_DEST,
                                                   nullptr, IID_PPV_ARGS(texture)));
 
-    // const UINT64 uploadBufferSize = GetRequiredIntermediateSize(*texture, 0, 1);
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(*texture, 0, 1);
 
     // Create the GPU upload buffer.Z
     ID3D12Resource *textureUploadHeap = nullptr;
     ThrowIfFailed(
         device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
-                                        &CD3DX12_RESOURCE_DESC::Buffer(width * height * channels),
+                                        &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
                                         D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&textureUploadHeap)));
     D3D12_SUBRESOURCE_DATA textureData = {};
     textureData.pData                  = (void *)image;
@@ -57,4 +60,47 @@ void D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *co
     // Execute the command list.
     ID3D12CommandList *ppCommandLists[] = {commandList};
     commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+    SAFE_ARR_DELETE(image);
+
+    return textureUploadHeap;
+}
+
+void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int &c)
+{
+    uint8_t *img = stbi_load(filename.c_str(), &w, &h, &c, 0);
+
+    uint64_t size = uint64_t(w * h * 4);
+
+    *image = new uint8_t[size];
+    if (!image)
+    {
+        return;
+    }
+
+    if (c == 3)
+    {
+        // for (int32_t j = 0; j < h; j++)
+        //{
+        //     for (int32_t i = 0; i < w; i++)
+        //     {
+        //         for (int32_t k = 0; k < c; k++)
+        //         {
+        //             (*image)[4 * (w * j + i) + k] = img[3 * (w * j + i) + k];
+        //         }
+        //         (*image)[4 + (w * j + i) + 3] = 255;
+        //     }
+        // }
+
+        for (size_t i = 0; i < w * h; i++)
+        {
+            for (size_t k = 0; k < 3; k++)
+            {
+                (*image)[4 * i + k] = img[i * c + k];
+            }
+            (*image)[4 * i + 3] = 255;
+        }
+    }
+
+    SAFE_ARR_DELETE(img);
 }

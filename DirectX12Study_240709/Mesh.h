@@ -35,8 +35,8 @@ struct Mesh
     uint32_t vertexCount         = 0;
     uint32_t indexCount          = 0;
     // Teture
-    ID3D12Resource *albedoTexture       = nullptr;
-    ID3D12DescriptorHeap *albedoSRVheap = nullptr;
+    ID3D12Resource *albedoTexture = nullptr;
+    ID3D12Resource *albedoUploadTexture = nullptr;
 
     D3D12_VERTEX_BUFFER_VIEW VertexBufferView()
     {

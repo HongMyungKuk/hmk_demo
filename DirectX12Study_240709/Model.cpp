@@ -8,8 +8,9 @@ Model::Model()
 
 Model::~Model()
 {
+    DestroyTextureResource();
     DestroyMeshBuffers();
-    SAFE_RELEASE(m_cbvHeap);
+    SAFE_RELEASE(m_descriptorHeap);
     SAFE_RELEASE(m_materialConstBuffer);
     SAFE_RELEASE(m_meshConstBuffer);
     SAFE_RELEASE(m_pipelineState);
@@ -21,6 +22,7 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
 {
     BuildRootSignature(device);
     BuildShaderAndGraphicsPSO(device);
+    BuildDescriptor(device);
     BuildConstantBufferView(device);
 
     for (auto &m : meshes)
@@ -31,7 +33,7 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
         if (!m.albedoTextureFilename.empty())
         {
             this->BuildTexture(device, commandList, commandQueue, m.albedoTextureFilename, &newMesh.albedoTexture,
-                               &newMesh.albedoSRVheap);
+                               &newMesh.albedoUploadTexture);
         }
 
         m_meshes.push_back(newMesh);
@@ -50,9 +52,9 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
 
     for (auto &m : m_meshes)
     {
-        ID3D12DescriptorHeap *descHeaps[] = {m_cbvHeap, m.albedoSRVheap};
+        ID3D12DescriptorHeap *descHeaps[] = {m_descriptorHeap};
         commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
-        commandList->SetGraphicsRootDescriptorTable(0, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+        commandList->SetGraphicsRootDescriptorTable(0, m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         commandList->IASetVertexBuffers(0, 1, &m.VertexBufferView());
@@ -87,7 +89,7 @@ void Model::BuildRootSignature(ID3D12Device *device)
     sampler.MaxLOD                    = D3D12_FLOAT32_MAX;
     sampler.ShaderRegister            = 0;
     sampler.RegisterSpace             = 0;
-    sampler.ShaderVisibility          = D3D12_SHADER_VISIBILITY_PIXEL;
+    sampler.ShaderVisibility          = D3D12_SHADER_VISIBILITY_ALL;
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(_countof(rootParameters), rootParameters, 1, &sampler, rootSignatureFlags);
@@ -119,8 +121,8 @@ void Model::BuildShaderAndGraphicsPSO(ID3D12Device *device)
     // Define the vertex input layout.
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
 
     // Describe and create the graphics pipeline state object (PSO).
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -142,17 +144,13 @@ void Model::BuildShaderAndGraphicsPSO(ID3D12Device *device)
 
 void Model::BuildConstantBufferView(ID3D12Device *device)
 {
-    D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
-    cbvHeapDesc.NumDescriptors             = 2;
-    cbvHeapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    cbvHeapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    ThrowIfFailed(device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
-
     auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle1(m_cbvHeap->GetCPUDescriptorHandleForHeapStart(), 0, cbvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle1(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 0,
+                                             cbvDescriptorSize);
     D3DUtils::CreateConstantBuffer(device, &m_meshConstBuffer, &m_meshDataBeign, &m_meshConstBufferData, cbvHandle1);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle2(m_cbvHeap->GetCPUDescriptorHandleForHeapStart(), 1, cbvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle2(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 1,
+                                             cbvDescriptorSize);
     D3DUtils::CreateConstantBuffer(device, &m_materialConstBuffer, &m_materialDataBeign, &m_materialConstBufferData,
                                    cbvHandle2);
 }
@@ -161,24 +159,30 @@ void Model::BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshDat
 {
     // Create vertex buffer view
     D3DUtils::CreateDefaultBuffer(device, &mesh.vertexBuffer, meshData.vertices.data(),
-                                  meshData.vertices.size() * sizeof(Vertex));
+                                  uint32_t(meshData.vertices.size() * sizeof(Vertex)));
     D3DUtils::CreateDefaultBuffer(device, &mesh.indexBuffer, meshData.indices.data(),
-                                  meshData.indices.size() * sizeof(uint16_t));
-    mesh.vertexCount = meshData.vertices.size();
-    mesh.indexCount  = meshData.indices.size();
+                                  uint32_t(meshData.indices.size() * sizeof(uint16_t)));
+    mesh.vertexCount = uint32_t(meshData.vertices.size());
+    mesh.indexCount  = uint32_t(meshData.indices.size());
 }
 
 void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, ID3D12CommandQueue *commandQueue,
-                         const std::string &filename, ID3D12Resource **texture, ID3D12DescriptorHeap **srvHeap)
+                         const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture)
 {
-    D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-    srvHeapDesc.NumDescriptors             = 1;
-    srvHeapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    srvHeapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    ThrowIfFailed(device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(srvHeap)));
+    auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle((*srvHeap)->GetCPUDescriptorHandleForHeapStart());
-    D3DUtils::CreateTexture(device, commandList, commandQueue, filename, texture, srvHandle);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 2,
+                                            cbvDescriptorSize);
+    *uploadTexture = D3DUtils::CreateTexture(device, commandList, commandQueue, filename, texture, srvHandle);
+}
+
+void Model::BuildDescriptor(ID3D12Device *device)
+{
+    D3D12_DESCRIPTOR_HEAP_DESC desciptorHeapDesc = {};
+    desciptorHeapDesc.NumDescriptors             = 3;
+    desciptorHeapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    desciptorHeapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    ThrowIfFailed(device->CreateDescriptorHeap(&desciptorHeapDesc, IID_PPV_ARGS(&m_descriptorHeap)));
 }
 
 void Model::DestroyMeshBuffers()
@@ -187,5 +191,14 @@ void Model::DestroyMeshBuffers()
     {
         SAFE_RELEASE(m.vertexBuffer);
         SAFE_RELEASE(m.indexBuffer);
+    }
+}
+
+void Model::DestroyTextureResource()
+{
+    for (auto &m : m_meshes)
+    {
+        SAFE_RELEASE(m.albedoTexture);
+        SAFE_RELEASE(m.albedoUploadTexture);
     }
 }

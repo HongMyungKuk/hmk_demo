@@ -32,6 +32,7 @@ bool ModelViewer::Initialize()
         MeshData cube = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
         cube.albedoTextureFilename = "texture.jpg";
         m_model->Initialize(m_device, m_commandList, m_commandQueue, {cube});
+        WaitForPreviousFrame();
     }
 
     return true;
@@ -40,7 +41,7 @@ bool ModelViewer::Initialize()
 void ModelViewer::Update()
 {
     static float dt = 0.0f;
-    dt += 1.0f / 10.0f;
+    dt += 1.0f / 60.0f;
 
     XMFLOAT3 eye = XMFLOAT3(0.0f, 0.0f, -3.0f);
     XMFLOAT3 dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
