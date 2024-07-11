@@ -6,8 +6,8 @@ namespace Uitls
 {
 void reverse(char *arr)
 {
-    uint32_t len = strlen(arr);
-    for (int32_t i = 0; i < len/2; i++)
+    uint32_t len = uint32_t(strlen(arr));
+    for (uint32_t i = 0; i < len/2; i++)
     {
         std::swap(arr[i], arr[len - i - 1]);
     }

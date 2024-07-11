@@ -10,7 +10,7 @@ MeshData GeometryGenerator::MakeSquare(const float w, const float h)
     float w2 = 0.5f * w;
     float h2 = 0.5f * h;
 
-    std::vector<Vertex> &vertices  = meshData.vertices;
+    std::vector<Vertex> &vertices           = meshData.vertices;
     std::vector<MeshData::index_t> &indices = meshData.indices;
 
     vertices = {{XMFLOAT3(-w2, -h2, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(0.0f, 1.0f)},
@@ -131,20 +131,68 @@ MeshData GeometryGenerator::MakeCube(const float w, const float h, const float d
     return meshData;
 }
 
+void NomalizeModel(std::vector<MeshData> &meshes, const float sacle)
+{
+    XMFLOAT3 max = XMFLOAT3(-1000.0f, -1000.0f, -1000.0f);
+    XMFLOAT3 min = XMFLOAT3(1000.0f, 1000.0f, 1000.0f);
+
+    for (const auto &m : meshes)
+    {
+        for (const auto &p : m.vertices)
+        {
+            max.x = DirectX::XMMax(p.position.x, max.x);
+            min.x = DirectX::XMMin(p.position.x, min.x);
+            max.y = DirectX::XMMax(p.position.y, max.y);
+            min.y = DirectX::XMMin(p.position.y, min.y);
+            max.z = DirectX::XMMax(p.position.y, max.z);
+            min.z = DirectX::XMMin(p.position.y, min.z);
+        }
+    }
+
+    const float dx = max.x - min.x;
+    const float dy = max.y - min.y;
+    const float dz = max.z - min.z;
+
+    const float scale = sacle / DirectX::XMMax(XMMax(dx, dy), dz);
+    XMVECTOR translation = -(XMLoadFloat3(&max) + XMLoadFloat3(&min)) / 2.0f;
+
+    for (auto &m : meshes)
+    {
+        for (auto &p : m.vertices)
+        {
+            XMStoreFloat3(&p.position, (XMLoadFloat3(&p.position) + translation) * scale);
+        }
+    }
+}
+
 std::vector<MeshData> GeometryGenerator::ReadFromModelFile(const char *filepath, const char *filename)
 {
     auto l1          = strlen(filepath);
     auto l2          = strlen(filename);
-    uint8_t *absPath = (uint8_t *)malloc(l1 + l2 +1 );
+    uint8_t *absPath = (uint8_t *)malloc(l1 + l2 + 1);
 
     assert(absPath);
 
     strcpy_s((char *)absPath, l1 + 1, filepath);
     strcat_s((char *)absPath, l1 + l2 + 1, filename);
 
-    ModelLoader modelLoader((char*)absPath);
+    ModelLoader modelLoader((char *)absPath);
 
     auto meshes = modelLoader.Meshes();
+
+    // for (auto m : meshes)
+    //{
+    //     for (auto e : m.indices)
+    //     {
+    //         if (e == 0)
+    //         {
+    //             int a = 0;
+    //             a     = 6;
+    //         }
+    //     }
+    // }
+
+    NomalizeModel(meshes, 1.0f);
 
     return meshes;
 }

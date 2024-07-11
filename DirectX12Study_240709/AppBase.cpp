@@ -70,10 +70,10 @@ bool AppBase::Initialize()
     {
         CREATE_MODEL_OBJ(m_model);
         {
-            std::vector<MeshData> model = GeometryGenerator::ReadFromModelFile("../../Asset/Model/", "model.obj");
+            std::vector<MeshData> model = GeometryGenerator::ReadFromModelFile("../../Asset/Model/", "model.fbx");
             m_model->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model);
             m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
-            m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+            m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
         }
     }
 

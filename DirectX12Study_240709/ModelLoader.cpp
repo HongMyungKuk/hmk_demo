@@ -9,6 +9,10 @@ ModelLoader::ModelLoader(const char *filename)
     {
         LoadObjFile(filename);
     }
+    else
+    {
+        LoadModel(filename);
+    }
 }
 
 ModelLoader::~ModelLoader()
@@ -72,13 +76,25 @@ void ModelLoader::LoadObjFile(const char *filename)
 
             for (int32_t i = 0; i < 12; i += 3)
             {
-                fscanf_s(fp, "%d/%d/%d", &idx[i], &idx[i + 1], &idx[i + 2]);
-                std::cout << idx[i] << "," << idx[i + 1] << "," << idx[i + 2] << " ";
-                indices.push_back(idx[i + 2]);
-                indices.push_back(idx[i + 1]);
-                indices.push_back(idx[i]);
+                int ans = fscanf_s(fp, "%d/%d/%d", &idx[i], &idx[i + 1], &idx[i + 2]);
+                // std::cout << ans << std::endl;
+                if (ans == 3)
+                {
+                    // std::cout << idx[i] << "," << idx[i + 1] << "," << idx[i + 2] << " ";
+                    indices.push_back(idx[i]);
+                    indices.push_back(idx[i + 1]);
+                    indices.push_back(idx[i + 2]);
+                }
+                // else if(ans == 0){
+                //     std::cout << ans << std::endl;
+                //     //std::cout << idx[i] << "," << idx[i + 1] << "," << idx[i + 2] << std::endl;
+                // }
+                // else {
+                //     std::cout << ans << std::endl;
+                //     std::cout << idx[i] << "," << idx[i + 1] << "," << idx[i + 2] << std::endl;
+                // }
             }
-            std::cout << std::endl;
+            // std::cout << std::endl;
         }
         break;
         case 'o': {
@@ -102,4 +118,91 @@ void ModelLoader::LoadObjFile(const char *filename)
     m_meshes.push_back(meshData);
 
     fclose(fp);
+}
+
+void ModelLoader::LoadModel(const char *filename)
+{
+    Assimp::Importer import;
+    const aiScene *scene = import.ReadFile(filename, aiProcess_Triangulate | aiProcess_MakeLeftHanded);
+
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
+    {
+        std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << std::endl;
+        return;
+    }
+
+    ProcessNode(scene->mRootNode, scene);
+}
+
+void ModelLoader::ProcessNode(aiNode *node, const aiScene *scene)
+{
+    // process all the node's meshes (if any)
+    for (unsigned int i = 0; i < node->mNumMeshes; i++)
+    {
+        aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
+        auto newMesh = this->ProceesMesh(mesh, scene);
+        m_meshes.push_back(newMesh);
+    }
+    // then do the same for each of its children
+    for (unsigned int i = 0; i < node->mNumChildren; i++)
+    {
+        ProcessNode(node->mChildren[i], scene);
+    }
+}
+
+MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
+{
+    MeshData meshData;
+
+    XMFLOAT3 position;
+    XMFLOAT3 normal;
+    XMFLOAT2 texCoord;
+
+    // vertex
+    for (unsigned int i = 0; i < mesh->mNumVertices; i++)
+    {
+        Vertex v;
+
+        position.x = mesh->mVertices[i].x;
+        position.y = mesh->mVertices[i].y;
+        position.z = mesh->mVertices[i].z;
+        v.position = position;
+
+        normal.x = mesh->mNormals[i].x;
+        normal.y = mesh->mNormals[i].y;
+        normal.z = mesh->mNormals[i].z;
+        v.normal = normal;
+
+        if (mesh->mTextureCoords[0])
+        {
+            texCoord.x = mesh->mTextureCoords[0][i].x;
+            texCoord.y = mesh->mTextureCoords[0][i].y;
+            v.texCoord = texCoord;
+        }
+        else
+        {
+            v.texCoord = XMFLOAT2(0.0f, 0.0f);
+        }
+
+        meshData.vertices.push_back(v);
+    }
+    // index
+    for (unsigned int i = 0; i < mesh->mNumFaces; i++)
+    {
+        aiFace face = mesh->mFaces[i];
+        for (unsigned int j = 0; j < face.mNumIndices; j++)
+            meshData.indices.push_back(face.mIndices[j]);
+    }
+    // material
+    if (mesh->mMaterialIndex >= 0) {
+        aiMaterial *material        = scene->mMaterials[mesh->mMaterialIndex];
+        
+        for (unsigned int i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); i++)
+        {
+            aiString str;
+            material->GetTexture(aiTextureType_DIFFUSE, i, &str);
+        }
+    }
+
+    return meshData;
 }
