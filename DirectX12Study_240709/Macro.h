@@ -21,9 +21,12 @@
         ptr = nullptr;                                                                                                 \
     }
 
-#define CREATE_MODEL_OBJ(obj)                                                                                          \
-    obj = new Model;                                                                                                   \
+#define CREATE_OBJ(obj, type)                                                                                          \
+    obj = new type;                                                                                                    \
     if (!obj)                                                                                                          \
     {                                                                                                                  \
         return false;                                                                                                  \
     }
+
+#define CREATE_MODEL_OBJ(obj)                                                                                          \
+    CREATE_OBJ(obj, Model)

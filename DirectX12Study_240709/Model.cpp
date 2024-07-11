@@ -48,6 +48,7 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
 {
     for (auto &m : m_meshes)
     {
+        std::cout << m_descriptorHeap << std::endl;
         ID3D12DescriptorHeap *descHeaps[] = {m_descriptorHeap};
         commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
         commandList->SetGraphicsRootDescriptorTable(1, m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
@@ -62,10 +63,10 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
 void Model::UpdateWorldMatrix(XMMATRIX worldRow)
 {
     auto world   = XMMatrixTranspose(worldRow);
-    auto worldIT = XMMatrixTranspose(XMMatrixInverse(nullptr, world));
+    //auto worldIT = XMMatrixTranspose(XMMatrixInverse(nullptr, world));
 
     m_meshConstBufferData.world   = world;
-    m_meshConstBufferData.worldIT = worldIT;
+    //m_meshConstBufferData.worldIT = worldIT;
 }
 
 void Model::BuildConstantBufferView(ID3D12Device *device)

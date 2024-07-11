@@ -1,12 +1,18 @@
 #include "pch.h"
 
 #include "AppBase.h"
+#include "Camera.h"
 #include "GeometryGenerator.h"
 #include "GraphicsCommon.h"
 #include "Model.h"
 
+AppBase *g_appBase = nullptr;
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
 AppBase::AppBase()
 {
+    g_appBase = this;
 }
 
 AppBase::~AppBase()
@@ -16,6 +22,7 @@ AppBase::~AppBase()
 
     DestroyPSO();
 
+    SAFE_DELETE(m_camera);
     SAFE_DELETE(m_ground);
     SAFE_DELETE(m_character);
     SAFE_RELEASE(m_rootSignature)
@@ -53,6 +60,11 @@ bool AppBase::Initialize()
     // Init graphics common.
     Graphics::InitGraphicsCommon(m_device, m_rootSignature);
 
+    // Init cameara
+    {
+        CREATE_OBJ(m_camera, Camera);
+    }
+
     // Create the character.
     {
         CREATE_MODEL_OBJ(m_character);
@@ -60,7 +72,7 @@ bool AppBase::Initialize()
             MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
             cube.albedoTextureFilename = "boxTex.jpeg";
             m_character->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
-            m_character->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 1.0f, 0.0f));
+            m_character->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
         }
     }
 
@@ -71,9 +83,9 @@ bool AppBase::Initialize()
         CREATE_MODEL_OBJ(m_ground);
         {
             MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
-            square.albedoTextureFilename = "texture.jpg";
+            square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
             m_ground->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {square});
-            m_ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToDegrees(XM_PIDIV2)));
+            m_ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
         }
     }
 
@@ -84,9 +96,26 @@ bool AppBase::Initialize()
 void AppBase::Update()
 {
     static float dt = 0.0f;
-    dt += 1.0f / 30.0f;
+    dt              = 1.0f / 10.0f;
 
     UpdateGlobalConsts();
+
+    if (m_isKeyDown[87])
+    {
+        m_camera->MoveFront(dt);
+    }
+    if (m_isKeyDown[83])
+    {
+        m_camera->MoveBack(dt);
+    }
+    if (m_isKeyDown[65])
+    {
+        m_camera->MoveLeft(dt);
+    }
+    if (m_isKeyDown[68])
+    {
+        m_camera->MoveRight(dt);
+    }
 
     m_character->Update();
     m_ground->Update();
@@ -458,19 +487,14 @@ void AppBase::BuildGlobalConsts()
 
 void AppBase::UpdateGlobalConsts()
 {
-    // global consts update.
-    XMFLOAT3 eye = XMFLOAT3(0.0f, 3.0f, -3.0f);
-    XMFLOAT3 dir = XMFLOAT3(0.0f, 0.0f, 0.0f);
-    XMFLOAT3 up  = XMFLOAT3(0.0f, 1.0f, 0.0f);
+    auto eyePos     = m_camera->GetPosition();
+    auto view       = m_camera->GetViewMatrix();
+    auto projection = m_camera->GetProjectionMatrix();
 
-    auto eyeVec = XMLoadFloat3(&eye);
-    auto dirVec = XMLoadFloat3(&dir);
-    auto upVec  = XMLoadFloat3(&up);
+    m_globalConstData.eyeWorld   = eyePos;
+    m_globalConstData.view       = XMMatrixTranspose(view);
+    m_globalConstData.projeciton = XMMatrixTranspose(projection);
 
-    m_globalConstData.eyeWorld = eye;
-    m_globalConstData.view     = XMMatrixTranspose(XMMatrixLookAtLH(eyeVec, dirVec, upVec));
-    m_globalConstData.projeciton =
-        XMMatrixTranspose(XMMatrixPerspectiveFovLH(XMConvertToRadians(90.0f), AppBase::GetAspect(), 0.1f, 100.0f));
     m_globalConstsBuffer.Upload(0, &m_globalConstData);
 }
 
@@ -536,7 +560,20 @@ void AppBase::DestroyPSO()
     SAFE_RELEASE(Graphics::defaultPSO);
 }
 
-LRESULT AppBase::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+void AppBase::OnMouse(const float x, const float y)
+{
+    if (m_isFPV)
+    {
+        float ndcX = x / s_screenWidth * 2.0f - 1.0f;
+        float ndcY = -(y / s_screenHeight * 2.0f - 1.0f);
+
+        std::cout << ndcX << std::endl;
+
+        m_camera->MouseUpdate(ndcX, ndcY);
+    }
+}
+
+LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
@@ -544,9 +581,21 @@ LRESULT AppBase::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         return 0;
 
     case WM_KEYDOWN:
+        if (wParam == 70)
+            m_isFPV = true;
+        m_isKeyDown[wParam] = true;
         return 0;
 
     case WM_KEYUP:
+        m_isKeyDown[wParam] = false;
+        return 0;
+
+    case WM_MOUSEMOVE:
+
+        // std::cout << HIWORD(lParam) << " " << LOWORD(lParam) << std::endl;
+
+        OnMouse(LOWORD(lParam), HIWORD(lParam));
+
         return 0;
 
     case WM_DESTROY:
@@ -576,4 +625,9 @@ void AppBase::WaitForPreviousFrame()
         ThrowIfFailed(m_fence->SetEventOnCompletion(fence, m_fenceEvent));
         WaitForSingleObject(m_fenceEvent, INFINITE);
     }
+}
+
+LRESULT WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    return g_appBase->MemberWndProc(hWnd, message, wParam, lParam);
 }

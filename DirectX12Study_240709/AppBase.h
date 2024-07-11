@@ -3,6 +3,7 @@
 #include "ConstantBuffer.h"
 
 class Model;
+class Camera;
 
 class AppBase
 {
@@ -16,6 +17,8 @@ class AppBase
     virtual bool Initialize();
     virtual void Render();
     virtual void Update();
+
+    LRESULT CALLBACK MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
     void WaitForPreviousFrame();
 
@@ -33,7 +36,7 @@ class AppBase
     void EndRender();
     void DestroyPSO();
 
-    static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+    void OnMouse(const float x, const float y);
 
   public:
     static float GetAspect()
@@ -43,7 +46,6 @@ class AppBase
 
   protected:
     static const uint32_t s_frameCount = 2;
-
     // Pipeline objects.
     D3D12_VIEWPORT m_viewport                     = {};
     D3D12_RECT m_scissorRect                      = {};
@@ -80,6 +82,10 @@ class AppBase
     static const uint32_t s_screenHeight = 1080;
 
   private:
-    Model *m_ground = nullptr;
+    Camera *m_camera   = nullptr;
+    Model *m_ground    = nullptr;
     Model *m_character = nullptr;
+
+    bool m_isKeyDown[256] = {};
+    bool m_isFPV          = false;
 };
