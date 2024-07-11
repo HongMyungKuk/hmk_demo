@@ -2,6 +2,28 @@
 
 #include "GeometryGenerator.h"
 
+MeshData GeometryGenerator::MakeSquare(const float w, const float h)
+{
+    MeshData meshData = {};
+
+    float w2 = 0.5f * w;
+    float h2 = 0.5f * h;
+
+    std::vector<Vertex> &vertices  = meshData.vertices;
+    std::vector<uint16_t> &indices = meshData.indices;
+
+    vertices = {{XMFLOAT3(-w2, -h2, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(0.0f, 1.0f)},
+                {XMFLOAT3(-w2, h2, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(0.0f, 0.0f)},
+                {XMFLOAT3(w2, h2, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(1.0f, 0.0f)},
+                {XMFLOAT3(w2, -h2, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(1.0f, 1.0f)}};
+
+    indices = {
+        0, 1, 3, 1, 2, 3,
+    };
+
+    return meshData;
+}
+
 MeshData GeometryGenerator::MakeCube(const float w, const float h, const float d)
 {
     MeshData meshData;
@@ -48,7 +70,7 @@ MeshData GeometryGenerator::MakeCube(const float w, const float h, const float d
     v[22] = Vertex(+w2, +h2, +d2, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f);
     v[23] = Vertex(+w2, -h2, +d2, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f);
 
-    //meshData.vertices.assign(&v[0], &v[24]);
+    // meshData.vertices.assign(&v[0], &v[24]);
     meshData.vertices.resize(24);
     meshData.vertices.assign(&v[0], &v[24]);
 

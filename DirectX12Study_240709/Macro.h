@@ -20,3 +20,10 @@
         delete[] ptr;                                                                                                  \
         ptr = nullptr;                                                                                                 \
     }
+
+#define CREATE_MODEL_OBJ(obj)                                                                                          \
+    obj = new Model;                                                                                                   \
+    if (!obj)                                                                                                          \
+    {                                                                                                                  \
+        return false;                                                                                                  \
+    }

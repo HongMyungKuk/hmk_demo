@@ -3,8 +3,7 @@
 __declspec(align(256)) struct MeshConsts
 {
     XMMATRIX world;
-    // XMMATRIX view;
-    // XMMATRIX projection;
+    XMMATRIX worldIT;
 };
 
 #define MAX_LIGHTS 3

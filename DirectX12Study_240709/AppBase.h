@@ -27,6 +27,8 @@ class AppBase
                             bool requestHighPerformanceAdapter = false);
     void BuildRootSignature();
     void BuildGlobalConsts();
+    void UpdateGlobalConsts();
+    void SetGlobalConsts(const D3D12_GPU_VIRTUAL_ADDRESS resAddress);
     void BeginRender();
     void EndRender();
     void DestroyPSO();
@@ -78,5 +80,6 @@ class AppBase
     static const uint32_t s_screenHeight = 1080;
 
   private:
-    Model *m_model = nullptr;
+    Model *m_ground = nullptr;
+    Model *m_character = nullptr;
 };

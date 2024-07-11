@@ -32,6 +32,7 @@ cbuffer GloabalConsts : register(b0)
 cbuffer MeshConsts : register(b1)
 {
     Matrix world;
+    Matrix worldIT;
 };
 
 cbuffer MaterialConstants : register(b2)

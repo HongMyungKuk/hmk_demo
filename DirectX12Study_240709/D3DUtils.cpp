@@ -7,9 +7,12 @@
 void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int &c);
 
 ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
-                                        ID3D12CommandQueue *commandQueue, const std::string &filename,
-                                        ID3D12Resource **texture, D3D12_CPU_DESCRIPTOR_HANDLE &descHandle)
+                                        ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
+                                        const std::string &filename, ID3D12Resource **texture,
+                                        D3D12_CPU_DESCRIPTOR_HANDLE &descHandle)
 {
+    ThrowIfFailed(commandList->Reset(commandAllocator, nullptr));
+
     int32_t width = 0, height = 0, channels = 0;
 
     uint8_t *image = nullptr;

@@ -76,9 +76,9 @@ class D3DUtils
     }
 
     static ID3D12Resource *CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
-                                         ID3D12CommandQueue *commandQueue, const std::string &filename,
-                                         ID3D12Resource **texture, D3D12_CPU_DESCRIPTOR_HANDLE &descHandle);
+                                         ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
+                                         const std::string &filename, ID3D12Resource **texture,
+                                         D3D12_CPU_DESCRIPTOR_HANDLE &descHandle);
 
     static void CreateDscriptor(ID3D12Device *device, uint32_t numDesc, ID3D12DescriptorHeap **descHeap);
-    
 };

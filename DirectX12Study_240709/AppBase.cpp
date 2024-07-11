@@ -16,7 +16,8 @@ AppBase::~AppBase()
 
     DestroyPSO();
 
-    SAFE_DELETE(m_model);
+    SAFE_DELETE(m_ground);
+    SAFE_DELETE(m_character);
     SAFE_RELEASE(m_rootSignature)
     SAFE_RELEASE(m_fence);
     SAFE_RELEASE(m_commandList);
@@ -52,51 +53,52 @@ bool AppBase::Initialize()
     // Init graphics common.
     Graphics::InitGraphicsCommon(m_device, m_rootSignature);
 
-    // Create the model.
+    // Create the character.
     {
-        m_model = new Model;
-        if (!m_model)
-        {
-            return false;
-        }
-
+        CREATE_MODEL_OBJ(m_character);
         {
             MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
-            cube.albedoTextureFilename = "texture.jpg";
-            m_model->Initialize(m_device, m_commandList, m_commandQueue, {cube});
-            WaitForPreviousFrame();
+            cube.albedoTextureFilename = "boxTex.jpeg";
+            m_character->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
+            m_character->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 1.0f, 0.0f));
         }
     }
+
+    WaitForPreviousFrame();
+
+    // Create the ground.
+    {
+        CREATE_MODEL_OBJ(m_ground);
+        {
+            MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
+            square.albedoTextureFilename = "texture.jpg";
+            m_ground->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {square});
+            m_ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToDegrees(XM_PIDIV2)));
+        }
+    }
+
+    WaitForPreviousFrame();
 
     return true;
 }
 void AppBase::Update()
 {
     static float dt = 0.0f;
-    dt += 1.0f / 60.0f;
+    dt += 1.0f / 30.0f;
 
-    m_model->GetMeshConstCPU().world = XMMatrixTranspose(XMMatrixRotationY(dt));
-    m_model->Update();
+    UpdateGlobalConsts();
 
-    XMFLOAT3 eye = XMFLOAT3(0.0f, 0.0f, -3.0f);
-    XMFLOAT3 dir = XMFLOAT3(0.0f, 0.0f, 1.0f);
-    XMFLOAT3 up  = XMFLOAT3(0.0f, 1.0f, 0.0f);
-
-    auto eyeVec = XMLoadFloat3(&eye);
-    auto dirVec = XMLoadFloat3(&dir);
-    auto upVec  = XMLoadFloat3(&up);
-
-    m_globalConstData.eyeWorld = eye;
-    m_globalConstData.view     = XMMatrixTranspose(XMMatrixLookToLH(eyeVec, dirVec, upVec));
-    m_globalConstData.projeciton =
-        XMMatrixTranspose(XMMatrixPerspectiveFovLH(XMConvertToRadians(70.0f), AppBase::GetAspect(), 0.01f, 1000.0f));
-    m_globalConstsBuffer.Upload(0, &m_globalConstData);
+    m_character->Update();
+    m_ground->Update();
 }
 
 void AppBase::Render()
 {
-    m_commandList->SetPipelineState(m_model->GetPSO());
-    m_model->Render(m_commandList);
+    m_commandList->SetPipelineState(m_character->GetPSO());
+    m_character->Render(m_commandList);
+
+    m_commandList->SetPipelineState(m_ground->GetPSO());
+    m_ground->Render(m_commandList);
 }
 
 int32_t AppBase::Run()
@@ -303,7 +305,7 @@ bool AppBase::InitD3D()
         depthStencilDesc.Height              = (UINT64)s_screenHeight;
         depthStencilDesc.DepthOrArraySize    = 1;
         depthStencilDesc.MipLevels           = 1;
-        depthStencilDesc.Format              = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        depthStencilDesc.Format              = DXGI_FORMAT_R24G8_TYPELESS;
         depthStencilDesc.SampleDesc.Count    = 1;
         depthStencilDesc.SampleDesc.Quality  = 0;
         depthStencilDesc.Layout              = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -318,13 +320,23 @@ bool AppBase::InitD3D()
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &depthStencilDesc,
             D3D12_RESOURCE_STATE_COMMON, &optClear, IID_PPV_ARGS(&m_depthStencilBuffer)));
 
-        m_device->CreateDepthStencilView(m_depthStencilBuffer, nullptr,
+        D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+        dsvDesc.Flags              = D3D12_DSV_FLAG_NONE;
+        dsvDesc.ViewDimension      = D3D12_DSV_DIMENSION_TEXTURE2D;
+        dsvDesc.Format             = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        dsvDesc.Texture2D.MipSlice = 0;
+        m_device->CreateDepthStencilView(m_depthStencilBuffer, &dsvDesc,
                                          m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
         // Transition the resource from its initial state to be used as a depth buffer.
         m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencilBuffer,
                                                                                 D3D12_RESOURCE_STATE_COMMON,
                                                                                 D3D12_RESOURCE_STATE_DEPTH_WRITE));
     }
+
+    // For texture loading.
+    ThrowIfFailed(m_commandList->Close());
+    ID3D12CommandList *ppCommandLists[] = {m_commandList};
+    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     SAFE_RELEASE(factory);
 
     return true;
@@ -403,7 +415,7 @@ void AppBase::BuildRootSignature()
 {
     // Create root signature.
     CD3DX12_DESCRIPTOR_RANGE rangeObj[2] = {};
-    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1); // b1 : Mesh Consts, Material, b2 : Material Consts
+    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1); // b1 : Mesh Consts, b2 : Material Consts
     rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0 : Texture
 
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -444,6 +456,29 @@ void AppBase::BuildGlobalConsts()
     m_globalConstsBuffer.Initialize(m_device, 1);
 }
 
+void AppBase::UpdateGlobalConsts()
+{
+    // global consts update.
+    XMFLOAT3 eye = XMFLOAT3(0.0f, 3.0f, -3.0f);
+    XMFLOAT3 dir = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    XMFLOAT3 up  = XMFLOAT3(0.0f, 1.0f, 0.0f);
+
+    auto eyeVec = XMLoadFloat3(&eye);
+    auto dirVec = XMLoadFloat3(&dir);
+    auto upVec  = XMLoadFloat3(&up);
+
+    m_globalConstData.eyeWorld = eye;
+    m_globalConstData.view     = XMMatrixTranspose(XMMatrixLookAtLH(eyeVec, dirVec, upVec));
+    m_globalConstData.projeciton =
+        XMMatrixTranspose(XMMatrixPerspectiveFovLH(XMConvertToRadians(90.0f), AppBase::GetAspect(), 0.1f, 100.0f));
+    m_globalConstsBuffer.Upload(0, &m_globalConstData);
+}
+
+void AppBase::SetGlobalConsts(const D3D12_GPU_VIRTUAL_ADDRESS resAddress)
+{
+    m_commandList->SetGraphicsRootConstantBufferView(0, resAddress);
+}
+
 void AppBase::BeginRender()
 {
     // Command list allocators can only be reset when the associated
@@ -461,7 +496,7 @@ void AppBase::BeginRender()
 
     m_commandList->SetGraphicsRootSignature(m_rootSignature);
     //  Global consts
-    m_commandList->SetGraphicsRootConstantBufferView(0, m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
+    this->SetGlobalConsts(m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
 
     // Indicate that the back buffer will be used as a render target.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex],

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Mesh.h"
 #include "ConstantBuffer.h"
+#include "Mesh.h"
 
 using namespace DirectX;
 
@@ -13,15 +13,17 @@ class Model
 
   public:
     virtual void Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
-                            ID3D12CommandQueue *commandQueue,
+                            ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                             std::vector<MeshData> meshes); // const buffer, mesh data
     virtual void Update();
     virtual void Render(ID3D12GraphicsCommandList *commandList);
+    void UpdateWorldMatrix(XMMATRIX worldRow);
 
   private:
     void BuildConstantBufferView(ID3D12Device *device);
     void BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshData);
-    void BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, ID3D12CommandQueue *commandQueue,
+    void BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
+                      ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                       const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture);
     // void BuildDescriptor(ID3D12Device *device);
     void DestroyMeshBuffers();
