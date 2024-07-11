@@ -80,5 +80,6 @@ class D3DUtils
                                          const std::string &filename, ID3D12Resource **texture,
                                          D3D12_CPU_DESCRIPTOR_HANDLE &descHandle);
 
-    static void CreateDscriptor(ID3D12Device *device, uint32_t numDesc, ID3D12DescriptorHeap **descHeap);
+    static void CreateDscriptor(ID3D12Device *device, uint32_t numDesc, D3D12_DESCRIPTOR_HEAP_TYPE type,
+                                D3D12_DESCRIPTOR_HEAP_FLAGS flag, ID3D12DescriptorHeap **descHeap);
 };

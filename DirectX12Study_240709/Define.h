@@ -7,6 +7,7 @@
 #include "d3dx12.h"
 #include "D3DUtils.h"
 #include "GraphicsCommon.h"
+#include "Utils.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")

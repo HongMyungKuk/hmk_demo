@@ -38,6 +38,10 @@ class Model
     {
         return m_meshConstBufferData;
     }
+    MaterialConsts &GetMaterialConstCPU()
+    {
+        return m_materialConstBufferData;
+    }
 
   private:
     ID3D12RootSignature *m_rootSignature     = nullptr;

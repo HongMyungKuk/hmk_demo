@@ -22,8 +22,10 @@ struct Vertex
 
 struct MeshData
 {
+    using index_t = uint32_t;
+
     std::vector<Vertex> vertices;
-    std::vector<uint16_t> indices;
+    std::vector<index_t> indices;
 
     std::string albedoTextureFilename = "";
 };
@@ -51,8 +53,8 @@ struct Mesh
     {
         D3D12_INDEX_BUFFER_VIEW view;
         view.BufferLocation = indexBuffer->GetGPUVirtualAddress();
-        view.SizeInBytes    = indexCount * sizeof(uint16_t);
-        view.Format         = DXGI_FORMAT_R16_UINT;
+        view.SizeInBytes    = indexCount * sizeof(MeshData::index_t);
+        view.Format         = DXGI_FORMAT_R32_UINT;
         return view;
     }
 };

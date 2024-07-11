@@ -70,12 +70,13 @@ ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsComm
     return textureUploadHeap;
 }
 
-void D3DUtils::CreateDscriptor(ID3D12Device *device, uint32_t numDesc, ID3D12DescriptorHeap **descHeap)
+void D3DUtils::CreateDscriptor(ID3D12Device *device, uint32_t numDesc, D3D12_DESCRIPTOR_HEAP_TYPE type,
+                               D3D12_DESCRIPTOR_HEAP_FLAGS flag, ID3D12DescriptorHeap **descHeap)
 {
     D3D12_DESCRIPTOR_HEAP_DESC desciptorHeapDesc = {};
     desciptorHeapDesc.NumDescriptors             = numDesc;
-    desciptorHeapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    desciptorHeapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    desciptorHeapDesc.Type                       = type;
+    desciptorHeapDesc.Flags                      = flag;
     ThrowIfFailed(device->CreateDescriptorHeap(&desciptorHeapDesc, IID_PPV_ARGS(descHeap)));
 }
 

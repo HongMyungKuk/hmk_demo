@@ -23,8 +23,9 @@ AppBase::~AppBase()
     DestroyPSO();
 
     SAFE_DELETE(m_camera);
+    SAFE_DELETE(m_model);
     SAFE_DELETE(m_ground);
-    SAFE_DELETE(m_character);
+    SAFE_DELETE(m_box);
     SAFE_RELEASE(m_rootSignature)
     SAFE_RELEASE(m_fence);
     SAFE_RELEASE(m_commandList);
@@ -65,14 +66,26 @@ bool AppBase::Initialize()
         CREATE_OBJ(m_camera, Camera);
     }
 
-    // Create the character.
+    // Create the model.
     {
-        CREATE_MODEL_OBJ(m_character);
+        CREATE_MODEL_OBJ(m_model);
+        {
+            std::vector<MeshData> model = GeometryGenerator::ReadFromModelFile("../../Asset/Model/", "model.obj");
+            m_model->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model);
+            m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
+            m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+        }
+    }
+
+    // Create the box.
+    {
+        CREATE_MODEL_OBJ(m_box);
         {
             MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
             cube.albedoTextureFilename = "boxTex.jpeg";
-            m_character->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
-            m_character->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
+            m_box->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
+            m_box->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
+            m_box->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
         }
     }
 
@@ -85,6 +98,7 @@ bool AppBase::Initialize()
             MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
             square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
             m_ground->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {square});
+            m_ground->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 0.0f, 1.0f);
             m_ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
         }
     }
@@ -117,14 +131,18 @@ void AppBase::Update()
         m_camera->MoveRight(dt);
     }
 
-    m_character->Update();
+    m_model->Update();
+    m_box->Update();
     m_ground->Update();
 }
 
 void AppBase::Render()
 {
-    m_commandList->SetPipelineState(m_character->GetPSO());
-    m_character->Render(m_commandList);
+    m_commandList->SetPipelineState(m_model->GetPSO());
+    m_model->Render(m_commandList);
+
+    //m_commandList->SetPipelineState(m_box->GetPSO());
+    //m_box->Render(m_commandList);
 
     m_commandList->SetPipelineState(m_ground->GetPSO());
     m_ground->Render(m_commandList);
@@ -255,21 +273,14 @@ bool AppBase::InitD3D()
 
     // Create descriptor heaps.
     {
-        // Describe and create a render target view (RTV) descriptor heap.
-        D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-        rtvHeapDesc.NumDescriptors             = s_frameCount;
-        rtvHeapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-        rtvHeapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
+        D3DUtils::CreateDscriptor(m_device, s_frameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+                                  D3D12_DESCRIPTOR_HEAP_FLAG_NONE, &m_rtvHeap);
 
         m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
         // Describe and create a render target view (DSV) descriptor heap.
-        D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-        dsvHeapDesc.NumDescriptors             = 1;
-        dsvHeapDesc.Type                       = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-        dsvHeapDesc.Flags                      = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
+        D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+                                  D3D12_DESCRIPTOR_HEAP_FLAG_NONE, &m_dsvHeap);
 
         m_dsvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     }
@@ -566,8 +577,6 @@ void AppBase::OnMouse(const float x, const float y)
     {
         float ndcX = x / s_screenWidth * 2.0f - 1.0f;
         float ndcY = -(y / s_screenHeight * 2.0f - 1.0f);
-
-        std::cout << ndcX << std::endl;
 
         m_camera->MouseUpdate(ndcX, ndcY);
     }

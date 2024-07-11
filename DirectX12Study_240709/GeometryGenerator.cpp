@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "GeometryGenerator.h"
+#include "ModelLoader.h"
 
 MeshData GeometryGenerator::MakeSquare(const float w, const float h)
 {
@@ -10,7 +11,7 @@ MeshData GeometryGenerator::MakeSquare(const float w, const float h)
     float h2 = 0.5f * h;
 
     std::vector<Vertex> &vertices  = meshData.vertices;
-    std::vector<uint16_t> &indices = meshData.indices;
+    std::vector<MeshData::index_t> &indices = meshData.indices;
 
     vertices = {{XMFLOAT3(-w2, -h2, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(0.0f, 1.0f)},
                 {XMFLOAT3(-w2, h2, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(0.0f, 0.0f)},
@@ -74,7 +75,7 @@ MeshData GeometryGenerator::MakeCube(const float w, const float h, const float d
     meshData.vertices.resize(24);
     meshData.vertices.assign(&v[0], &v[24]);
 
-    uint16_t i[36];
+    MeshData::index_t i[36];
 
     // Fill in the front face index data
     i[0] = 0;
@@ -128,4 +129,22 @@ MeshData GeometryGenerator::MakeCube(const float w, const float h, const float d
     meshData.indices.assign(&i[0], &i[36]);
 
     return meshData;
+}
+
+std::vector<MeshData> GeometryGenerator::ReadFromModelFile(const char *filepath, const char *filename)
+{
+    auto l1          = strlen(filepath);
+    auto l2          = strlen(filename);
+    uint8_t *absPath = (uint8_t *)malloc(l1 + l2 +1 );
+
+    assert(absPath);
+
+    strcpy_s((char *)absPath, l1 + 1, filepath);
+    strcat_s((char *)absPath, l1 + l2 + 1, filename);
+
+    ModelLoader modelLoader((char*)absPath);
+
+    auto meshes = modelLoader.Meshes();
+
+    return meshes;
 }

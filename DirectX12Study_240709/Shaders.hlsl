@@ -68,5 +68,5 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 texCoo
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    return albedoTexture.Sample(linearWrapSS, input.texCoord);
+    return float4(ambient, 1.0);
 }

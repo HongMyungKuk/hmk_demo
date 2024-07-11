@@ -48,7 +48,6 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
 {
     for (auto &m : m_meshes)
     {
-        std::cout << m_descriptorHeap << std::endl;
         ID3D12DescriptorHeap *descHeaps[] = {m_descriptorHeap};
         commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
         commandList->SetGraphicsRootDescriptorTable(1, m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
@@ -62,16 +61,16 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
 
 void Model::UpdateWorldMatrix(XMMATRIX worldRow)
 {
-    auto world   = XMMatrixTranspose(worldRow);
-    //auto worldIT = XMMatrixTranspose(XMMatrixInverse(nullptr, world));
+    auto world = XMMatrixTranspose(worldRow);
+    // auto worldIT = XMMatrixTranspose(XMMatrixInverse(nullptr, world));
 
-    m_meshConstBufferData.world   = world;
-    //m_meshConstBufferData.worldIT = worldIT;
+    m_meshConstBufferData.world = world;
+    // m_meshConstBufferData.worldIT = worldIT;
 }
 
 void Model::BuildConstantBufferView(ID3D12Device *device)
 {
-    D3DUtils::CreateDscriptor(device, 3, &m_descriptorHeap);
+    D3DUtils::CreateDscriptor(device, 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_descriptorHeap);
 
     auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
@@ -89,7 +88,7 @@ void Model::BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshDat
     D3DUtils::CreateDefaultBuffer(device, &mesh.vertexBuffer, meshData.vertices.data(),
                                   uint32_t(meshData.vertices.size() * sizeof(Vertex)));
     D3DUtils::CreateDefaultBuffer(device, &mesh.indexBuffer, meshData.indices.data(),
-                                  uint32_t(meshData.indices.size() * sizeof(uint16_t)));
+                                  uint32_t(meshData.indices.size() * sizeof(uint32_t)));
     mesh.vertexCount = uint32_t(meshData.vertices.size());
     mesh.indexCount  = uint32_t(meshData.indices.size());
 }
@@ -102,7 +101,8 @@ void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *comman
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 2,
                                             cbvDescriptorSize);
-    *uploadTexture = D3DUtils::CreateTexture(device, commandList, commandAllocator, commandQueue, filename, texture, srvHandle);
+    *uploadTexture =
+        D3DUtils::CreateTexture(device, commandList, commandAllocator, commandQueue, filename, texture, srvHandle);
 }
 
 void Model::DestroyMeshBuffers()

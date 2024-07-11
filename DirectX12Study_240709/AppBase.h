@@ -82,9 +82,10 @@ class AppBase
     static const uint32_t s_screenHeight = 1080;
 
   private:
-    Camera *m_camera   = nullptr;
-    Model *m_ground    = nullptr;
-    Model *m_character = nullptr;
+    Camera *m_camera = nullptr;
+    Model *m_ground  = nullptr;
+    Model *m_box     = nullptr;
+    Model *m_model   = nullptr;
 
     bool m_isKeyDown[256] = {};
     bool m_isFPV          = false;
