@@ -11,8 +11,8 @@ Model::~Model()
     DestroyTextureResource();
     DestroyMeshBuffers();
     SAFE_RELEASE(m_descriptorHeap);
-    SAFE_RELEASE(m_materialConstBuffer);
-    SAFE_RELEASE(m_meshConstBuffer);
+    //SAFE_RELEASE(m_materialConstBuffer);
+    //SAFE_RELEASE(m_meshConstBuffer);
     SAFE_RELEASE(m_pipelineState);
     SAFE_RELEASE(m_rootSignature);
 }
@@ -24,9 +24,10 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
     D3DUtils::CreateDscriptor(device, m_descNum, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
                               D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_descriptorHeap);
 
-    BuildConstantBufferView(device);
+    // BuildConstantBufferView(device);
+    m_meshUpload.Initialize(device, 1);
+    m_materialUpload.Initialize(device, uint32_t(meshes.size()));
 
-    int32_t idx = 0;
     for (auto &m : meshes)
     {
         Mesh newMesh;
@@ -52,55 +53,61 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
 
 void Model::Update()
 {
-    memcpy(m_meshDataBeign, &m_meshConstBufferData, sizeof(MeshConsts));
-    memcpy(m_materialDataBeign, &m_materialConstBufferData, sizeof(MaterialConsts));
+    // memcpy(m_meshDataBeign, &m_meshConstBufferData, sizeof(MeshConsts));
+    // memcpy(m_materialDataBeign, &m_materialConstBufferData, sizeof(MaterialConsts));
+
+    m_meshUpload.Upload(0, &m_meshConstsData);
+
+    for (int32_t i = 0; i < m_meshes.size(); i++)
+    {
+        m_materialConstData.texIdx = i;
+        m_materialUpload.Upload(i, &m_materialConstData);
+    }
 }
 
 void Model::Render(ID3D12Device *device, ID3D12GraphicsCommandList *commandList)
 {
+    int idx = 0;
     for (auto &m : m_meshes)
     {
-        // Describe and create a SRV for the texture.
-        auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-        CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 2,
-                                                cbvDescriptorSize);
-        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        srvDesc.Format                          = DXGI_FORMAT_R8G8B8A8_UNORM;
-        srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURE2D;
-        srvDesc.Texture2D.MipLevels             = 1;
-        device->CreateShaderResourceView(m.albedoTexture, &srvDesc, srvHandle);
-
         ID3D12DescriptorHeap *descHeaps[] = {m_descriptorHeap};
         commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
-        commandList->SetGraphicsRootDescriptorTable(1, m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+        commandList->SetGraphicsRootDescriptorTable(3, m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+        commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload.GetResource()->GetGPUVirtualAddress());
+        auto address = m_materialUpload.GetResource()->GetGPUVirtualAddress() + idx * sizeof(MaterialConsts);
+        commandList->SetGraphicsRootConstantBufferView(2, address);
 
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         commandList->IASetVertexBuffers(0, 1, &m.VertexBufferView());
         commandList->IASetIndexBuffer(&m.IndexBufferView());
         commandList->DrawIndexedInstanced(m.indexCount, 1, 0, 0, 0);
+
+        idx++;
     }
 }
 
 void Model::UpdateWorldMatrix(XMMATRIX worldRow)
 {
-    auto world = XMMatrixTranspose(worldRow);
-    // auto worldIT = XMMatrixTranspose(XMMatrixInverse(nullptr, world));
+    auto world   = XMMatrixTranspose(worldRow);
+    auto worldIT = XMMatrixTranspose(XMMatrixInverse(nullptr, world));
 
-    m_meshConstBufferData.world = world;
-    // m_meshConstBufferData.worldIT = worldIT;
+    m_meshConstsData.world   = world;
+    m_meshConstsData.worldIT = worldIT;
 }
 
-void Model::BuildConstantBufferView(ID3D12Device *device)
+void Model::BuildConstantBufferView(ID3D12Device *device) // This legacy funcion
 {
-    auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    // assert(m_descRef < m_descNum - 1);
+    // auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    D3DUtils::CreateConstantBuffer(device, &m_meshConstBuffer, &m_meshDataBeign, &m_meshConstBufferData, cbvHandle);
+    ////std::cout << m_descriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr << std::endl;
 
-    cbvHandle.Offset(1, cbvDescriptorSize);
-    D3DUtils::CreateConstantBuffer(device, &m_materialConstBuffer, &m_materialDataBeign, &m_materialConstBufferData,
-                                   cbvHandle);
+    // CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    // D3DUtils::CreateConstantBuffer(device, &m_meshConstBuffer, &m_meshDataBeign, &m_meshConstBufferData, cbvHandle);
+
+    // cbvHandle.Offset(++m_descRef, cbvDescriptorSize);
+    // D3DUtils::CreateConstantBuffer(device, &m_materialConstBuffer, &m_materialDataBeign, &m_materialConstBufferData,
+    //                                cbvHandle);
 }
 
 void Model::BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshData)
@@ -118,11 +125,11 @@ void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *comman
                          ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                          const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture)
 {
-    // assert(m_descRef < m_descNum - 1);
-    // auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    // CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart(), ++m_descRef,
-    //                                         cbvDescriptorSize);
-    *uploadTexture = D3DUtils::CreateTexture(device, commandList, commandAllocator, commandQueue, filename, texture);
+    auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    srvHandle.Offset(m_descRef++, cbvDescriptorSize);
+    *uploadTexture =
+        D3DUtils::CreateTexture(device, commandList, commandAllocator, commandQueue, filename, texture, srvHandle);
 }
 
 void Model::DestroyMeshBuffers()

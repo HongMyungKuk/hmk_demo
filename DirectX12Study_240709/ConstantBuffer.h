@@ -28,9 +28,12 @@ __declspec(align(256)) struct GlobalConsts
 
 __declspec(align(256)) struct MaterialConsts
 {
-    XMFLOAT3 ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
-    XMFLOAT3 diffuse;
-    XMFLOAT3 specular;
+    XMFLOAT3 ambient = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    uint32_t texIdx  = 0;
+    XMFLOAT3 diffuse = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    float dummy1;
+    XMFLOAT3 specular = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    float dummy2;
 };
 
 template <typename T_CONST> class UploadBuffer
@@ -65,9 +68,9 @@ template <typename T_CONST> class UploadBuffer
         return m_uploadBuffer;
     }
 
-    void Upload(int idx, void* data)
+    void Upload(int idx, void *data)
     {
-        memcpy(m_mappedData, data, sizeof(T_CONST));
+        memcpy(&m_mappedData[idx * m_bufferSize], data, sizeof(T_CONST));
     }
 
   private:

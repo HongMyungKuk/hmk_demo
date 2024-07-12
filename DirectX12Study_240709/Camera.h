@@ -23,8 +23,8 @@ class Camera
     void MoveBack(const float dt);
     void MoveRight(const float dt);
     void MoveLeft(const float dt);
-    void MoveUp();
-    void MoveDown();
+    void MoveUp(const float dt);
+    void MoveDown(const float dt);
 
   private:
     XMFLOAT3 m_eyePosition    = XMFLOAT3(1.0f, 3.0f, -3.0f);

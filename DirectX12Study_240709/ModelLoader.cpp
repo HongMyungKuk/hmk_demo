@@ -131,7 +131,7 @@ void ModelLoader::LoadObjFile(const char *filename)
 void ModelLoader::LoadModel(const char *filename)
 {
     Assimp::Importer import;
-    const aiScene *scene = import.ReadFile(filename, aiProcess_Triangulate | aiProcess_MakeLeftHanded);
+    const aiScene *scene = import.ReadFile(filename, aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
@@ -160,6 +160,8 @@ void ModelLoader::ProcessNode(aiNode *node, const aiScene *scene)
 
 MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
 {
+    static int count = 0;
+
     MeshData meshData;
 
     XMFLOAT3 position;
@@ -242,10 +244,9 @@ MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
                 {
                     std::string filename = std::string(std::filesystem::path(texture->mFilename.C_Str()).filename().string());
                     meshData.albedoTextureFilename = basePath + filename;
-                    // std::cout << basePath + filename << std::endl;
                     {
                         std::ofstream os;
-                        os.open(basePath + filename, std::ios::binary | std::ios::out);
+                        os.open(meshData.albedoTextureFilename, std::ios::binary | std::ios::out);
                         os.write((char*)texture->pcData ,texture->mWidth);
                         os.close();
                     }

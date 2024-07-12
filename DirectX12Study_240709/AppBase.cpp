@@ -73,6 +73,7 @@ bool AppBase::Initialize()
             auto [model, material] = GeometryGenerator::ReadFromModelFile("../../Asset/Model/", "comp_model.fbx");
             m_model->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model);
             m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
+            m_model->GetMaterialConstCPU().texIdx  = 1;
             m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
         }
     }
@@ -113,23 +114,7 @@ void AppBase::Update()
     dt              = 1.0f / 10.0f;
 
     UpdateGlobalConsts();
-
-    if (m_isKeyDown[87])
-    {
-        m_camera->MoveFront(dt);
-    }
-    if (m_isKeyDown[83])
-    {
-        m_camera->MoveBack(dt);
-    }
-    if (m_isKeyDown[65])
-    {
-        m_camera->MoveLeft(dt);
-    }
-    if (m_isKeyDown[68])
-    {
-        m_camera->MoveRight(dt);
-    }
+    UpdateCamera(dt);
 
     m_model->Update();
     m_box->Update();
@@ -142,7 +127,7 @@ void AppBase::Render()
     m_model->Render(m_device, m_commandList);
 
     //m_commandList->SetPipelineState(m_box->GetPSO());
-    //m_box->Render(m_commandList);
+    //m_box->Render(m_device, m_commandList);
 
     m_commandList->SetPipelineState(m_ground->GetPSO());
     m_ground->Render(m_device, m_commandList);
@@ -454,17 +439,19 @@ void AppBase::GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdap
 void AppBase::BuildRootSignature()
 {
     // Create root signature.
-    CD3DX12_DESCRIPTOR_RANGE rangeObj[2] = {};
-    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1); // b1 : Mesh Consts, b2 : Material Consts
-    rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0); // t0 : diffuse, t1 : specular, t2 : texture
+    CD3DX12_DESCRIPTOR_RANGE rangeObj[1] = {};
+    //rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1); // b1 : Mesh Consts, b2 : Material Consts
+    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 3); // t0 : diffuse, t1 : specular, t2 : texture
 
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-    CD3DX12_ROOT_PARAMETER rootParameters[2] = {};
+    CD3DX12_ROOT_PARAMETER rootParameters[4] = {};
     rootParameters[0].InitAsConstantBufferView(0); // b0 : Global Consts
-    rootParameters[1].InitAsDescriptorTable(_countof(rangeObj), rangeObj, D3D12_SHADER_VISIBILITY_ALL);
+    rootParameters[1].InitAsConstantBufferView(1); // b1 : Mesh Consts
+    rootParameters[2].InitAsConstantBufferView(2); // b2 : material Consts
+    rootParameters[3].InitAsDescriptorTable(_countof(rangeObj), rangeObj, D3D12_SHADER_VISIBILITY_ALL);
 
     D3D12_STATIC_SAMPLER_DESC sampler = {};
     sampler.Filter                    = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -507,6 +494,34 @@ void AppBase::UpdateGlobalConsts()
     m_globalConstData.projeciton = XMMatrixTranspose(projection);
 
     m_globalConstsBuffer.Upload(0, &m_globalConstData);
+}
+
+void AppBase::UpdateCamera(const float dt)
+{
+    if (m_isKeyDown[87])
+    {
+        m_camera->MoveFront(dt);
+    }
+    if (m_isKeyDown[83])
+    {
+        m_camera->MoveBack(dt);
+    }
+    if (m_isKeyDown[65])
+    {
+        m_camera->MoveLeft(dt);
+    }
+    if (m_isKeyDown[68])
+    {
+        m_camera->MoveRight(dt);
+    }
+    if (m_isKeyDown[81])
+    {
+        m_camera->MoveUp(dt);
+    }
+    if (m_isKeyDown[69])
+    {
+        m_camera->MoveDown(dt);
+    }
 }
 
 void AppBase::SetGlobalConsts(const D3D12_GPU_VIRTUAL_ADDRESS resAddress)

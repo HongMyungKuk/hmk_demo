@@ -53,10 +53,14 @@ void Camera::MoveLeft(const float dt)
     XMStoreFloat3(&m_eyePosition, newPosition);
 }
 
-void Camera::MoveUp()
+void Camera::MoveUp(const float dt)
 {
+    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_upDirection) * dt);
+    XMStoreFloat3(&m_eyePosition, newPosition);
 }
 
-void Camera::MoveDown()
+void Camera::MoveDown(const float dt)
 {
+    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_upDirection) * -dt);
+    XMStoreFloat3(&m_eyePosition, newPosition);
 }

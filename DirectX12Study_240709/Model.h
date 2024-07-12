@@ -16,7 +16,7 @@ class Model
                             ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                             std::vector<MeshData> meshes); // const buffer, mesh data
     virtual void Update();
-    virtual void Render(ID3D12Device* device, ID3D12GraphicsCommandList *commandList);
+    virtual void Render(ID3D12Device *device, ID3D12GraphicsCommandList *commandList);
     void UpdateWorldMatrix(XMMATRIX worldRow);
 
   private:
@@ -36,25 +36,31 @@ class Model
     }
     MeshConsts &GetMeshConstCPU()
     {
-        return m_meshConstBufferData;
+        return m_meshConstsData;
     }
     MaterialConsts &GetMaterialConstCPU()
     {
-        return m_materialConstBufferData;
+        return m_materialConstData;
     }
 
   private:
-    ID3D12RootSignature *m_rootSignature     = nullptr;
-    ID3D12PipelineState *m_pipelineState     = nullptr;
-    ID3D12Resource *m_meshConstBuffer        = nullptr;
-    ID3D12Resource *m_materialConstBuffer    = nullptr;
-    ID3D12DescriptorHeap *m_descriptorHeap   = nullptr;
-    ID3D12Resource *m_textureUploadHeap      = nullptr;
-    uint8_t *m_meshDataBeign                 = nullptr;
-    uint8_t *m_materialDataBeign             = nullptr;
-    MeshConsts m_meshConstBufferData         = {};
-    MaterialConsts m_materialConstBufferData = {};
-    std::vector<Mesh> m_meshes               = {};
-    uint8_t m_descRef                        = 0;
-    uint8_t m_descNum                        = 3;
+    ID3D12RootSignature *m_rootSignature   = nullptr;
+    ID3D12PipelineState *m_pipelineState   = nullptr;
+    ID3D12Resource *m_meshConstBuffer      = nullptr;
+    ID3D12Resource *m_materialConstBuffer  = nullptr;
+    ID3D12DescriptorHeap *m_descriptorHeap = nullptr;
+    ID3D12Resource *m_textureUploadHeap    = nullptr;
+    // uint8_t *m_meshDataBeign                 = nullptr;
+    // uint8_t *m_materialDataBeign             = nullptr;
+    // MeshConsts m_meshConstBufferData         = {};
+    // MaterialConsts m_materialConstBufferData = {};
+    std::vector<Mesh> m_meshes = {};
+    uint8_t m_descRef          = 0;
+    uint8_t m_descNum          = 9;
+    uint8_t m_renderRef        = 0;
+
+    UploadBuffer<MeshConsts> m_meshUpload;
+    UploadBuffer<MaterialConsts> m_materialUpload;
+    MeshConsts m_meshConstsData        = {};
+    MaterialConsts m_materialConstData = {};
 };

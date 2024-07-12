@@ -185,5 +185,8 @@ auto GeometryGenerator::ReadFromModelFile(const char *filepath, const char *file
     // }
     NomalizeModel(meshes, 1.0f);
 
+    // Mesh Data 가 들어있는 vector를 vector 1개의 MeshData로 변환한다.
+
+
     return {meshes, material};
 }

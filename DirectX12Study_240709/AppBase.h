@@ -31,6 +31,7 @@ class AppBase
     void BuildRootSignature();
     void BuildGlobalConsts();
     void UpdateGlobalConsts();
+    void UpdateCamera(const float dt);
     void SetGlobalConsts(const D3D12_GPU_VIRTUAL_ADDRESS resAddress);
     void BeginRender();
     void EndRender();

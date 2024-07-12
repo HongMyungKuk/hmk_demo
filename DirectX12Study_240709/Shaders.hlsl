@@ -38,12 +38,15 @@ cbuffer MeshConsts : register(b1)
 cbuffer MaterialConstants : register(b2)
 {
     float3 ambient;
+    uint texIdx;
     float3 diffuse;
+    float dummy2;
     float3 specular;
+    float dummy3;
 };
 
 SamplerState linearWrapSS : register(s0);
-Texture2D albedoTexture : register(t0);
+Texture2D albedoTexture[7] : register(t3);
 
 struct PSInput
 {
@@ -68,5 +71,6 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 texCoo
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    return albedoTexture.Sample(linearWrapSS, input.texCoord);
+    return albedoTexture[texIdx].Sample(linearWrapSS, input.texCoord);
+
 }
