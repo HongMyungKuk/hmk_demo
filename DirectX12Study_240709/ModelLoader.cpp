@@ -1,18 +1,26 @@
 #include "pch.h"
 
 #include "ModelLoader.h"
+#include <filesystem>
+#include <fstream>
 
-ModelLoader::ModelLoader(const char *filename)
+ModelLoader::ModelLoader(const char *filepath, const char *filename)
 {
-    const uint8_t *ext = Uitls::get_extension(filename);
+    basePath = std::string(filepath);
+
+    uint8_t *fileFullpath = Utils::get_full_directory(filepath, filename);
+    const uint8_t *ext    = Utils::get_extension((const char *)fileFullpath);
     if (!strcmp((const char *)ext, "obj"))
     {
-        LoadObjFile(filename);
+        LoadObjFile((const char *)fileFullpath);
     }
     else
     {
-        LoadModel(filename);
+        LoadModel((const char *)fileFullpath);
     }
+
+    free((void*)ext);
+    free(fileFullpath);
 }
 
 ModelLoader::~ModelLoader()
@@ -193,14 +201,56 @@ MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
         for (unsigned int j = 0; j < face.mNumIndices; j++)
             meshData.indices.push_back(face.mIndices[j]);
     }
+
     // material
-    if (mesh->mMaterialIndex >= 0) {
-        aiMaterial *material        = scene->mMaterials[mesh->mMaterialIndex];
-        
+    if (mesh->mMaterialIndex >= 0)
+    {
+        aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
+
+        MaterialConsts mat = {};
+
+        aiColor3D ambient(0.f, 0.f, 0.f);
+        material->Get(AI_MATKEY_COLOR_AMBIENT, ambient);
+        aiColor3D diffuse(0.f, 0.f, 0.f);
+        material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
+        aiColor3D specular(0.f, 0.f, 0.f);
+        material->Get(AI_MATKEY_COLOR_SPECULAR, specular);
+
+        // ¸ðµ¨¿¡ ambient, diffuse, specular ¸¦ ³Ñ°ÜÁÜ.
+        mat.ambient.x = ambient.r;
+        mat.ambient.y = ambient.b;
+        mat.ambient.z = ambient.g;
+
+        mat.diffuse.x = diffuse.r;
+        mat.diffuse.y = diffuse.b;
+        mat.diffuse.z = diffuse.g;
+
+        mat.specular.x = specular.r;
+        mat.specular.y = specular.b;
+        mat.specular.z = specular.g;
+
+        m_materials.push_back(mat);
+
         for (unsigned int i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); i++)
         {
             aiString str;
             material->GetTexture(aiTextureType_DIFFUSE, i, &str);
+            const aiTexture *texture = scene->GetEmbeddedTexture(str.C_Str());
+            if (texture)
+            {
+                if (texture->CheckFormat("png") || texture->CheckFormat("jpg"))
+                {
+                    std::string filename = std::string(std::filesystem::path(texture->mFilename.C_Str()).filename().string());
+                    meshData.albedoTextureFilename = basePath + filename;
+                    // std::cout << basePath + filename << std::endl;
+                    {
+                        std::ofstream os;
+                        os.open(basePath + filename, std::ios::binary | std::ios::out);
+                        os.write((char*)texture->pcData ,texture->mWidth);
+                        os.close();
+                    }
+                }
+            }
         }
     }
 

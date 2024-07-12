@@ -153,7 +153,7 @@ void NomalizeModel(std::vector<MeshData> &meshes, const float sacle)
     const float dy = max.y - min.y;
     const float dz = max.z - min.z;
 
-    const float scale = sacle / DirectX::XMMax(XMMax(dx, dy), dz);
+    const float scale    = sacle / DirectX::XMMax(XMMax(dx, dy), dz);
     XMVECTOR translation = -(XMLoadFloat3(&max) + XMLoadFloat3(&min)) / 2.0f;
 
     for (auto &m : meshes)
@@ -165,21 +165,13 @@ void NomalizeModel(std::vector<MeshData> &meshes, const float sacle)
     }
 }
 
-std::vector<MeshData> GeometryGenerator::ReadFromModelFile(const char *filepath, const char *filename)
+auto GeometryGenerator::ReadFromModelFile(const char *filepath, const char *filename)
+    -> std::pair<std::vector<MeshData>, std::vector<MaterialConsts>>
 {
-    auto l1          = strlen(filepath);
-    auto l2          = strlen(filename);
-    uint8_t *absPath = (uint8_t *)malloc(l1 + l2 + 1);
+    ModelLoader modelLoader((const char*)filepath, (const char *)filename);
 
-    assert(absPath);
-
-    strcpy_s((char *)absPath, l1 + 1, filepath);
-    strcat_s((char *)absPath, l1 + l2 + 1, filename);
-
-    ModelLoader modelLoader((char *)absPath);
-
-    auto meshes = modelLoader.Meshes();
-
+    auto meshes   = modelLoader.Meshes();
+    auto material = modelLoader.Materials();
     // for (auto m : meshes)
     //{
     //     for (auto e : m.indices)
@@ -191,8 +183,7 @@ std::vector<MeshData> GeometryGenerator::ReadFromModelFile(const char *filepath,
     //         }
     //     }
     // }
-
     NomalizeModel(meshes, 1.0f);
 
-    return meshes;
+    return {meshes, material};
 }

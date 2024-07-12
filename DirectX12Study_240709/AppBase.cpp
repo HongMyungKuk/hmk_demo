@@ -70,7 +70,7 @@ bool AppBase::Initialize()
     {
         CREATE_MODEL_OBJ(m_model);
         {
-            std::vector<MeshData> model = GeometryGenerator::ReadFromModelFile("../../Asset/Model/", "model.fbx");
+            auto [model, material] = GeometryGenerator::ReadFromModelFile("../../Asset/Model/", "comp_model.fbx");
             m_model->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model);
             m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
             m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
@@ -139,13 +139,13 @@ void AppBase::Update()
 void AppBase::Render()
 {
     m_commandList->SetPipelineState(m_model->GetPSO());
-    m_model->Render(m_commandList);
+    m_model->Render(m_device, m_commandList);
 
     //m_commandList->SetPipelineState(m_box->GetPSO());
     //m_box->Render(m_commandList);
 
     m_commandList->SetPipelineState(m_ground->GetPSO());
-    m_ground->Render(m_commandList);
+    m_ground->Render(m_device, m_commandList);
 }
 
 int32_t AppBase::Run()
@@ -456,7 +456,7 @@ void AppBase::BuildRootSignature()
     // Create root signature.
     CD3DX12_DESCRIPTOR_RANGE rangeObj[2] = {};
     rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1); // b1 : Mesh Consts, b2 : Material Consts
-    rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0 : Texture
+    rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0); // t0 : diffuse, t1 : specular, t2 : texture
 
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |

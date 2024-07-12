@@ -16,7 +16,7 @@ class Model
                             ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                             std::vector<MeshData> meshes); // const buffer, mesh data
     virtual void Update();
-    virtual void Render(ID3D12GraphicsCommandList *commandList);
+    virtual void Render(ID3D12Device* device, ID3D12GraphicsCommandList *commandList);
     void UpdateWorldMatrix(XMMATRIX worldRow);
 
   private:
@@ -55,4 +55,6 @@ class Model
     MeshConsts m_meshConstBufferData         = {};
     MaterialConsts m_materialConstBufferData = {};
     std::vector<Mesh> m_meshes               = {};
+    uint8_t m_descRef                        = 0;
+    uint8_t m_descNum                        = 3;
 };

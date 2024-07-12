@@ -77,9 +77,11 @@ class D3DUtils
 
     static ID3D12Resource *CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                                          ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
+                                         const std::string &filename, ID3D12Resource **texture, XMFLOAT3 color = {});
+    static ID3D12Resource *CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
+                                         ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                                          const std::string &filename, ID3D12Resource **texture,
-                                         D3D12_CPU_DESCRIPTOR_HANDLE &descHandle);
-
+                                         D3D12_CPU_DESCRIPTOR_HANDLE &descHandle, XMFLOAT3 color = {});
     static void CreateDscriptor(ID3D12Device *device, uint32_t numDesc, D3D12_DESCRIPTOR_HEAP_TYPE type,
                                 D3D12_DESCRIPTOR_HEAP_FLAGS flag, ID3D12DescriptorHeap **descHeap);
 };

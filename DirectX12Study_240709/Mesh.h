@@ -39,6 +39,9 @@ struct Mesh
     // Teture
     ID3D12Resource *albedoTexture = nullptr;
     ID3D12Resource *albedoUploadTexture = nullptr;
+    // Material
+    ID3D12Resource *diffuseUploadTexture = nullptr;
+    ID3D12Resource *specularUploadTexture = nullptr;
 
     D3D12_VERTEX_BUFFER_VIEW VertexBufferView()
     {
