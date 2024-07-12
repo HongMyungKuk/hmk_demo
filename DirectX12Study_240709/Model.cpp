@@ -11,15 +11,15 @@ Model::~Model()
     DestroyTextureResource();
     DestroyMeshBuffers();
     SAFE_RELEASE(m_descriptorHeap);
-    //SAFE_RELEASE(m_materialConstBuffer);
-    //SAFE_RELEASE(m_meshConstBuffer);
+    // SAFE_RELEASE(m_materialConstBuffer);
+    // SAFE_RELEASE(m_meshConstBuffer);
     SAFE_RELEASE(m_pipelineState);
     SAFE_RELEASE(m_rootSignature);
 }
 
 void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                        ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
-                       std::vector<MeshData> meshes)
+                       std::vector<MeshData> meshes, std::vector<MaterialConsts> materials)
 {
     D3DUtils::CreateDscriptor(device, m_descNum, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
                               D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_descriptorHeap);
@@ -49,6 +49,11 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
 
         m_meshes.push_back(newMesh);
     }
+
+    for (auto &m : materials)
+    {
+        m_material.push_back(m);
+    }
 }
 
 void Model::Update()
@@ -58,10 +63,20 @@ void Model::Update()
 
     m_meshUpload.Upload(0, &m_meshConstsData);
 
-    for (int32_t i = 0; i < m_meshes.size(); i++)
+    if (m_material.size() > 0)
     {
-        m_materialConstData.texIdx = i;
-        m_materialUpload.Upload(i, &m_materialConstData);
+        for (int32_t i = 0; i < m_material.size(); i++)
+        {
+            m_materialConstData.texIdx   = i;
+            m_materialConstData.ambient  = m_material[i].ambient;
+            m_materialConstData.diffuse  = m_material[i].diffuse;
+            m_materialConstData.specular = m_material[i].specular;
+            m_materialUpload.Upload(i, &m_materialConstData);
+        }
+    }
+    else
+    {
+        m_materialUpload.Upload(0, &m_materialConstData);
     }
 }
 

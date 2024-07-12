@@ -5,6 +5,11 @@
 #include <directxmath.h>
 #include <dxgi1_6.h>
 #include "d3dx12.h"
+
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
+
 #include "D3DUtils.h"
 #include "GraphicsCommon.h"
 #include "Utils.h"

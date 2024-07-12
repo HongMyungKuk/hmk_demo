@@ -31,7 +31,7 @@ __declspec(align(256)) struct MaterialConsts
     XMFLOAT3 ambient = XMFLOAT3(0.0f, 0.0f, 0.0f);
     uint32_t texIdx  = 0;
     XMFLOAT3 diffuse = XMFLOAT3(0.0f, 0.0f, 0.0f);
-    float dummy1;
+    uint32_t texFlag  = 0;
     XMFLOAT3 specular = XMFLOAT3(0.0f, 0.0f, 0.0f);
     float dummy2;
 };

@@ -40,7 +40,7 @@ cbuffer MaterialConstants : register(b2)
     float3 ambient;
     uint texIdx;
     float3 diffuse;
-    float dummy2;
+    uint texFlag;
     float3 specular;
     float dummy3;
 };
@@ -71,6 +71,5 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 texCoo
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    return albedoTexture[texIdx].Sample(linearWrapSS, input.texCoord);
-
+    return texFlag ? albedoTexture[texIdx].Sample(linearWrapSS, input.texCoord) : float4(diffuse, 1.0);
 }

@@ -56,6 +56,7 @@ class AppBase
     ID3D12CommandQueue *m_commandQueue            = nullptr;
     ID3D12DescriptorHeap *m_rtvHeap               = nullptr;
     ID3D12DescriptorHeap *m_dsvHeap               = nullptr;
+    ID3D12DescriptorHeap *m_srvHeap               = nullptr;
     ID3D12GraphicsCommandList *m_commandList      = nullptr;
     ID3D12RootSignature *m_rootSignature          = nullptr;
     ID3D12Resource *m_depthStencilBuffer          = nullptr;

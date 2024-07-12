@@ -14,7 +14,8 @@ class Model
   public:
     virtual void Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                             ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
-                            std::vector<MeshData> meshes); // const buffer, mesh data
+                            std::vector<MeshData> meshes,
+                            std::vector<MaterialConsts> materials = {}); // const buffer, mesh data
     virtual void Update();
     virtual void Render(ID3D12Device *device, ID3D12GraphicsCommandList *commandList);
     void UpdateWorldMatrix(XMMATRIX worldRow);
@@ -54,10 +55,11 @@ class Model
     // uint8_t *m_materialDataBeign             = nullptr;
     // MeshConsts m_meshConstBufferData         = {};
     // MaterialConsts m_materialConstBufferData = {};
-    std::vector<Mesh> m_meshes = {};
-    uint8_t m_descRef          = 0;
-    uint8_t m_descNum          = 9;
-    uint8_t m_renderRef        = 0;
+    std::vector<Mesh> m_meshes             = {};
+    std::vector<MaterialConsts> m_material = {};
+    uint8_t m_descRef                      = 0;
+    uint8_t m_descNum                      = 9;
+    uint8_t m_renderRef                    = 0;
 
     UploadBuffer<MeshConsts> m_meshUpload;
     UploadBuffer<MaterialConsts> m_materialUpload;

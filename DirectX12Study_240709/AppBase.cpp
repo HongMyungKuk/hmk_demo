@@ -9,6 +9,7 @@
 AppBase *g_appBase = nullptr;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 AppBase::AppBase()
 {
@@ -22,6 +23,11 @@ AppBase::~AppBase()
 
     DestroyPSO();
 
+    // Cleanup
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
+
     SAFE_DELETE(m_camera);
     SAFE_DELETE(m_model);
     SAFE_DELETE(m_ground);
@@ -33,6 +39,7 @@ AppBase::~AppBase()
     SAFE_RELEASE(m_depthStencilBuffer);
     for (uint8_t i = 0; i < s_frameCount; i++)
         SAFE_RELEASE(m_renderTargets[i]);
+    SAFE_RELEASE(m_srvHeap);
     SAFE_RELEASE(m_dsvHeap);
     SAFE_RELEASE(m_rtvHeap);
     SAFE_RELEASE(m_swapChain);
@@ -70,10 +77,9 @@ bool AppBase::Initialize()
     {
         CREATE_MODEL_OBJ(m_model);
         {
-            auto [model, material] = GeometryGenerator::ReadFromModelFile("../../Asset/Model/", "comp_model.fbx");
-            m_model->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model);
+            auto [model, material] = GeometryGenerator::ReadFromModelFile("../../Asset/Model/", "model.fbx");
+            m_model->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material);
             m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
-            m_model->GetMaterialConstCPU().texIdx  = 1;
             m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
         }
     }
@@ -85,7 +91,7 @@ bool AppBase::Initialize()
             MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
             cube.albedoTextureFilename = "boxTex.jpeg";
             m_box->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
-            m_box->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
+            m_box->GetMaterialConstCPU().diffuse = XMFLOAT3(0.0f, 1.0f, 0.0f);
             m_box->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
         }
     }
@@ -99,7 +105,8 @@ bool AppBase::Initialize()
             MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
             square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
             m_ground->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {square});
-            m_ground->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 0.0f, 1.0f);
+            m_ground->GetMaterialConstCPU().diffuse = XMFLOAT3(1.0f, 1.0f, 1.0f);
+            m_ground->GetMaterialConstCPU().texFlag = true;
             m_ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
         }
     }
@@ -126,8 +133,8 @@ void AppBase::Render()
     m_commandList->SetPipelineState(m_model->GetPSO());
     m_model->Render(m_device, m_commandList);
 
-    //m_commandList->SetPipelineState(m_box->GetPSO());
-    //m_box->Render(m_device, m_commandList);
+    // m_commandList->SetPipelineState(m_box->GetPSO());
+    // m_box->Render(m_device, m_commandList);
 
     m_commandList->SetPipelineState(m_ground->GetPSO());
     m_ground->Render(m_device, m_commandList);
@@ -147,9 +154,29 @@ int32_t AppBase::Run()
         }
         else
         {
+            // Start the Dear ImGui frame
+            ImGui_ImplDX12_NewFrame();
+            ImGui_ImplWin32_NewFrame();
+            ImGui::NewFrame();
+
+            {
+                ImGui::Begin("Hello, world!");            // Create a window called "Hello, world!" and append into it.
+                ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
+                ImGui::End();
+            }
+
+            ImGui::Render();
+
             Update();
             AppBase::BeginRender();
+
+            // ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList);
+
             Render();
+
+            m_commandList->SetDescriptorHeaps(1, &m_srvHeap);
+            ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList);
+
             AppBase::EndRender();
         }
     }
@@ -260,14 +287,16 @@ bool AppBase::InitD3D()
     {
         D3DUtils::CreateDscriptor(m_device, s_frameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
                                   D3D12_DESCRIPTOR_HEAP_FLAG_NONE, &m_rtvHeap);
-
         m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
         // Describe and create a render target view (DSV) descriptor heap.
-        D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
-                                  D3D12_DESCRIPTOR_HEAP_FLAG_NONE, &m_dsvHeap);
-
+        D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+                                  &m_dsvHeap);
         m_dsvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+        // Describe and create a render target view (SRV) descriptor heap.
+        D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                                  D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_srvHeap);
     }
 
     ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
@@ -369,6 +398,23 @@ bool AppBase::InitD3D()
 
 bool AppBase::InitGui()
 {
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    // ImGui::StyleColorsLight();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplWin32_Init(m_hwnd);
+    ImGui_ImplDX12_Init(m_device, 3, DXGI_FORMAT_R8G8B8A8_UNORM, m_srvHeap,
+                        m_srvHeap->GetCPUDescriptorHandleForHeapStart(),
+                        m_srvHeap->GetGPUDescriptorHandleForHeapStart());
     return true;
 }
 
@@ -440,7 +486,7 @@ void AppBase::BuildRootSignature()
 {
     // Create root signature.
     CD3DX12_DESCRIPTOR_RANGE rangeObj[1] = {};
-    //rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1); // b1 : Mesh Consts, b2 : Material Consts
+    // rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1); // b1 : Mesh Consts, b2 : Material Consts
     rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 3); // t0 : diffuse, t1 : specular, t2 : texture
 
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -599,6 +645,9 @@ void AppBase::OnMouse(const float x, const float y)
 
 LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+        return true;
+
     switch (message)
     {
     case WM_CREATE:
