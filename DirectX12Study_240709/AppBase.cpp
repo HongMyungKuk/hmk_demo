@@ -105,7 +105,6 @@ int32_t AppBase::Run()
 
             ImGuiIO &io = ImGui::GetIO();
             (void)io;
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
             this->UpdateGui(io.Framerate);
             ImGui::Render();
@@ -261,23 +260,21 @@ bool AppBase::InitD3D()
         }
     }
 
-    // Create view port
-    {
-        m_viewport.TopLeftX = 0;
-        m_viewport.TopLeftY = 0;
-        m_viewport.MinDepth = 0.0f;
-        m_viewport.MaxDepth = 1.0f;
-        m_viewport.Width    = (FLOAT)s_screenWidth;
-        m_viewport.Height   = (FLOAT)s_screenHeight;
-    }
+    D3D12_VIEWPORT viewport = {};
+    viewport.TopLeftX       = 0;
+    viewport.TopLeftY       = 0;
+    viewport.MinDepth       = 0.0f;
+    viewport.MaxDepth       = 1.0f;
+    viewport.Width          = (FLOAT)s_screenWidth;
+    viewport.Height         = (FLOAT)s_screenHeight;
+    this->SetViewport(viewport);
 
-    // Create scissor rect.
-    {
-        m_scissorRect.left   = 0;
-        m_scissorRect.right  = s_screenWidth;
-        m_scissorRect.top    = 0;
-        m_scissorRect.bottom = s_screenHeight;
-    }
+    D3D12_RECT sissorRect = {};
+    sissorRect.left       = 0;
+    sissorRect.top        = 0;
+    sissorRect.right      = s_screenWidth;
+    sissorRect.bottom     = s_screenHeight;
+    this->SetSissorRect(sissorRect);
 
     // Create frame resources.
     {
@@ -431,7 +428,7 @@ void AppBase::BuildRootSignature()
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
-                                                    
+
     CD3DX12_ROOT_PARAMETER rootParameters[4] = {};
     rootParameters[0].InitAsConstantBufferView(0); // b0 : Global Consts
     rootParameters[1].InitAsConstantBufferView(1); // b1 : Mesh Consts
@@ -597,6 +594,41 @@ LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
     case WM_CREATE:
         return 0;
 
+    case WM_SIZE: {
+
+        //RECT rect = {};
+        //GetClientRect(hWnd, &rect);
+        //const float curScreenWidth  = float(rect.right - rect.left);
+        //const float curScreenHeight = float(rect.top - rect.bottom);
+
+        //if (m_swapChain)
+        //{
+        //    // Create a RTV for each frame.
+        //    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+        //    for (UINT n = 0; n < s_frameCount; n++)
+        //        m_renderTargets[n]->Release();
+        //    m_swapChain->ResizeBuffers(s_frameCount, UINT(curScreenWidth), UINT(curScreenHeight), DXGI_FORMAT_UNKNOWN,
+        //                               DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
+        //    for (UINT n = 0; n < s_frameCount; n++)
+        //    {
+        //        m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n]));
+        //        m_device->CreateRenderTargetView(m_renderTargets[n], nullptr, rtvHandle);
+        //        rtvHandle.Offset(1, m_rtvDescriptorSize);
+        //    }
+
+        //    
+
+        //    D3D12_VIEWPORT viewport = {};
+        //    viewport.TopLeftX       = 0;
+        //    viewport.TopLeftY       = 0;
+        //    viewport.MinDepth       = 0.0f;
+        //    viewport.MaxDepth       = 1.0f;
+        //    viewport.Width          = (FLOAT)curScreenWidth;
+        //    viewport.Height         = (FLOAT)curScreenHeight;
+        //    this->SetViewport(viewport);
+        //}
+    }
+        return 0;
     case WM_KEYDOWN:
         if (wParam == 70)
             m_isFPV = !m_isFPV;
@@ -608,13 +640,9 @@ LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
         return 0;
 
     case WM_MOUSEMOVE:
-
         // std::cout << HIWORD(lParam) << " " << LOWORD(lParam) << std::endl;
-
         OnMouse(LOWORD(lParam), HIWORD(lParam));
-
         return 0;
-
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
@@ -647,4 +675,14 @@ void AppBase::WaitForPreviousFrame()
 LRESULT WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     return g_appBase->MemberWndProc(hWnd, message, wParam, lParam);
+}
+
+void AppBase::SetViewport(D3D12_VIEWPORT viewport)
+{
+    m_viewport = viewport;
+}
+
+void AppBase::SetSissorRect(D3D12_RECT rect)
+{
+    m_scissorRect = rect;
 }

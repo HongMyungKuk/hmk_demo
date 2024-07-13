@@ -23,6 +23,8 @@ class AppBase
     LRESULT CALLBACK MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
   protected:
+    void SetViewport(D3D12_VIEWPORT viewport);
+    void SetSissorRect(D3D12_RECT rect);
     void UpdateCamera(const float dt);
     void WaitForPreviousFrame();
 
@@ -90,7 +92,7 @@ class AppBase
 
   public:
     static const uint32_t s_screenWidth  = 1920;
-    static const uint32_t s_screenHeight = 1080;
+    static const uint32_t s_screenHeight = 1009;
 
   private:
     Timer *m_timer        = nullptr;
