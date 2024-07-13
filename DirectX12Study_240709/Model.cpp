@@ -80,7 +80,7 @@ void Model::Update()
     }
 }
 
-void Model::Render(ID3D12Device *device, ID3D12GraphicsCommandList *commandList)
+void Model::Render(ID3D12GraphicsCommandList *commandList)
 {
     int idx = 0;
     for (auto &m : m_meshes)
@@ -98,6 +98,17 @@ void Model::Render(ID3D12Device *device, ID3D12GraphicsCommandList *commandList)
         commandList->DrawIndexedInstanced(m.indexCount, 1, 0, 0, 0);
 
         idx++;
+    }
+}
+
+void Model::RenderNormal(ID3D12GraphicsCommandList *commandList)
+{
+    for (auto &m : m_meshes)
+    {
+        commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload.GetResource()->GetGPUVirtualAddress());
+        commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+        commandList->IASetVertexBuffers(0, 1, &m.VertexBufferView());
+        commandList->DrawInstanced(m.vertexCount, 1, 0, 0);
     }
 }
 

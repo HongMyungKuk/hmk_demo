@@ -4,6 +4,7 @@
 
 class Model;
 class Camera;
+class Timer;
 
 class AppBase
 {
@@ -15,23 +16,25 @@ class AppBase
 
   public:
     virtual bool Initialize();
+    virtual void UpdateGui();
     virtual void Render();
     virtual void Update();
 
     LRESULT CALLBACK MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
+  protected:
+    void UpdateCamera(const float dt);
     void WaitForPreviousFrame();
 
   private:
     bool InitWindow();
     bool InitD3D();
-    bool InitGui();
+    virtual bool InitGui();
     void GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdapter,
                             bool requestHighPerformanceAdapter = false);
     void BuildRootSignature();
     void BuildGlobalConsts();
     void UpdateGlobalConsts();
-    void UpdateCamera(const float dt);
     void SetGlobalConsts(const D3D12_GPU_VIRTUAL_ADDRESS resAddress);
     void BeginRender();
     void EndRender();
@@ -46,6 +49,7 @@ class AppBase
     }
 
   protected:
+    Camera *m_camera                   = nullptr;
     static const uint32_t s_frameCount = 2;
     // Pipeline objects.
     D3D12_VIEWPORT m_viewport                     = {};
@@ -78,17 +82,17 @@ class AppBase
 
     HWND m_hwnd          = nullptr;
     bool m_useWarpDevice = false;
+    bool m_isFPV         = false;
+    bool m_drawAsNormal  = false;
+    bool m_isWireFrame   = false;
+    bool m_useMSAA       = false;
+    bool m_useTexture    = false;
 
   public:
     static const uint32_t s_screenWidth  = 1920;
     static const uint32_t s_screenHeight = 1080;
 
   private:
-    Camera *m_camera = nullptr;
-    Model *m_ground  = nullptr;
-    Model *m_box     = nullptr;
-    Model *m_model   = nullptr;
-
+    Timer *m_timer        = nullptr;
     bool m_isKeyDown[256] = {};
-    bool m_isFPV          = false;
 };

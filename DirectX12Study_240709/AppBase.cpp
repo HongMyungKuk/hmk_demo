@@ -5,6 +5,7 @@
 #include "GeometryGenerator.h"
 #include "GraphicsCommon.h"
 #include "Model.h"
+#include "Timer.h"
 
 AppBase *g_appBase = nullptr;
 
@@ -21,7 +22,7 @@ AppBase::~AppBase()
     WaitForPreviousFrame();
     CloseHandle(m_fenceEvent);
 
-    DestroyPSO();
+    Graphics::DestroyGraphicsCommon();
 
     // Cleanup
     ImGui_ImplDX12_Shutdown();
@@ -29,10 +30,8 @@ AppBase::~AppBase()
     ImGui::DestroyContext();
 
     SAFE_DELETE(m_camera);
-    SAFE_DELETE(m_model);
-    SAFE_DELETE(m_ground);
-    SAFE_DELETE(m_box);
     SAFE_RELEASE(m_rootSignature)
+    SAFE_DELETE(m_timer);
     SAFE_RELEASE(m_fence);
     SAFE_RELEASE(m_commandList);
     SAFE_RELEASE(m_commandAllocator);
@@ -62,82 +61,29 @@ bool AppBase::Initialize()
         return false;
     }
 
+    // Init Timer
+    CREATE_OBJ(m_timer, Timer);
+    m_timer->Initialize();
+
     this->BuildRootSignature();
     this->BuildGlobalConsts();
 
     // Init graphics common.
     Graphics::InitGraphicsCommon(m_device, m_rootSignature);
 
-    // Init cameara
-    {
-        CREATE_OBJ(m_camera, Camera);
-    }
-
-    // Create the model.
-    {
-        CREATE_MODEL_OBJ(m_model);
-        {
-            auto [model, material] = GeometryGenerator::ReadFromModelFile("../../Asset/Model/", "model.fbx");
-            m_model->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material);
-            m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
-            m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-        }
-    }
-
-    // Create the box.
-    {
-        CREATE_MODEL_OBJ(m_box);
-        {
-            MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
-            cube.albedoTextureFilename = "boxTex.jpeg";
-            m_box->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
-            m_box->GetMaterialConstCPU().diffuse = XMFLOAT3(0.0f, 1.0f, 0.0f);
-            m_box->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-        }
-    }
-
-    WaitForPreviousFrame();
-
-    // Create the ground.
-    {
-        CREATE_MODEL_OBJ(m_ground);
-        {
-            MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
-            square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
-            m_ground->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {square});
-            m_ground->GetMaterialConstCPU().diffuse = XMFLOAT3(1.0f, 1.0f, 1.0f);
-            m_ground->GetMaterialConstCPU().texFlag = true;
-            m_ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
-        }
-    }
-
-    WaitForPreviousFrame();
-
     return true;
 }
 void AppBase::Update()
 {
-    static float dt = 0.0f;
-    dt              = 1.0f / 10.0f;
+    m_timer->Update();
+
+    std::cout << m_timer->GetFPS() << std::endl;
 
     UpdateGlobalConsts();
-    UpdateCamera(dt);
-
-    m_model->Update();
-    m_box->Update();
-    m_ground->Update();
 }
 
 void AppBase::Render()
 {
-    m_commandList->SetPipelineState(m_model->GetPSO());
-    m_model->Render(m_device, m_commandList);
-
-    // m_commandList->SetPipelineState(m_box->GetPSO());
-    // m_box->Render(m_device, m_commandList);
-
-    m_commandList->SetPipelineState(m_ground->GetPSO());
-    m_ground->Render(m_device, m_commandList);
 }
 
 int32_t AppBase::Run()
@@ -159,24 +105,15 @@ int32_t AppBase::Run()
             ImGui_ImplWin32_NewFrame();
             ImGui::NewFrame();
 
-            {
-                ImGui::Begin("Hello, world!");            // Create a window called "Hello, world!" and append into it.
-                ImGui::Text("This is some useful text."); // Display some text (you can use a format strings too)
-                ImGui::End();
-            }
-
+            this->UpdateGui();
             ImGui::Render();
 
-            Update();
+            this->Update();
+
             AppBase::BeginRender();
-
-            // ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList);
-
-            Render();
-
+            this->Render();
             m_commandList->SetDescriptorHeaps(1, &m_srvHeap);
             ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList);
-
             AppBase::EndRender();
         }
     }
@@ -491,8 +428,8 @@ void AppBase::BuildRootSignature()
 
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
+                                                    
     CD3DX12_ROOT_PARAMETER rootParameters[4] = {};
     rootParameters[0].InitAsConstantBufferView(0); // b0 : Global Consts
     rootParameters[1].InitAsConstantBufferView(1); // b1 : Mesh Consts
@@ -570,6 +507,10 @@ void AppBase::UpdateCamera(const float dt)
     }
 }
 
+void AppBase::UpdateGui()
+{
+}
+
 void AppBase::SetGlobalConsts(const D3D12_GPU_VIRTUAL_ADDRESS resAddress)
 {
     m_commandList->SetGraphicsRootConstantBufferView(0, resAddress);
@@ -629,7 +570,8 @@ void AppBase::EndRender()
 
 void AppBase::DestroyPSO()
 {
-    SAFE_RELEASE(Graphics::defaultPSO);
+    SAFE_RELEASE(Graphics::defaultWirePSO);
+    SAFE_RELEASE(Graphics::defaultSolidPSO);
 }
 
 void AppBase::OnMouse(const float x, const float y)
@@ -655,7 +597,7 @@ LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 
     case WM_KEYDOWN:
         if (wParam == 70)
-            m_isFPV = true;
+            m_isFPV = !m_isFPV;
         m_isKeyDown[wParam] = true;
         return 0;
 

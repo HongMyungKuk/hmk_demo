@@ -48,28 +48,35 @@ cbuffer MaterialConstants : register(b2)
 SamplerState linearWrapSS : register(s0);
 Texture2D albedoTexture[7] : register(t3);
 
-struct PSInput
+struct VSInput
 {
-    float4 position : SV_POSITION;
-    float3 normal : NORMAL;
+    float3 posModel : POSITION;
+    float3 normalModel : NORMAL;
     float2 texCoord : TEXCOORD;
 };
 
-PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 texCoord : TEXCOORD)
+struct PSInput
 {
-    PSInput result;
+    float4 posProj : SV_POSITION;
+    float3 normalWorld : NORMAL;
+    float2 texCoord : TEXCOORD;
+};
 
-    result.position = mul(float4(position, 1.0), world);
-    result.position = mul(result.position, view);
-    result.position = mul(result.position, projection);
+PSInput vsmain(VSInput input)
+{
+    PSInput output;
 
-    result.normal = normal;
-    result.texCoord = texCoord;
+    output.posProj = mul(float4(input.posModel, 1.0), world);
+    output.posProj = mul(output.posProj, view);
+    output.posProj = mul(output.posProj, projection);
+
+    output.normalWorld = input.normalModel;
+    output.texCoord = input.texCoord;
     
-    return result;
+    return output;
 }
 
-float4 PSMain(PSInput input) : SV_TARGET
+float4 psmain(PSInput input) : SV_TARGET
 {
-    return texFlag ? albedoTexture[texIdx].Sample(linearWrapSS, input.texCoord) : float4(diffuse, 1.0);
+    return texFlag ? albedoTexture[texIdx].Sample(linearWrapSS, input.texCoord) : float4(0.5 * diffuse + 0.5 * specular, 1.0);
 }

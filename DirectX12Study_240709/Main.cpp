@@ -5,12 +5,12 @@
 
 int main()
 {
-    AppBase app;
+    ModelViewer modelViewer;
 
-    if (!app.Initialize())
+    if (!modelViewer.Initialize())
     {
         return false;
     }
 
-    return app.Run();
+    return modelViewer.Run();
 }

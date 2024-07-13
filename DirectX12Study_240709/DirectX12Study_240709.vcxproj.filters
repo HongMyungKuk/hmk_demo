@@ -125,5 +125,6 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Shaders.hlsl" />
+    <CustomBuild Include="NormalShader.hlsl" />
   </ItemGroup>
 </Project>
