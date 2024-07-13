@@ -73,13 +73,11 @@ bool AppBase::Initialize()
 
     return true;
 }
-void AppBase::Update()
+void AppBase::Update(const float dt)
 {
     m_timer->Update();
 
-    std::cout << m_timer->GetFPS() << std::endl;
-
-    UpdateGlobalConsts();
+    UpdateGlobalConsts(dt);
 }
 
 void AppBase::Render()
@@ -105,10 +103,14 @@ int32_t AppBase::Run()
             ImGui_ImplWin32_NewFrame();
             ImGui::NewFrame();
 
-            this->UpdateGui();
+            ImGuiIO &io = ImGui::GetIO();
+            (void)io;
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+
+            this->UpdateGui(io.Framerate);
             ImGui::Render();
 
-            this->Update();
+            this->Update(io.Framerate);
 
             AppBase::BeginRender();
             this->Render();
@@ -466,7 +468,7 @@ void AppBase::BuildGlobalConsts()
     m_globalConstsBuffer.Initialize(m_device, 1);
 }
 
-void AppBase::UpdateGlobalConsts()
+void AppBase::UpdateGlobalConsts(const float dt)
 {
     auto eyePos     = m_camera->GetPosition();
     auto view       = m_camera->GetViewMatrix();
@@ -507,7 +509,7 @@ void AppBase::UpdateCamera(const float dt)
     }
 }
 
-void AppBase::UpdateGui()
+void AppBase::UpdateGui(const float frameRate)
 {
 }
 

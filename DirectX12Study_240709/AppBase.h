@@ -16,9 +16,9 @@ class AppBase
 
   public:
     virtual bool Initialize();
-    virtual void UpdateGui();
+    virtual void UpdateGui(const float frameRate);
     virtual void Render();
-    virtual void Update();
+    virtual void Update(const float dt);
 
     LRESULT CALLBACK MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -34,7 +34,7 @@ class AppBase
                             bool requestHighPerformanceAdapter = false);
     void BuildRootSignature();
     void BuildGlobalConsts();
-    void UpdateGlobalConsts();
+    void UpdateGlobalConsts(const float dt);
     void SetGlobalConsts(const D3D12_GPU_VIRTUAL_ADDRESS resAddress);
     void BeginRender();
     void EndRender();
@@ -86,7 +86,7 @@ class AppBase
     bool m_drawAsNormal  = false;
     bool m_isWireFrame   = false;
     bool m_useMSAA       = false;
-    bool m_useTexture    = false;
+    bool m_useTexture    = true;
 
   public:
     static const uint32_t s_screenWidth  = 1920;

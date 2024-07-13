@@ -15,9 +15,9 @@ class ModelViewer : public AppBase
     virtual bool Initialize() override;
 
   protected:
-    virtual void Update() override;
+    virtual void Update(const float dt) override;
     virtual void Render() override;
-    virtual void UpdateGui() override;
+    virtual void UpdateGui(const float frameRate) override;
 
   private:
     Model *m_ground  = nullptr;

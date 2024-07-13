@@ -31,36 +31,36 @@ void Camera::MouseUpdate(float ndcX, float ndcY)
 
 void Camera::MoveFront(const float dt)
 {
-    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_eyeDirection) * dt);
+    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_eyeDirection) * m_speed * dt);
     XMStoreFloat3(&m_eyePosition, newPosition);
 }
 
 void Camera::MoveBack(const float dt)
 {
-    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_eyeDirection) * -dt);
+    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_eyeDirection) * m_speed * -dt);
     XMStoreFloat3(&m_eyePosition, newPosition);
 }
 
 void Camera::MoveRight(const float dt)
 {
-    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_rightDirection) * dt);
+    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_rightDirection) * m_speed * dt);
     XMStoreFloat3(&m_eyePosition, newPosition);
 }
 
 void Camera::MoveLeft(const float dt)
 {
-    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_rightDirection) * -dt);
+    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_rightDirection) * m_speed * -dt);
     XMStoreFloat3(&m_eyePosition, newPosition);
 }
 
 void Camera::MoveUp(const float dt)
 {
-    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_upDirection) * dt);
+    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_upDirection) * m_speed * dt);
     XMStoreFloat3(&m_eyePosition, newPosition);
 }
 
 void Camera::MoveDown(const float dt)
 {
-    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_upDirection) * -dt);
+    auto newPosition = XMVectorAdd(XMLoadFloat3(&m_eyePosition), XMLoadFloat3(&m_upDirection) * m_speed * -dt);
     XMStoreFloat3(&m_eyePosition, newPosition);
 }

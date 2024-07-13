@@ -7,6 +7,17 @@ using namespace DirectX;
 class Camera
 {
   public:
+    XMMATRIX GetViewMatrix();
+    XMMATRIX GetProjectionMatrix();
+    void MouseUpdate(float ndcX, float ndcY);
+
+    void MoveFront(const float dt);
+    void MoveBack(const float dt);
+    void MoveRight(const float dt);
+    void MoveLeft(const float dt);
+    void MoveUp(const float dt);
+    void MoveDown(const float dt);
+
     XMFLOAT3 GetPosition()
     {
         return m_eyePosition;
@@ -15,16 +26,14 @@ class Camera
     {
         m_eyePosition = p;
     }
-    XMMATRIX GetViewMatrix();
-    XMMATRIX GetProjectionMatrix();
-    void MouseUpdate(float ndcX, float ndcY);
-    
-    void MoveFront(const float dt);
-    void MoveBack(const float dt);
-    void MoveRight(const float dt);
-    void MoveLeft(const float dt);
-    void MoveUp(const float dt);
-    void MoveDown(const float dt);
+    const float GetCameraSpeed()
+    {
+        return m_speed;
+    }
+    void SetCameraSpeed(const float s)
+    {
+        m_speed = s;
+    }
 
   private:
     XMFLOAT3 m_eyePosition    = XMFLOAT3(1.0f, 3.0f, -3.0f);
@@ -36,8 +45,10 @@ class Camera
     float m_pitch = -0.523598f * 0.5f;
     float m_roll  = 0.0f;
 
-    float m_fov = 70.0f;
+    float m_fov    = 70.0f;
     float m_aspect = AppBase::GetAspect();
     float m_nearZ  = 0.1f;
     float m_farZ   = 100.0f;
+
+    float m_speed = 0.003f;
 };

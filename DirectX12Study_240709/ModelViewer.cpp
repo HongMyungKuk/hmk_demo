@@ -71,12 +71,9 @@ bool ModelViewer::Initialize()
     return true;
 }
 
-void ModelViewer::Update()
+void ModelViewer::Update(const float dt)
 {
-    AppBase::Update();
-
-    static float dt = 0.0f;
-    dt              = 1.0f / 10.0f;
+    AppBase::Update(dt);
 
     UpdateCamera(dt);
 
@@ -99,14 +96,15 @@ void ModelViewer::Render()
     m_commandList->SetPipelineState(m_ground->GetPSO(m_isWireFrame));
     m_ground->Render(m_commandList);
 
-    if (m_drawAsNormal) {
+    if (m_drawAsNormal)
+    {
         // Set normal PSO
         m_commandList->SetPipelineState(Graphics::normalPSO);
         m_model->RenderNormal(m_commandList);
     }
 }
 
-void ModelViewer::UpdateGui()
+void ModelViewer::UpdateGui(const float frameRate)
 {
     bool p_open                   = true;
     ImGuiWindowFlags window_flags = 0;
@@ -140,6 +138,13 @@ void ModelViewer::UpdateGui()
         return;
     }
 
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / frameRate, frameRate);
+    auto cameraSpeed = m_camera->GetCameraSpeed();
+    ImGui::SliderFloat("Camera speed", &cameraSpeed, 0.001f, 0.01f);
+    if (cameraSpeed != m_camera->GetCameraSpeed()) {
+        m_camera->SetCameraSpeed(cameraSpeed);
+    }
+
     // Menu Bar
     if (ImGui::BeginMenuBar())
     {
@@ -169,9 +174,7 @@ void ModelViewer::UpdateGui()
         ImGui::Checkbox("Use MSAA", &m_useMSAA);
     }
     // Mouse & keyboard
-    if (ImGui::CollapsingHeader("Inputs"))
-    {
-    }
+    if (ImGui::CollapsingHeader("Inputs")) {}
 
     ImGui::End();
 }
