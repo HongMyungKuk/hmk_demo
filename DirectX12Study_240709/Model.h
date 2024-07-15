@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ConstantBuffer.h"
+#include "AnimationData.h"
 #include "Mesh.h"
 
 using namespace DirectX;
@@ -12,18 +13,16 @@ class Model
     virtual ~Model();
 
   public:
-    virtual void Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
+    void Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                             ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
-                            std::vector<MeshData> meshes,
-                            std::vector<MaterialConsts> materials = {}); // const buffer, mesh data
+                            std::vector<MeshData> meshes, std::vector<MaterialConsts> materials = {}); // const buffer, mesh data
     virtual void Update();
     virtual void Render(ID3D12GraphicsCommandList *commandList);
     virtual void RenderNormal(ID3D12GraphicsCommandList *commandList);
-    void UpdateWorldMatrix(XMMATRIX worldRow);
+    void UpdateWorldMatrix(Matrix worldRow);
 
   private:
-    void BuildConstantBufferView(ID3D12Device *device);
-    void BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshData);
+    virtual void BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshData);
     void BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                       ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                       const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture);
@@ -44,6 +43,10 @@ class Model
     {
         return m_materialConstData;
     }
+    Matrix &GetWorldRow()
+    {
+        return m_world;
+    }
 
   private:
     ID3D12RootSignature *m_rootSignature   = nullptr;
@@ -52,10 +55,6 @@ class Model
     ID3D12Resource *m_materialConstBuffer  = nullptr;
     ID3D12DescriptorHeap *m_descriptorHeap = nullptr;
     ID3D12Resource *m_textureUploadHeap    = nullptr;
-    // uint8_t *m_meshDataBeign                 = nullptr;
-    // uint8_t *m_materialDataBeign             = nullptr;
-    // MeshConsts m_meshConstBufferData         = {};
-    // MaterialConsts m_materialConstBufferData = {};
     std::vector<Mesh> m_meshes             = {};
     std::vector<MaterialConsts> m_material = {};
     uint8_t m_descRef                      = 0;
@@ -66,4 +65,9 @@ class Model
     UploadBuffer<MaterialConsts> m_materialUpload;
     MeshConsts m_meshConstsData        = {};
     MaterialConsts m_materialConstData = {};
+
+    BoundingSphere m_boundingSphere = {};
+
+    Matrix m_world   = Matrix();
+    Matrix m_worldIT = Matrix();
 };

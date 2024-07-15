@@ -4,10 +4,16 @@
 #include "Camera.h"
 #include "GeometryGenerator.h"
 #include "GraphicsCommon.h"
+#include "Input.h"
 #include "Model.h"
 #include "Timer.h"
 
-AppBase *g_appBase = nullptr;
+AppBase *g_appBase         = nullptr;
+uint32_t g_screenWidth     = 1200;
+uint32_t g_screenHeight    = 800;
+extern float g_imguiWidth  = 0.0f;
+extern float g_imguiHeight = 0.0f;
+HWND g_hwnd                = nullptr;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -65,6 +71,9 @@ bool AppBase::Initialize()
     CREATE_OBJ(m_timer, Timer);
     m_timer->Initialize();
 
+    // Mouse & Keyboard input initialize.
+    GameInput::Initialize();
+
     this->BuildRootSignature();
     this->BuildGlobalConsts();
 
@@ -76,6 +85,8 @@ bool AppBase::Initialize()
 void AppBase::Update(const float dt)
 {
     m_timer->Update();
+
+    GameInput::Update(dt);
 
     UpdateGlobalConsts(dt);
 }
@@ -98,6 +109,9 @@ int32_t AppBase::Run()
         }
         else
         {
+            if (m_isKeyDown[VK_ESCAPE])
+                PostQuitMessage(0);
+
             // Start the Dear ImGui frame
             ImGui_ImplDX12_NewFrame();
             ImGui_ImplWin32_NewFrame();
@@ -107,6 +121,7 @@ int32_t AppBase::Run()
             (void)io;
 
             this->UpdateGui(io.Framerate);
+
             ImGui::Render();
 
             this->Update(io.Framerate);
@@ -134,15 +149,16 @@ bool AppBase::InitWindow()
     windowClass.lpszClassName = L"DX12Study";
     RegisterClassEx(&windowClass);
 
-    RECT windowRect = {0, 0, static_cast<LONG>(s_screenWidth), static_cast<LONG>(s_screenHeight)};
+    RECT windowRect = {0, 0, static_cast<LONG>(g_screenWidth), static_cast<LONG>(g_screenHeight)};
     AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
 
     // Create the window and store a handle to it.
-    m_hwnd = CreateWindow(windowClass.lpszClassName, windowClass.lpszClassName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT,
-                          CW_USEDEFAULT, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top,
-                          nullptr, // We have no parent window.
-                          nullptr, // We aren't using menus.
-                          windowClass.hInstance, nullptr);
+    g_hwnd = m_hwnd =
+        CreateWindow(windowClass.lpszClassName, windowClass.lpszClassName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT,
+                     CW_USEDEFAULT, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top,
+                     nullptr, // We have no parent window.
+                     nullptr, // We aren't using menus.
+                     windowClass.hInstance, nullptr);
     ShowWindow(m_hwnd, SW_SHOW);
 
     return true;
@@ -167,7 +183,7 @@ bool AppBase::InitD3D()
         }
     }
 #endif
-    IDXGIFactory4 *factory = nullptr;
+    IDXGIFactory6 *factory = nullptr;
     ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
     if (m_useWarpDevice)
@@ -195,31 +211,38 @@ bool AppBase::InitD3D()
     ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
 
     // Describe and create the swap chain.
-    DXGI_SWAP_CHAIN_DESC swapChainDesc               = {};
-    swapChainDesc.BufferCount                        = s_frameCount;
-    swapChainDesc.BufferDesc.Width                   = s_screenWidth;
-    swapChainDesc.BufferDesc.Height                  = s_screenHeight;
-    swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-    swapChainDesc.BufferDesc.RefreshRate.Numerator   = 60;
-    swapChainDesc.BufferDesc.Format                  = DXGI_FORMAT_R8G8B8A8_UNORM;
-    swapChainDesc.OutputWindow                       = m_hwnd;
-    swapChainDesc.Windowed                           = true;
-    swapChainDesc.Flags                              = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    swapChainDesc.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.SwapEffect                         = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    swapChainDesc.SampleDesc.Count                   = 1;
+    // DXGI_SWAP_CHAIN_DESC swapChainDesc               = {};
+    // swapChainDesc.BufferCount                        = s_frameCount;
+    // swapChainDesc.BufferDesc.Width                   = g_screenWidth;
+    // swapChainDesc.BufferDesc.Height                  = g_screenHeight;
+    // swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+    // swapChainDesc.BufferDesc.RefreshRate.Numerator   = 60;
+    // swapChainDesc.BufferDesc.Format                  = DXGI_FORMAT_R8G8B8A8_UNORM;
+    // swapChainDesc.OutputWindow                       = m_hwnd;
+    // swapChainDesc.Windowed                           = true;
+    // swapChainDesc.Flags                              = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+    // swapChainDesc.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    // swapChainDesc.SwapEffect                         = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    // swapChainDesc.SampleDesc.Count                   = 1;
 
-    IDXGISwapChain *swapChain = nullptr;
+    DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+    swapChainDesc.BufferCount           = s_frameCount;
+    swapChainDesc.Width                 = g_screenWidth;
+    swapChainDesc.Height                = g_screenHeight;
+    swapChainDesc.Format                = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swapChainDesc.BufferUsage           = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.SwapEffect            = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.SampleDesc.Count      = 1;
+    swapChainDesc.Flags                 = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+    IDXGISwapChain1 *swapChain = nullptr;
     ThrowIfFailed(
-        factory->CreateSwapChain(m_commandQueue, // Swap chain needs the queue so that it can force a flush on it.
-                                 &swapChainDesc, &swapChain));
+        factory->CreateSwapChainForHwnd(m_commandQueue, m_hwnd, &swapChainDesc, nullptr, nullptr, &swapChain));
 
     // This sample does not support fullscreen transitions.
     ThrowIfFailed(factory->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
     m_swapChain = swapChain;
     swapChain   = nullptr;
-
-    m_frameIndex = 0;
 
     // Create descriptor heaps.
     {
@@ -245,7 +268,7 @@ bool AppBase::InitD3D()
 
     // Command lists are created in the recording state, but there is nothing
     // to record yet. The main loop expects it to be closed, so close it now.
-    // ThrowIfFailed(m_commandList->Close());
+    ThrowIfFailed(m_commandList->Close());
 
     // Create synchronization objects.
     {
@@ -265,68 +288,19 @@ bool AppBase::InitD3D()
     viewport.TopLeftY       = 0;
     viewport.MinDepth       = 0.0f;
     viewport.MaxDepth       = 1.0f;
-    viewport.Width          = (FLOAT)s_screenWidth;
-    viewport.Height         = (FLOAT)s_screenHeight;
+    viewport.Width          = (FLOAT)g_screenWidth;
+    viewport.Height         = (FLOAT)g_screenHeight;
     this->SetViewport(viewport);
 
     D3D12_RECT sissorRect = {};
     sissorRect.left       = 0;
     sissorRect.top        = 0;
-    sissorRect.right      = s_screenWidth;
-    sissorRect.bottom     = s_screenHeight;
+    sissorRect.right      = g_screenWidth;
+    sissorRect.bottom     = g_screenHeight;
     this->SetSissorRect(sissorRect);
 
-    // Create frame resources.
-    {
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+    this->Resize();
 
-        // Create a RTV for each frame.
-        for (UINT n = 0; n < s_frameCount; n++)
-        {
-            ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
-            m_device->CreateRenderTargetView(m_renderTargets[n], nullptr, rtvHandle);
-            rtvHandle.Offset(1, m_rtvDescriptorSize);
-        }
-
-        D3D12_RESOURCE_DESC depthStencilDesc = {};
-        depthStencilDesc.Dimension           = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        depthStencilDesc.Alignment           = 0;
-        depthStencilDesc.Width               = (UINT64)s_screenWidth;
-        depthStencilDesc.Height              = (UINT64)s_screenHeight;
-        depthStencilDesc.DepthOrArraySize    = 1;
-        depthStencilDesc.MipLevels           = 1;
-        depthStencilDesc.Format              = DXGI_FORMAT_R24G8_TYPELESS;
-        depthStencilDesc.SampleDesc.Count    = 1;
-        depthStencilDesc.SampleDesc.Quality  = 0;
-        depthStencilDesc.Layout              = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-        depthStencilDesc.Flags               = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-        D3D12_CLEAR_VALUE optClear;
-        optClear.Format               = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        optClear.DepthStencil.Depth   = 1.0f;
-        optClear.DepthStencil.Stencil = 0;
-
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &depthStencilDesc,
-            D3D12_RESOURCE_STATE_COMMON, &optClear, IID_PPV_ARGS(&m_depthStencilBuffer)));
-
-        D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-        dsvDesc.Flags              = D3D12_DSV_FLAG_NONE;
-        dsvDesc.ViewDimension      = D3D12_DSV_DIMENSION_TEXTURE2D;
-        dsvDesc.Format             = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        dsvDesc.Texture2D.MipSlice = 0;
-        m_device->CreateDepthStencilView(m_depthStencilBuffer, &dsvDesc,
-                                         m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-        // Transition the resource from its initial state to be used as a depth buffer.
-        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencilBuffer,
-                                                                                D3D12_RESOURCE_STATE_COMMON,
-                                                                                D3D12_RESOURCE_STATE_DEPTH_WRITE));
-    }
-
-    // For texture loading.
-    ThrowIfFailed(m_commandList->Close());
-    ID3D12CommandList *ppCommandLists[] = {m_commandList};
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     SAFE_RELEASE(factory);
 
     return true;
@@ -429,11 +403,12 @@ void AppBase::BuildRootSignature()
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
 
-    CD3DX12_ROOT_PARAMETER rootParameters[4] = {};
+    CD3DX12_ROOT_PARAMETER rootParameters[5] = {};
     rootParameters[0].InitAsConstantBufferView(0); // b0 : Global Consts
     rootParameters[1].InitAsConstantBufferView(1); // b1 : Mesh Consts
     rootParameters[2].InitAsConstantBufferView(2); // b2 : material Consts
     rootParameters[3].InitAsDescriptorTable(_countof(rangeObj), rangeObj, D3D12_SHADER_VISIBILITY_ALL);
+    rootParameters[4].InitAsConstantBufferView(3); // b3 : material Consts
 
     D3D12_STATIC_SAMPLER_DESC sampler = {};
     sampler.Filter                    = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -467,40 +442,43 @@ void AppBase::BuildGlobalConsts()
 
 void AppBase::UpdateGlobalConsts(const float dt)
 {
-    auto eyePos     = m_camera->GetPosition();
-    auto view       = m_camera->GetViewMatrix();
-    auto projection = m_camera->GetProjectionMatrix();
+    auto eyePos  = m_camera->GetPosition();
+    auto viewRow = m_camera->GetViewMatrix();
+    auto projRow = m_camera->GetProjectionMatrix();
 
-    m_globalConstData.eyeWorld   = eyePos;
-    m_globalConstData.view       = XMMatrixTranspose(view);
-    m_globalConstData.projeciton = XMMatrixTranspose(projection);
+    m_globalConstData.eyeWorld    = eyePos;
+    m_globalConstData.view        = viewRow.Transpose();
+    m_globalConstData.viewInv     = m_globalConstData.view.Invert();
+    m_globalConstData.proj        = projRow.Transpose();
+    m_globalConstData.projInv     = m_globalConstData.proj.Invert();
+    m_globalConstData.viewProjInv = (viewRow * projRow).Invert().Transpose();
 
     m_globalConstsBuffer.Upload(0, &m_globalConstData);
 }
 
 void AppBase::UpdateCamera(const float dt)
 {
-    if (m_isKeyDown[87])
+    if (GameInput::IsPressed(GameInput::kKey_w))
     {
         m_camera->MoveFront(dt);
     }
-    if (m_isKeyDown[83])
+    if (GameInput::IsPressed(GameInput::kKey_s))
     {
         m_camera->MoveBack(dt);
     }
-    if (m_isKeyDown[65])
-    {
-        m_camera->MoveLeft(dt);
-    }
-    if (m_isKeyDown[68])
+    if (GameInput::IsPressed(GameInput::kKey_d))
     {
         m_camera->MoveRight(dt);
     }
-    if (m_isKeyDown[81])
+    if (GameInput::IsPressed(GameInput::kKey_a))
+    {
+        m_camera->MoveLeft(dt);
+    }
+    if (GameInput::IsPressed(GameInput::kKey_q))
     {
         m_camera->MoveUp(dt);
     }
-    if (m_isKeyDown[69])
+    if (GameInput::IsPressed(GameInput::kKey_e))
     {
         m_camera->MoveDown(dt);
     }
@@ -575,12 +553,21 @@ void AppBase::DestroyPSO()
 
 void AppBase::OnMouse(const float x, const float y)
 {
+    auto newScreenWidth = float(g_screenWidth - g_imguiWidth);
+    auto newSreenHeight = float(g_screenHeight);
+
+    m_mouseX = std::clamp(x, 0.0f, newScreenWidth);
+    m_mouseY = std::clamp(y, 0.0f, newSreenHeight);
+
+    m_ndcX = m_mouseX / newScreenWidth * 2.0f - 1.0f;
+    m_ndcY = -(m_mouseY / newSreenHeight * 2.0f - 1.0f);
+
+    m_ndcX = std::clamp(m_ndcX, -1.0f, 1.0f);
+    m_ndcY = std::clamp(m_ndcY, -1.0f, 1.0f);
+
     if (m_isFPV)
     {
-        float ndcX = x / s_screenWidth * 2.0f - 1.0f;
-        float ndcY = -(y / s_screenHeight * 2.0f - 1.0f);
-
-        m_camera->MouseUpdate(ndcX, ndcY);
+        m_camera->MouseUpdate(m_ndcX, m_ndcY);
     }
 }
 
@@ -596,56 +583,62 @@ LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 
     case WM_SIZE: {
 
-        //RECT rect = {};
-        //GetClientRect(hWnd, &rect);
-        //const float curScreenWidth  = float(rect.right - rect.left);
-        //const float curScreenHeight = float(rect.top - rect.bottom);
+        RECT rect = {};
+        GetClientRect(hWnd, &rect);
+        g_screenWidth  = uint32_t(rect.right - rect.left);
+        g_screenHeight = uint32_t(rect.bottom - rect.top);
 
-        //if (m_swapChain)
-        //{
-        //    // Create a RTV for each frame.
-        //    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-        //    for (UINT n = 0; n < s_frameCount; n++)
-        //        m_renderTargets[n]->Release();
-        //    m_swapChain->ResizeBuffers(s_frameCount, UINT(curScreenWidth), UINT(curScreenHeight), DXGI_FORMAT_UNKNOWN,
-        //                               DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
-        //    for (UINT n = 0; n < s_frameCount; n++)
-        //    {
-        //        m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n]));
-        //        m_device->CreateRenderTargetView(m_renderTargets[n], nullptr, rtvHandle);
-        //        rtvHandle.Offset(1, m_rtvDescriptorSize);
-        //    }
+        if (m_swapChain)
+        {
+            this->Resize();
 
-        //    
+            D3D12_VIEWPORT viewport = {};
+            viewport.TopLeftX       = 0;
+            viewport.TopLeftY       = 0;
+            viewport.MinDepth       = 0.0f;
+            viewport.MaxDepth       = 1.0f;
+            viewport.Width          = (FLOAT)g_screenWidth;
+            viewport.Height         = (FLOAT)g_screenHeight;
+            this->SetViewport(viewport);
 
-        //    D3D12_VIEWPORT viewport = {};
-        //    viewport.TopLeftX       = 0;
-        //    viewport.TopLeftY       = 0;
-        //    viewport.MinDepth       = 0.0f;
-        //    viewport.MaxDepth       = 1.0f;
-        //    viewport.Width          = (FLOAT)curScreenWidth;
-        //    viewport.Height         = (FLOAT)curScreenHeight;
-        //    this->SetViewport(viewport);
-        //}
+            D3D12_RECT rect = {};
+            rect.left       = 0;
+            rect.top        = 0;
+            rect.right      = g_screenWidth;
+            rect.bottom     = g_screenHeight;
+            this->SetSissorRect(rect);
+        }
     }
-        return 0;
+    break;
     case WM_KEYDOWN:
         if (wParam == 70)
             m_isFPV = !m_isFPV;
         m_isKeyDown[wParam] = true;
-        return 0;
-
+        break;
     case WM_KEYUP:
         m_isKeyDown[wParam] = false;
-        return 0;
-
+        break;
     case WM_MOUSEMOVE:
         // std::cout << HIWORD(lParam) << " " << LOWORD(lParam) << std::endl;
         OnMouse(LOWORD(lParam), HIWORD(lParam));
-        return 0;
+        break;
+    case WM_LBUTTONDOWN:
+        m_leftButtonDown      = true;
+        m_leftButtonDragStart = true;
+        break;
+    case WM_LBUTTONUP:
+        m_leftButtonDown = false;
+        break;
+    case WM_RBUTTONDOWN:
+        m_rightButtonDown      = true;
+        m_rightButtonDragStart = true;
+        break;
+    case WM_RBUTTONUP:
+        m_rightButtonDown = false;
+        break;
     case WM_DESTROY:
         PostQuitMessage(0);
-        return 0;
+        break;
     }
 
     // Handle any messages the switch statement didn't.
@@ -685,4 +678,84 @@ void AppBase::SetViewport(D3D12_VIEWPORT viewport)
 void AppBase::SetSissorRect(D3D12_RECT rect)
 {
     m_scissorRect = rect;
+}
+
+void AppBase::Resize()
+{
+    m_commandList->Reset(m_commandAllocator, nullptr);
+    // Create frame resources.
+    {
+        // Reset a RTV for each frame.
+        if (m_renderTargets[0])
+        {
+            for (UINT n = 0; n < s_frameCount; n++)
+            {
+                m_renderTargets[n]->Release();
+                m_renderTargets[n] = nullptr;
+            }
+        }
+        if (m_depthStencilBuffer)
+        {
+            m_depthStencilBuffer->Release();
+            m_depthStencilBuffer = nullptr;
+        }
+        // swap chain resize.
+        if (m_swapChain)
+        {
+            ThrowIfFailed(m_swapChain->ResizeBuffers(s_frameCount, g_screenWidth, g_screenHeight,
+                                                     DXGI_FORMAT_R8G8B8A8_UNORM,
+                                                     DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+        }
+
+        m_frameIndex = 0;
+
+        // Create a RTV for each frame.
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+        for (UINT n = 0; n < s_frameCount; n++)
+        {
+            ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
+            m_device->CreateRenderTargetView(m_renderTargets[n], nullptr, rtvHandle);
+            rtvHandle.Offset(1, m_rtvDescriptorSize);
+        }
+
+        D3D12_RESOURCE_DESC depthStencilDesc = {};
+        depthStencilDesc.Dimension           = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        depthStencilDesc.Alignment           = 0;
+        depthStencilDesc.Width               = (UINT64)g_screenWidth;
+        depthStencilDesc.Height              = (UINT64)g_screenHeight;
+        depthStencilDesc.DepthOrArraySize    = 1;
+        depthStencilDesc.MipLevels           = 1;
+        depthStencilDesc.Format              = DXGI_FORMAT_R24G8_TYPELESS;
+        depthStencilDesc.SampleDesc.Count    = 1;
+        depthStencilDesc.SampleDesc.Quality  = 0;
+        depthStencilDesc.Layout              = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        depthStencilDesc.Flags               = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+        D3D12_CLEAR_VALUE optClear;
+        optClear.Format               = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        optClear.DepthStencil.Depth   = 1.0f;
+        optClear.DepthStencil.Stencil = 0;
+
+        ThrowIfFailed(m_device->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &depthStencilDesc,
+            D3D12_RESOURCE_STATE_COMMON, &optClear, IID_PPV_ARGS(&m_depthStencilBuffer)));
+
+        D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+        dsvDesc.Flags              = D3D12_DSV_FLAG_NONE;
+        dsvDesc.ViewDimension      = D3D12_DSV_DIMENSION_TEXTURE2D;
+        dsvDesc.Format             = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        dsvDesc.Texture2D.MipSlice = 0;
+        m_device->CreateDepthStencilView(m_depthStencilBuffer, &dsvDesc,
+                                         m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+        // Transition the resource from its initial state to be used as a depth buffer.
+        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencilBuffer,
+                                                                                D3D12_RESOURCE_STATE_COMMON,
+                                                                                D3D12_RESOURCE_STATE_DEPTH_WRITE));
+        // For texture loading.
+        ThrowIfFailed(m_commandList->Close());
+        ID3D12CommandList *ppCommandLists[] = {m_commandList};
+        m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+        WaitForPreviousFrame();
+    }
 }

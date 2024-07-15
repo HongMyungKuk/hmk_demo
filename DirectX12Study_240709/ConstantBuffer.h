@@ -1,38 +1,46 @@
 #pragma once
 
+using DirectX::SimpleMath::Matrix;
+using DirectX::SimpleMath::Vector4;
+using DirectX::SimpleMath::Vector3;
+using DirectX::SimpleMath::Vector2;
+
 __declspec(align(256)) struct MeshConsts
 {
-    XMMATRIX world;
-    XMMATRIX worldIT;
+    Matrix world;
+    Matrix worldIT;
 };
 
 #define MAX_LIGHTS 3
 
 struct Light
 {
-    XMFLOAT3 direction;
-    XMFLOAT3 position;
-    XMFLOAT3 irRadiance;
+    Vector3 direction;
+    Vector3 position;
+    Vector3 irRadiance;
     float shininess;
     float spotPower;
 };
 
 __declspec(align(256)) struct GlobalConsts
 {
-    XMMATRIX view;
-    XMMATRIX projeciton;
-    XMFLOAT3 eyeWorld;
+    Matrix view;
+    Matrix viewInv;
+    Matrix proj;
+    Matrix projInv;
+    Matrix viewProjInv;
+    Vector3 eyeWorld;
 
     Light lights[MAX_LIGHTS];
 };
 
 __declspec(align(256)) struct MaterialConsts
 {
-    XMFLOAT3 ambient = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    Vector3 ambient   = Vector3(0.0f, 0.0f, 0.0f);
     uint32_t texIdx  = 0;
-    XMFLOAT3 diffuse = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    Vector3 diffuse   = Vector3(0.0f, 0.0f, 0.0f);
     uint32_t texFlag  = 0;
-    XMFLOAT3 specular = XMFLOAT3(0.0f, 0.0f, 0.0f);
+    Vector3 specular  = Vector3(0.0f, 0.0f, 0.0f);
     float dummy2;
 };
 

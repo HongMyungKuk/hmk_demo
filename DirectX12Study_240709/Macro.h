@@ -30,3 +30,6 @@
 
 #define CREATE_MODEL_OBJ(obj)                                                                                          \
     CREATE_OBJ(obj, Model)
+
+#define CREATE_SKINNED_OBJ(obj)                                                                                        \
+    CREATE_OBJ(obj, SkinnedMeshModel)

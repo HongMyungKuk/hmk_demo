@@ -13,10 +13,10 @@ MeshData GeometryGenerator::MakeSquare(const float w, const float h)
     std::vector<Vertex> &vertices           = meshData.vertices;
     std::vector<MeshData::index_t> &indices = meshData.indices;
 
-    vertices = {{XMFLOAT3(-w2, -h2, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(0.0f, 1.0f)},
-                {XMFLOAT3(-w2, h2, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(0.0f, 0.0f)},
-                {XMFLOAT3(w2, h2, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(1.0f, 0.0f)},
-                {XMFLOAT3(w2, -h2, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT2(1.0f, 1.0f)}};
+    vertices = {{Vector3(-w2, -h2, 0.0f), Vector3(0.0f, 0.0f, -1.0f), Vector2(0.0f, 1.0f)},
+                {Vector3(-w2, h2, 0.0f), Vector3(0.0f, 0.0f, -1.0f), Vector2(0.0f, 0.0f)},
+                {Vector3(w2, h2, 0.0f), Vector3(0.0f, 0.0f, -1.0f), Vector2(1.0f, 0.0f)},
+                {Vector3(w2, -h2, 0.0f), Vector3(0.0f, 0.0f, -1.0f), Vector2(1.0f, 1.0f)}};
 
     indices = {
         0, 1, 3, 1, 2, 3,
@@ -131,10 +131,121 @@ MeshData GeometryGenerator::MakeCube(const float w, const float h, const float d
     return meshData;
 }
 
-void NomalizeModel(std::vector<MeshData> &meshes, const float sacle)
+MeshData GeometryGenerator::MakeSphere(float radius, uint32_t sliceCount, uint32_t stackCount)
 {
-    XMFLOAT3 max = XMFLOAT3(-1000.0f, -1000.0f, -1000.0f);
-    XMFLOAT3 min = XMFLOAT3(1000.0f, 1000.0f, 1000.0f);
+    MeshData meshData;
+
+    //
+    // Compute the vertices stating at the top pole and moving down the stacks.
+    //
+
+    // Poles: note that there will be texture coordinate distortion as there is
+    // not a unique point on the texture map to assign to the pole when mapping
+    // a rectangular texture onto a sphere.
+    Vertex topVertex(0.0f, +radius, 0.0f, 0.0f, +1.0f, 0.0f, 0.0f, 0.0f);
+    Vertex bottomVertex(0.0f, -radius, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f);
+
+    meshData.vertices.push_back(topVertex);
+
+    float phiStep   = XM_PI / stackCount;
+    float thetaStep = 2.0f * XM_PI / sliceCount;
+
+    // Compute vertices for each stack ring (do not count the poles as rings).
+    for (uint32_t i = 1; i <= stackCount - 1; ++i)
+    {
+        float phi = i * phiStep;
+
+        // Vertices of ring.
+        for (uint32_t j = 0; j <= sliceCount; ++j)
+        {
+            float theta = j * thetaStep;
+
+            Vertex v;
+
+            // spherical to cartesian
+            v.position.x = radius * sinf(phi) * cosf(theta);
+            v.position.y = radius * cosf(phi);
+            v.position.z = radius * sinf(phi) * sinf(theta);
+
+            //// Partial derivative of P with respect to theta
+            // v.TangentU.x = -radius * sinf(phi) * sinf(theta);
+            // v.TangentU.y = 0.0f;
+            // v.TangentU.z = +radius * sinf(phi) * cosf(theta);
+
+            // XMVECTOR T = XMLoadFloat3(&v.TangentU);
+            // XMStoreFloat3(&v.TangentU, XMVector3Normalize(T));
+
+            XMVECTOR p = XMLoadFloat3(&v.position);
+            XMStoreFloat3(&v.normal, XMVector3Normalize(p));
+
+            v.texCoord.x = theta / XM_2PI;
+            v.texCoord.y = phi / XM_PI;
+
+            meshData.vertices.push_back(v);
+        }
+    }
+
+    meshData.vertices.push_back(bottomVertex);
+
+    //
+    // Compute indices for top stack.  The top stack was written first to the vertex buffer
+    // and connects the top pole to the first ring.
+    //
+
+    for (uint32_t i = 1; i <= sliceCount; ++i)
+    {
+        meshData.indices.push_back(0);
+        meshData.indices.push_back(i + 1);
+        meshData.indices.push_back(i);
+    }
+
+    //
+    // Compute indices for inner stacks (not connected to poles).
+    //
+
+    // Offset the indices to the index of the first vertex in the first ring.
+    // This is just skipping the top pole vertex.
+    uint32_t baseIndex       = 1;
+    uint32_t ringVertexCount = sliceCount + 1;
+    for (uint32_t i = 0; i < stackCount - 2; ++i)
+    {
+        for (uint32_t j = 0; j < sliceCount; ++j)
+        {
+            meshData.indices.push_back(baseIndex + i * ringVertexCount + j);
+            meshData.indices.push_back(baseIndex + i * ringVertexCount + j + 1);
+            meshData.indices.push_back(baseIndex + (i + 1) * ringVertexCount + j);
+
+            meshData.indices.push_back(baseIndex + (i + 1) * ringVertexCount + j);
+            meshData.indices.push_back(baseIndex + i * ringVertexCount + j + 1);
+            meshData.indices.push_back(baseIndex + (i + 1) * ringVertexCount + j + 1);
+        }
+    }
+
+    //
+    // Compute indices for bottom stack.  The bottom stack was written last to the vertex buffer
+    // and connects the bottom pole to the bottom ring.
+    //
+
+    // South pole vertex was added last.
+    uint32_t southPoleIndex = (uint32_t)meshData.vertices.size() - 1;
+
+    // Offset the indices to the index of the first vertex in the last ring.
+    baseIndex = southPoleIndex - ringVertexCount;
+
+    for (uint32_t i = 0; i < sliceCount; ++i)
+    {
+        meshData.indices.push_back(southPoleIndex);
+        meshData.indices.push_back(baseIndex + i);
+        meshData.indices.push_back(baseIndex + i + 1);
+    }
+
+    return meshData;
+}
+
+void NomalizeModel(std::vector<MeshData> &meshes, const float sacle, AnimationData& aniData)
+{
+    Vector3 max = Vector3(-1000.0f, -1000.0f, -1000.0f);
+    Vector3 min = Vector3(1000.0f, 1000.0f, 1000.0f);
 
     for (const auto &m : meshes)
     {
@@ -153,40 +264,47 @@ void NomalizeModel(std::vector<MeshData> &meshes, const float sacle)
     const float dy = max.y - min.y;
     const float dz = max.z - min.z;
 
-    const float scale    = sacle / DirectX::XMMax(XMMax(dx, dy), dz);
-    XMVECTOR translation = -(XMLoadFloat3(&max) + XMLoadFloat3(&min)) / 2.0f;
+    const float scale   = sacle / DirectX::XMMax(XMMax(dx, dy), dz);
+    Vector3 translation = -(max + min) * 0.5f;
 
     for (auto &m : meshes)
     {
         for (auto &p : m.vertices)
         {
-            XMStoreFloat3(&p.position, (XMLoadFloat3(&p.position) + translation) * scale);
+            p.position = (p.position + translation) * scale;
+        }
+
+        for (auto& p : m.skinnedVertices) {
+            p.position = (p.position + translation) * scale;
         }
     }
+
+    aniData.defaultMatrix = Matrix::CreateTranslation(translation) * Matrix::CreateScale(scale);
 }
 
 auto GeometryGenerator::ReadFromModelFile(const char *filepath, const char *filename)
     -> std::pair<std::vector<MeshData>, std::vector<MaterialConsts>>
 {
-    ModelLoader modelLoader((const char*)filepath, (const char *)filename);
+    ModelLoader modelLoader((const char *)filepath, (const char *)filename);
 
     auto meshes   = modelLoader.Meshes();
     auto material = modelLoader.Materials();
-    // for (auto m : meshes)
-    //{
-    //     for (auto e : m.indices)
-    //     {
-    //         if (e == 0)
-    //         {
-    //             int a = 0;
-    //             a     = 6;
-    //         }
-    //     }
-    // }
-    NomalizeModel(meshes, 1.0f);
+
+    NomalizeModel(meshes, 1.0f, modelLoader.Animation());
 
     // Mesh Data 가 들어있는 vector를 vector 1개의 MeshData로 변환한다.
-
-
     return {meshes, material};
+}
+
+auto GeometryGenerator::ReadFromAnimationFile(const char *filepath, const char *filename)
+    -> std::pair<std::vector<MeshData>, AnimationData>
+{
+    ModelLoader modelLoader((const char *)filepath, (const char *)filename);
+
+    auto meshes = modelLoader.Meshes();
+    auto& anim   = modelLoader.Animation();
+
+    NomalizeModel(meshes, 1.0f, anim);
+
+    return {meshes, anim};
 }

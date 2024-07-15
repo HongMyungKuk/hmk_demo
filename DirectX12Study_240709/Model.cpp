@@ -11,8 +11,6 @@ Model::~Model()
     DestroyTextureResource();
     DestroyMeshBuffers();
     SAFE_RELEASE(m_descriptorHeap);
-    // SAFE_RELEASE(m_materialConstBuffer);
-    // SAFE_RELEASE(m_meshConstBuffer);
     SAFE_RELEASE(m_pipelineState);
     SAFE_RELEASE(m_rootSignature);
 }
@@ -21,11 +19,13 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
                        ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                        std::vector<MeshData> meshes, std::vector<MaterialConsts> materials)
 {
+
     D3DUtils::CreateDscriptor(device, m_descNum, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
                               D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_descriptorHeap);
 
     // BuildConstantBufferView(device);
     m_meshUpload.Initialize(device, 1);
+
     m_materialUpload.Initialize(device, uint32_t(meshes.size()));
 
     for (auto &m : meshes)
@@ -112,28 +112,16 @@ void Model::RenderNormal(ID3D12GraphicsCommandList *commandList)
     }
 }
 
-void Model::UpdateWorldMatrix(XMMATRIX worldRow)
+void Model::UpdateWorldMatrix(Matrix worldRow)
 {
-    auto world   = XMMatrixTranspose(worldRow);
-    auto worldIT = XMMatrixTranspose(XMMatrixInverse(nullptr, world));
+    m_world = worldRow;
+    m_worldIT = worldRow;
 
-    m_meshConstsData.world   = world;
-    m_meshConstsData.worldIT = worldIT;
-}
+    m_worldIT.Translation(Vector3(0.0f));
+    m_worldIT = m_worldIT.Invert().Transpose();
 
-void Model::BuildConstantBufferView(ID3D12Device *device) // This legacy funcion
-{
-    // assert(m_descRef < m_descNum - 1);
-    // auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-    ////std::cout << m_descriptorHeap->GetCPUDescriptorHandleForHeapStart().ptr << std::endl;
-
-    // CD3DX12_CPU_DESCRIPTOR_HANDLE cbvHandle(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    // D3DUtils::CreateConstantBuffer(device, &m_meshConstBuffer, &m_meshDataBeign, &m_meshConstBufferData, cbvHandle);
-
-    // cbvHandle.Offset(++m_descRef, cbvDescriptorSize);
-    // D3DUtils::CreateConstantBuffer(device, &m_materialConstBuffer, &m_materialDataBeign, &m_materialConstBufferData,
-    //                                cbvHandle);
+    m_meshConstsData.world   = m_world.Transpose();
+    m_meshConstsData.worldIT = m_worldIT.Transpose();
 }
 
 void Model::BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshData)
@@ -144,6 +132,7 @@ void Model::BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshDat
     D3DUtils::CreateDefaultBuffer(device, &mesh.indexBuffer, meshData.indices.data(),
                                   uint32_t(meshData.indices.size() * sizeof(uint32_t)));
     mesh.vertexCount = uint32_t(meshData.vertices.size());
+    mesh.stride      = sizeof(Vertex);
     mesh.indexCount  = uint32_t(meshData.indices.size());
 }
 

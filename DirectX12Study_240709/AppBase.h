@@ -6,6 +6,12 @@ class Model;
 class Camera;
 class Timer;
 
+extern uint32_t g_screenWidth;
+extern uint32_t g_screenHeight;
+extern float g_imguiWidth;
+extern float g_imguiHeight;
+extern HWND g_hwnd;
+
 class AppBase
 {
   public:
@@ -41,13 +47,14 @@ class AppBase
     void BeginRender();
     void EndRender();
     void DestroyPSO();
+    void Resize();
 
     void OnMouse(const float x, const float y);
 
   public:
     static float GetAspect()
     {
-        return (float)s_screenWidth / s_screenHeight;
+        return ((float)g_screenWidth - g_imguiWidth) / g_screenHeight;
     }
 
   protected:
@@ -56,7 +63,7 @@ class AppBase
     // Pipeline objects.
     D3D12_VIEWPORT m_viewport                     = {};
     D3D12_RECT m_scissorRect                      = {};
-    IDXGISwapChain *m_swapChain                   = nullptr;
+    IDXGISwapChain1 *m_swapChain                  = nullptr;
     ID3D12Device *m_device                        = nullptr;
     ID3D12CommandAllocator *m_commandAllocator    = nullptr;
     ID3D12CommandQueue *m_commandQueue            = nullptr;
@@ -84,17 +91,24 @@ class AppBase
 
     HWND m_hwnd          = nullptr;
     bool m_useWarpDevice = false;
-    bool m_isFPV         = false;
-    bool m_drawAsNormal  = false;
-    bool m_isWireFrame   = false;
-    bool m_useMSAA       = false;
-    bool m_useTexture    = true;
-
-  public:
-    static const uint32_t s_screenWidth  = 1920;
-    static const uint32_t s_screenHeight = 1009;
+    // Gui control
+    bool m_isFPV        = false;
+    bool m_drawAsNormal = false;
+    bool m_isWireFrame  = false;
+    bool m_useMSAA      = false;
+    bool m_useTexture   = true;
+    // Mouse control
+    bool m_leftButtonDown       = false;
+    bool m_rightButtonDown      = false;
+    bool m_leftButtonDragStart  = false;
+    bool m_rightButtonDragStart = false;
+    float m_mouseX              = 0.0f;
+    float m_mouseY              = 0.0f;
+    float m_ndcX                = 0.0f;
+    float m_ndcY                = 0.0f;
 
   private:
-    Timer *m_timer        = nullptr;
+    Timer *m_timer = nullptr;
+    // Key control
     bool m_isKeyDown[256] = {};
 };

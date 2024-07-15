@@ -19,7 +19,7 @@ ModelLoader::ModelLoader(const char *filepath, const char *filename)
         LoadModel((const char *)fileFullpath);
     }
 
-    free((void*)ext);
+    free((void *)ext);
     free(fileFullpath);
 }
 
@@ -48,6 +48,9 @@ void ModelLoader::LoadObjFile(const char *filename)
     MeshData meshData                       = {};
     std::vector<Vertex> &vertices           = meshData.vertices;
     std::vector<MeshData::index_t> &indices = meshData.indices;
+    std::vector<XMFLOAT3> posVec            = {};
+    std::vector<XMFLOAT3> normalVec         = {};
+    std::vector<XMFLOAT2> uvVec             = {};
     while (!feof(fp))
     {
         char c;
@@ -57,59 +60,38 @@ void ModelLoader::LoadObjFile(const char *filename)
         {
         case 'v': // vertex data.
         {
+            c = fgetc(fp);
+
+            Vertex v;
             XMFLOAT3 pos    = {};
             XMFLOAT3 normal = {};
             XMFLOAT2 uv     = {};
-
-            c = fgetc(fp);
             if (c == ' ') // position data.
             {
                 fscanf_s(fp, "%f %f %f", &pos.x, &pos.y, &pos.z);
+                v = Vertex(pos, normal, uv);
+                vertices.push_back(v);
             }
-            else if (c == 'n') // normal data.
-            {
-                fscanf_s(fp, "%f %f %f", &normal.x, &normal.y, &normal.z);
-            }
-            else if (c == 't') // texture data.
-            {
-                fscanf_s(fp, "%f %f", &uv.x, &uv.y);
-            }
-            Vertex v = Vertex(pos, normal, uv);
-            vertices.push_back(v);
         }
         break;
         case 'f': // index data.
         {
             MeshData::index_t idx[12] = {};
-
             for (int32_t i = 0; i < 12; i += 3)
             {
                 int ans = fscanf_s(fp, "%d/%d/%d", &idx[i], &idx[i + 1], &idx[i + 2]);
-                // std::cout << ans << std::endl;
                 if (ans == 3)
                 {
-                    // std::cout << idx[i] << "," << idx[i + 1] << "," << idx[i + 2] << " ";
                     indices.push_back(idx[i]);
                     indices.push_back(idx[i + 1]);
                     indices.push_back(idx[i + 2]);
                 }
-                // else if(ans == 0){
-                //     std::cout << ans << std::endl;
-                //     //std::cout << idx[i] << "," << idx[i + 1] << "," << idx[i + 2] << std::endl;
-                // }
-                // else {
-                //     std::cout << ans << std::endl;
-                //     std::cout << idx[i] << "," << idx[i + 1] << "," << idx[i + 2] << std::endl;
-                // }
             }
-            // std::cout << std::endl;
         }
         break;
         case 'o': {
             fgets(line, sizeof(line), fp); // TODO
-
             m_meshes.push_back(meshData);
-
             vertices.clear();
             indices.clear();
         }
@@ -117,14 +99,12 @@ void ModelLoader::LoadObjFile(const char *filename)
         case 's': {
             fgets(line, sizeof(line), fp);
             fgets(line, sizeof(line), fp);
-            // TODO
         }
         break;
         }
     }
 
     m_meshes.push_back(meshData);
-
     fclose(fp);
 }
 
@@ -139,11 +119,42 @@ void ModelLoader::LoadModel(const char *filename)
         return;
     }
 
+    // 매쉬에 영향을 주는 bone들의 목록을 초기화한다.
+    FindDeformAnim(scene);
+
+    // node의 순서대로 ID를 정렬한다.
+    int count = 0;
+    UpdateBoneIDs(scene->mRootNode, &count);
+
+    m_anim.boneParentId.resize(m_anim.boneNameToId.size(), -1);
+
     ProcessNode(scene->mRootNode, scene);
+
+    if (scene->HasAnimations())
+        ReadAnimationClip(scene);
+}
+
+aiNode *ModelLoader::FindParent(aiNode *node)
+{
+    if (!node)
+    {
+        return nullptr;
+    }
+    if (m_anim.boneNameToId.count(node->mName.C_Str()) > 0)
+    {
+        return node;
+    }
+    return FindParent(node->mParent);
 }
 
 void ModelLoader::ProcessNode(aiNode *node, const aiScene *scene)
 {
+    if (node->mParent && m_anim.boneNameToId.count(node->mName.C_Str()) && FindParent(node->mParent))
+    {
+        auto boneID                 = m_anim.boneNameToId[node->mName.C_Str()];
+        m_anim.boneParentId[boneID] = m_anim.boneNameToId[FindParent(node->mParent)->mName.C_Str()];
+    }
+
     // process all the node's meshes (if any)
     for (unsigned int i = 0; i < node->mNumMeshes; i++)
     {
@@ -160,8 +171,6 @@ void ModelLoader::ProcessNode(aiNode *node, const aiScene *scene)
 
 MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
 {
-    static int count = 0;
-
     MeshData meshData;
 
     XMFLOAT3 position;
@@ -204,6 +213,50 @@ MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
             meshData.indices.push_back(face.mIndices[j]);
     }
 
+    if (mesh->HasBones())
+    {
+        std::vector<std::vector<float>> boneWeights(meshData.vertices.size());
+        std::vector<std::vector<uint8_t>> boneIndices(meshData.vertices.size());
+        for (unsigned int i = 0; i < mesh->mNumBones; i++)
+        {
+            const aiBone *bone = mesh->mBones[i];
+
+            m_anim.offsetMatrix.resize(m_anim.boneNameToId.size());
+            m_anim.boneTransform.resize(m_anim.boneNameToId.size());
+
+            auto boneID = m_anim.boneNameToId[bone->mName.C_Str()];
+
+            m_anim.offsetMatrix[boneID] = Matrix((float *)&bone->mOffsetMatrix).Transpose();
+
+            for (unsigned int j = 0; j < bone->mNumWeights; j++)
+            {
+                aiVertexWeight weight = bone->mWeights[j];
+                assert(weight.mVertexId < boneIndices.size());
+                boneWeights[weight.mVertexId].push_back(weight.mWeight);
+                boneIndices[weight.mVertexId].push_back(boneID);
+            }
+        }
+
+        int maxBones = 0;
+        for (size_t i = 0; i < boneWeights.size(); i++) {
+            maxBones = DirectX::XMMax(maxBones, int(boneWeights[i].size()));
+        }
+        std::cout << "Max number of influencing bones per vertex = " << maxBones << std::endl;
+
+        meshData.skinnedVertices.resize(meshData.vertices.size());
+        for (size_t i = 0; i < meshData.vertices.size(); i++) {
+            meshData.skinnedVertices[i].position = meshData.vertices[i].position;
+            meshData.skinnedVertices[i].normal   = meshData.vertices[i].normal;
+            meshData.skinnedVertices[i].texCoord = meshData.vertices[i].texCoord;
+            
+            for (size_t j = 0; j < boneWeights[i].size(); j++)
+            {
+                meshData.skinnedVertices[i].boneWeights[j] = boneWeights[i][j];
+                meshData.skinnedVertices[i].boneIndices[j] = boneIndices[i][j];
+            }
+        }
+    }
+
     // material
     if (mesh->mMaterialIndex >= 0)
     {
@@ -242,12 +295,13 @@ MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
             {
                 if (texture->CheckFormat("png") || texture->CheckFormat("jpg"))
                 {
-                    std::string filename = std::string(std::filesystem::path(texture->mFilename.C_Str()).filename().string());
+                    std::string filename =
+                        std::string(std::filesystem::path(texture->mFilename.C_Str()).filename().string());
                     meshData.albedoTextureFilename = basePath + filename;
                     {
                         std::ofstream os;
                         os.open(meshData.albedoTextureFilename, std::ios::binary | std::ios::out);
-                        os.write((char*)texture->pcData ,texture->mWidth);
+                        os.write((char *)texture->pcData, texture->mWidth);
                         os.close();
                     }
                 }
@@ -256,4 +310,71 @@ MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
     }
 
     return meshData;
+}
+
+void ModelLoader::FindDeformAnim(const aiScene *scene)
+{
+    for (unsigned int i = 0; i < scene->mNumMeshes; i++)
+    {
+        aiMesh *mesh = scene->mMeshes[i];
+        if (mesh->HasBones())
+        {
+            for (unsigned int j = 0; j < mesh->mNumBones; j++)
+            {
+                aiBone *bone                             = mesh->mBones[j];
+                m_anim.boneNameToId[bone->mName.C_Str()] = -1;
+            }
+        }
+    }
+}
+
+void ModelLoader::UpdateBoneIDs(aiNode *node, int *count)
+{
+    if (node)
+    {
+        if (m_anim.boneNameToId.count(node->mName.C_Str()))
+        {
+            m_anim.boneNameToId[node->mName.C_Str()] = *count;
+            (*count)++;
+        }
+
+        for (uint32_t i = 0; i < node->mNumChildren; i++)
+        {
+            UpdateBoneIDs(node->mChildren[i], count);
+        }
+    }
+}
+
+void ModelLoader::ReadAnimationClip(const aiScene *scene)
+{
+    m_anim.clips.resize(scene->mNumAnimations);
+    for (unsigned int i = 0; i < scene->mNumAnimations; i++)
+    {
+        aiAnimation *ani = scene->mAnimations[i];
+
+        auto &clip = m_anim.clips[i];
+
+        clip.name          = ani->mName.C_Str();
+        clip.duration      = ani->mDuration;
+        clip.tickPerSecond = ani->mTicksPerSecond;
+        clip.numChannels   = ani->mNumChannels;
+        clip.keys.resize(m_anim.boneNameToId.size());
+
+        for (unsigned int i = 0; i < ani->mNumChannels; i++)
+        {
+            const aiNodeAnim *nodeAnim = ani->mChannels[i];
+            const auto boneID          = m_anim.boneNameToId[nodeAnim->mNodeName.C_Str()];
+            clip.keys[boneID].resize(nodeAnim->mNumPositionKeys);
+            for (unsigned int j = 0; j < nodeAnim->mNumPositionKeys; j++)
+            {
+                auto pos   = nodeAnim->mPositionKeys[j].mValue;
+                auto rot   = nodeAnim->mRotationKeys[j].mValue;
+                auto scale = nodeAnim->mScalingKeys[j].mValue;
+                auto &key  = clip.keys[boneID][j];
+                key.pos    = {pos.x, pos.y, pos.z};
+                key.rot    = Quaternion(rot.x, rot.y, rot.z, rot.w);
+                key.scale  = {scale.x, scale.y, scale.z};
+            }
+        }
+    }
 }

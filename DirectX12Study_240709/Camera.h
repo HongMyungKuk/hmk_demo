@@ -3,12 +3,16 @@
 #include "AppBase.h"
 
 using namespace DirectX;
+using DirectX::SimpleMath::Matrix;
+using DirectX::SimpleMath::Vector2;
+using DirectX::SimpleMath::Vector3;
+using DirectX::SimpleMath::Vector4;
 
 class Camera
 {
   public:
-    XMMATRIX GetViewMatrix();
-    XMMATRIX GetProjectionMatrix();
+    Matrix GetViewMatrix();
+    Matrix GetProjectionMatrix();
     void MouseUpdate(float ndcX, float ndcY);
 
     void MoveFront(const float dt);
@@ -17,6 +21,7 @@ class Camera
     void MoveLeft(const float dt);
     void MoveUp(const float dt);
     void MoveDown(const float dt);
+    void Rotation(SimpleMath::Quaternion q);
 
     XMFLOAT3 GetPosition()
     {
@@ -34,21 +39,30 @@ class Camera
     {
         m_speed = s;
     }
+    float GetNearZ()
+    {
+        return m_nearZ;
+    }
+    float GetFarZ()
+    {
+        return m_farZ;
+    }
 
   private:
-    XMFLOAT3 m_eyePosition    = XMFLOAT3(1.0f, 3.0f, -3.0f);
-    XMFLOAT3 m_eyeDirection   = XMFLOAT3(0.0f, 0.0f, 1.0f);
-    XMFLOAT3 m_upDirection    = XMFLOAT3(0.0f, 1.0f, 0.0f);
-    XMFLOAT3 m_rightDirection = XMFLOAT3(1.0f, 0.0f, 0.0f);
+    Vector3 m_eyePosition    = Vector3(1.0f, 3.0f, -3.0f);
+    Vector3 m_eyeDirection   = Vector3(0.0f, 0.0f, 1.0f);
+    Vector3 m_upDirection    = Vector3(0.0f, 1.0f, 0.0f);
+    Vector3 m_rightDirection = Vector3(1.0f, 0.0f, 0.0f);
 
     float m_yaw   = -0.785398f;
     float m_pitch = -0.523598f * 0.5f;
     float m_roll  = 0.0f;
 
-    float m_fov    = 70.0f;
-    float m_aspect = AppBase::GetAspect();
-    float m_nearZ  = 0.1f;
-    float m_farZ   = 100.0f;
+    SimpleMath::Quaternion m_q = SimpleMath::Quaternion();
+
+    float m_fov   = 70.0f;
+    float m_nearZ = 0.1f;
+    float m_farZ  = 100.0f;
 
     float m_speed = 0.003f;
 };

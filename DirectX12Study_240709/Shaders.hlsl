@@ -1,74 +1,46 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// This code is licensed under the MIT License (MIT).
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
+#include "Common.hlsli"
 
-#define MAX_LIGHTS 3
-
-struct Light
-{
-    float3 direction;
-    float3 position;
-    float3 irRadiance;
-    float shininess;
-    float spotPower;
-};
-
-cbuffer GloabalConsts : register(b0)
-{
-    Matrix view;
-    Matrix projection;
-    float3 eyeWorld;
-
-    Light light[MAX_LIGHTS];
-}
-
-cbuffer MeshConsts : register(b1)
-{
-    Matrix world;
-    Matrix worldIT;
-};
-
-cbuffer MaterialConstants : register(b2)
-{
-    float3 ambient;
-    uint texIdx;
-    float3 diffuse;
-    uint texFlag;
-    float3 specular;
-    float dummy3;
-};
-
-SamplerState linearWrapSS : register(s0);
 Texture2D albedoTexture[7] : register(t3);
-
-struct VSInput
-{
-    float3 posModel : POSITION;
-    float3 normalModel : NORMAL;
-    float2 texCoord : TEXCOORD;
-};
-
-struct PSInput
-{
-    float4 posProj : SV_POSITION;
-    float3 normalWorld : NORMAL;
-    float2 texCoord : TEXCOORD;
-};
 
 PSInput vsmain(VSInput input)
 {
     PSInput output;
+    
+#ifdef SKINNED
+    float weights[8];
+    weights[0] = input.boneWeights0.x;
+    weights[1] = input.boneWeights0.y;
+    weights[2] = input.boneWeights0.z;
+    weights[3] = input.boneWeights0.w;
+    weights[4] = input.boneWeights1.x;
+    weights[5] = input.boneWeights1.y;
+    weights[6] = input.boneWeights1.z;
+    weights[7] = input.boneWeights1.w;
+    
+    uint indices[8];
+    indices[0] = input.boneIndices0.x;
+    indices[1] = input.boneIndices0.y;
+    indices[2] = input.boneIndices0.z;
+    indices[3] = input.boneIndices0.w;
+    indices[4] = input.boneIndices1.x;
+    indices[5] = input.boneIndices1.y;
+    indices[6] = input.boneIndices1.z;
+    indices[7] = input.boneIndices1.w;
+    
+    float3 posModel = float3(0.0f, 0.0f, 0.0f);
+    
+    for (int i = 0; i < 8; i++)
+    {
+        posModel += weights[i] * mul(float4(input.posModel, 1.0), bonesTransform[indices[i]]).xyz;
+    }
+    
+    input.posModel = posModel;
+    
+#endif
 
     output.posProj = mul(float4(input.posModel, 1.0), world);
     output.posProj = mul(output.posProj, view);
-    output.posProj = mul(output.posProj, projection);
+    output.posProj = mul(output.posProj, proj);
 
     output.normalWorld = input.normalModel;
     output.texCoord = input.texCoord;

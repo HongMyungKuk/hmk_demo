@@ -1,13 +1,16 @@
 #pragma once
 
 using namespace DirectX;
+using DirectX::SimpleMath::Vector2;
+using DirectX::SimpleMath::Vector3;
+using DirectX::SimpleMath::Vector4;
 
 struct Vertex
 {
     Vertex() : position(0.0f, 0.0f, 0.0f), normal(0.0f, 0.0f, 0.0f), texCoord(0.0f, 0.0f)
     {
     }
-    Vertex(const XMFLOAT3 &p, const XMFLOAT3 &n, const XMFLOAT2 &t) : position(p), normal(n), texCoord(t)
+    Vertex(const Vector3 &p, const Vector3 &n, const Vector2 &t) : position(p), normal(n), texCoord(t)
     {
     }
     Vertex(float px, float py, float pz, float nx, float ny, float nz, float tx, float ty)
@@ -15,9 +18,18 @@ struct Vertex
     {
     }
 
-    XMFLOAT3 position;
-    XMFLOAT3 normal;
-    XMFLOAT2 texCoord;
+    Vector3 position;
+    Vector3 normal;
+    Vector2 texCoord;
+};
+
+struct SkinnedVertex
+{
+    Vector3 position;
+    Vector3 normal;
+    Vector2 texCoord;
+    float boneWeights[8]   = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    uint8_t boneIndices[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 };
 
 struct MeshData
@@ -25,6 +37,7 @@ struct MeshData
     using index_t = uint32_t;
 
     std::vector<Vertex> vertices;
+    std::vector<SkinnedVertex> skinnedVertices;
     std::vector<index_t> indices;
 
     std::string albedoTextureFilename = "";
@@ -36,18 +49,19 @@ struct Mesh
     ID3D12Resource *indexBuffer  = nullptr;
     uint32_t vertexCount         = 0;
     uint32_t indexCount          = 0;
+    uint32_t stride              = 0;
     // Teture
-    ID3D12Resource *albedoTexture = nullptr;
+    ID3D12Resource *albedoTexture       = nullptr;
     ID3D12Resource *albedoUploadTexture = nullptr;
     // Material
-    ID3D12Resource *diffuseUploadTexture = nullptr;
+    ID3D12Resource *diffuseUploadTexture  = nullptr;
     ID3D12Resource *specularUploadTexture = nullptr;
 
     D3D12_VERTEX_BUFFER_VIEW VertexBufferView()
     {
         D3D12_VERTEX_BUFFER_VIEW view;
         view.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
-        view.StrideInBytes  = sizeof(Vertex);
+        view.StrideInBytes  = stride;
         view.SizeInBytes    = vertexCount * view.StrideInBytes;
         return view;
     }
