@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ConstantBuffer.h"
 #include "AnimationData.h"
+#include "ConstantBuffer.h"
 #include "Mesh.h"
 
 using namespace DirectX;
@@ -14,8 +14,9 @@ class Model
 
   public:
     void Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
-                            ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
-                            std::vector<MeshData> meshes, std::vector<MaterialConsts> materials = {}); // const buffer, mesh data
+                    ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
+                    std::vector<MeshData> meshes,
+                    std::vector<MaterialConsts> materials = {}); // const buffer, mesh data
     virtual void Update();
     virtual void Render(ID3D12GraphicsCommandList *commandList);
     virtual void RenderNormal(ID3D12GraphicsCommandList *commandList);
@@ -31,7 +32,7 @@ class Model
     void DestroyTextureResource();
 
   public:
-    ID3D12PipelineState *GetPSO(bool isWireFrame)
+    virtual ID3D12PipelineState *GetPSO(bool isWireFrame)
     {
         return isWireFrame ? Graphics::defaultWirePSO : Graphics::defaultSolidPSO;
     }
@@ -47,6 +48,16 @@ class Model
     {
         return m_world;
     }
+    void MoveFront(const float dt)
+    {
+        m_world *= Matrix::CreateTranslation(m_speed * Vector3(0.0f, 0.0f, -1.0f) * dt);
+        UpdateWorldMatrix(m_world);
+    }
+    void MoveRight(const float dt)
+    {
+        m_world *= Matrix::CreateTranslation(m_speed * Vector3(-1.0f, 0.0f, 0.0f) * dt);
+        UpdateWorldMatrix(m_world);
+    }
 
   private:
     ID3D12RootSignature *m_rootSignature   = nullptr;
@@ -59,7 +70,6 @@ class Model
     std::vector<MaterialConsts> m_material = {};
     uint8_t m_descRef                      = 0;
     uint8_t m_descNum                      = 9;
-    uint8_t m_renderRef                    = 0;
 
     UploadBuffer<MeshConsts> m_meshUpload;
     UploadBuffer<MaterialConsts> m_materialUpload;
@@ -70,4 +80,7 @@ class Model
 
     Matrix m_world   = Matrix();
     Matrix m_worldIT = Matrix();
+
+    Vector3 m_pos = Vector3(0.0f, 0.5f, 0.0f);
+    float m_speed = 0.0005f;
 };

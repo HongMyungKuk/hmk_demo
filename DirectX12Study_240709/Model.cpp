@@ -28,6 +28,7 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
 
     m_materialUpload.Initialize(device, uint32_t(meshes.size()));
 
+    int count = 0;
     for (auto &m : meshes)
     {
         Mesh newMesh;
@@ -45,6 +46,8 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
         {
             this->BuildTexture(device, commandList, commandAllocator, commandQueue, m.albedoTextureFilename,
                                &newMesh.albedoTexture, &newMesh.albedoUploadTexture);
+            count++;
+
         }
 
         m_meshes.push_back(newMesh);
@@ -52,6 +55,7 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
 
     for (auto &m : materials)
     {
+        m.texNum = count;
         m_material.push_back(m);
     }
 }

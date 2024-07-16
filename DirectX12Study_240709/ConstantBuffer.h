@@ -1,9 +1,9 @@
 #pragma once
 
 using DirectX::SimpleMath::Matrix;
-using DirectX::SimpleMath::Vector4;
-using DirectX::SimpleMath::Vector3;
 using DirectX::SimpleMath::Vector2;
+using DirectX::SimpleMath::Vector3;
+using DirectX::SimpleMath::Vector4;
 
 __declspec(align(256)) struct MeshConsts
 {
@@ -36,12 +36,12 @@ __declspec(align(256)) struct GlobalConsts
 
 __declspec(align(256)) struct MaterialConsts
 {
-    Vector3 ambient   = Vector3(0.0f, 0.0f, 0.0f);
+    Vector3 ambient  = Vector3(0.0f, 0.0f, 0.0f);
     uint32_t texIdx  = 0;
-    Vector3 diffuse   = Vector3(0.0f, 0.0f, 0.0f);
-    uint32_t texFlag  = 0;
-    Vector3 specular  = Vector3(0.0f, 0.0f, 0.0f);
-    float dummy2;
+    Vector3 diffuse  = Vector3(0.0f, 0.0f, 0.0f);
+    uint32_t texFlag = 0;
+    Vector3 specular = Vector3(0.0f, 0.0f, 0.0f);
+    uint32_t texNum  = 0;
 };
 
 template <typename T_CONST> class UploadBuffer

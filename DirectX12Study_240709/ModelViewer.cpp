@@ -2,6 +2,7 @@
 
 #include "Camera.h"
 #include "GeometryGenerator.h"
+#include "Input.h"
 #include "Model.h"
 #include "ModelViewer.h"
 #include "SkinnedMeshModel.h"
@@ -57,10 +58,29 @@ bool ModelViewer::Initialize()
             return false;
         }
         {
-            auto [_, anim]         = GeometryGenerator::ReadFromAnimationFile("../../Asset/Model/", "idle.fbx");
+            m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
+                           "Walking Backward.fbx"};
+
+            AnimationData animData = {};
+            for (const auto &clip : m_animClips)
+            {
+                auto [_, anim] = GeometryGenerator::ReadFromAnimationFile("../../Asset/Model/", clip.c_str());
+
+                if (animData.clips.empty())
+                {
+                    animData = anim;
+                }
+                else
+                {
+                    animData.clips.push_back(anim.clips.front());
+                }
+            }
+
             auto [model, material] = GeometryGenerator::ReadFromModelFile("../../Asset/Model/", "comp_model.fbx");
 
-            m_model->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, anim);
+            ((SkinnedMeshModel *)m_model)
+                ->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material, animData);
+            m_model->GetMaterialConstCPU().texFlag = m_useTexture;
             m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
             m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
         }
@@ -182,12 +202,80 @@ void ModelViewer::Update(const float dt)
         }
     }
 
-    {
-        m_model->GetMaterialConstCPU().texFlag = m_useTexture;
-        m_model->Update();
+    m_model->Update();
 
-        static int frameCount = 0;
-        m_model->UpdateAnimation(0, frameCount++);
+    SkinnedMeshModel *model = dynamic_cast<SkinnedMeshModel *>(m_model);
+
+    if (model != nullptr)
+    {
+        if (((SkinnedMeshModel *)m_model)->GetAnim().clips.size() > 0)
+        {
+            // update animation.
+
+            {
+                static int frameCount = 0;
+                static int state      = 0;
+
+                if (GameInput::IsFirstPressed(GameInput::kKey_up))
+                {
+                    if (state == 0)
+                    {
+                        state = 1;
+                    }
+                }
+                if (GameInput::IsFirstPressed(GameInput::kKey_right))
+                {
+                    if (state == 0)
+                    {
+                        state = 2;
+                    }
+                }
+                if (GameInput::IsFirstPressed(GameInput::kKey_left))
+                {
+                    if (state == 0)
+                    {
+                        state = 3;
+                    }
+                }
+                if (GameInput::IsFirstPressed(GameInput::kKey_down))
+                {
+                    if (state == 0)
+                    {
+                        state = 4;
+                    }
+                }
+
+                if (GameInput::IsPressed(GameInput::kKey_up))
+                {
+                    state = 1;
+                    m_model->MoveFront(dt);
+                }
+                else if (GameInput::IsPressed(GameInput::kKey_right))
+                {
+                    state = 2;
+                    m_model->MoveRight(dt);
+                }
+                else if (GameInput::IsPressed(GameInput::kKey_left))
+                {
+                    state = 3;
+                    m_model->MoveRight(-dt);
+                }
+                else if (GameInput::IsPressed(GameInput::kKey_down))
+                {
+                    state = 4;
+                    m_model->MoveFront(-dt * 0.5f);
+                }
+                else
+                {
+                    state = 0;
+                }
+
+                if (m_aniPlayFlag)
+                    state = m_selectedAnim;
+
+                ((SkinnedMeshModel *)m_model)->UpdateAnimation(state, frameCount++);
+            }
+        }
     }
 
     // etc...
@@ -204,7 +292,7 @@ void ModelViewer::Render()
     m_commandList->SetPipelineState(Graphics::blendCoverPSO);
     m_coordController->Render(m_commandList);
 
-    m_commandList->SetPipelineState(Graphics::skinnedSolidPSO);
+    m_commandList->SetPipelineState(m_model->GetPSO(m_isWireFrame));
     m_model->Render(m_commandList);
 
     // m_commandList->SetPipelineState(m_box->GetPSO());
@@ -296,8 +384,8 @@ void ModelViewer::UpdateGui(const float frameRate)
 
                 if (GetOpenFileNameA(&ofn))
                 {
-                    // Exception thrown at 0x00007FF85E2FFABC (KernelBase.dll) in DirectX12Study_240709.exe: 0x000006BA:
-                    // RPC 서버를 사용할 수 없습니다. 수정 필요
+                    // Exception thrown at 0x00007FF85E2FFABC (KernelBase.dll) in DirectX12Study_240709.exe:
+                    // 0x000006BA: RPC 서버를 사용할 수 없습니다. 수정 필요
 
                     std::string wStrFile = ofn.lpstrFile;
                     size_t idx           = wStrFile.rfind("\\");
@@ -335,28 +423,82 @@ void ModelViewer::UpdateGui(const float frameRate)
         ImGui::Text("Mouse Xpos: %.3f", m_mouseX);
         ImGui::Text("Mouse Ypos: %.3f", m_mouseY);
     }
+    // Mouse & keyboard
+    if (ImGui::CollapsingHeader("Animation list"))
+    {
+        static int selected = 0;
+        {
+            ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX);
+
+            // 100 => animation size로 대체
+            for (int i = 0; i < m_animClips.size(); i++)
+            {
+                // FIXME: Good candidate to use ImGuiSelectableFlags_SelectOnNav
+                if (ImGui::Selectable(m_animClips[i].c_str(), selected == i))
+                    selected = i;
+            }
+            ImGui::EndChild();
+        }
+        ImGui::SameLine();
+        {
+            ImGui::BeginGroup();
+            ImGui::BeginChild("item view",
+                              ImVec2(0, -ImGui::GetFrameHeightWithSpacing())); // Leave room for 1 line below us
+            ImGui::Text("MyObject: %d", selected);
+            ImGui::Separator();
+            if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
+            {
+                if (ImGui::BeginTabItem("Description"))
+                {
+                    ImGui::TextWrapped("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor "
+                                       "incididunt ut labore et dolore magna aliqua. ");
+                    ImGui::EndTabItem();
+                }
+                if (ImGui::BeginTabItem("Details"))
+                {
+                    ImGui::Text("ID: 0123456789");
+                    ImGui::EndTabItem();
+                }
+                ImGui::EndTabBar();
+            }
+            ImGui::EndChild();
+            if (ImGui::Button("Play"))
+            {
+                m_aniPlayFlag  = true;
+                m_selectedAnim = selected;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Stop"))
+            {
+                m_aniPlayFlag  = false;
+                m_selectedAnim = 0;
+            }
+            ImGui::EndGroup();
+        }
+    }
 
     ImGui::End();
 }
 
 void ModelViewer::ChangeModel()
 {
-    //if (!m_openModelFileName.empty())
-    //{
-    //    SAFE_DELETE(m_model);
+    if (!m_openModelFileName.empty())
+    {
+        SAFE_DELETE(m_model);
 
-    //    m_model = new Model;
+        m_model = new Model;
 
-    //    auto [model, material] =
-    //        GeometryGenerator::ReadFromModelFile(m_openModelFileBasePath.c_str(), m_openModelFileName.c_str());
+        auto [model, material] =
+            GeometryGenerator::ReadFromModelFile(m_openModelFileBasePath.c_str(), m_openModelFileName.c_str());
 
-    //    // model을 재사용 할 수 있도록 수정
-    //    m_model->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material);
-    //    m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
-    //    m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
+        // model을 재사용 할 수 있도록 수정
+        m_model->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material);
+        m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
+        m_model->GetMaterialConstCPU().texFlag = false;
+        m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
 
-    //    WaitForPreviousFrame();
+        WaitForPreviousFrame();
 
-    //    m_openModelFileName.clear();
-    //}
+        m_openModelFileName.clear();
+    }
 }

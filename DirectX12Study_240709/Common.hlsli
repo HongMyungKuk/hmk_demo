@@ -45,7 +45,7 @@ cbuffer MaterialConstants : register(b2)
     float3 diffuse;
     uint texFlag;
     float3 specular;
-    float dummy3;
+    uint texNum;
 };
 
 struct VSInput
