@@ -22,6 +22,7 @@ class ModelViewer : public AppBase
 
   private:
     void ChangeModel();
+    void SaveFile(const char* filename);
 
   private:
     Model *m_ground          = nullptr;
@@ -36,6 +37,7 @@ class ModelViewer : public AppBase
     Vector3 m_controllerCenter      = Vector3(2.5f, 1.5f, 5.0f);
     BoundingSphere m_boundingSphere = {};
 
+    std::string m_basPath = "";
     std::vector<std::string> m_animClips;
     bool m_aniPlayFlag = false;
     int m_selectedAnim = 0;

@@ -58,13 +58,14 @@ bool ModelViewer::Initialize()
             return false;
         }
         {
+            m_basPath   = "../../Asset/Model/";
             m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
                            "Walking Backward.fbx"};
 
             AnimationData animData = {};
             for (const auto &clip : m_animClips)
             {
-                auto [_, anim] = GeometryGenerator::ReadFromAnimationFile("../../Asset/Model/", clip.c_str());
+                auto [_, anim] = GeometryGenerator::ReadFromAnimationFile(m_basPath.c_str(), clip.c_str());
 
                 if (animData.clips.empty())
                 {
@@ -76,7 +77,7 @@ bool ModelViewer::Initialize()
                 }
             }
 
-            auto [model, material] = GeometryGenerator::ReadFromModelFile("../../Asset/Model/", "comp_model.fbx");
+            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model.fbx");
 
             ((SkinnedMeshModel *)m_model)
                 ->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material, animData);
@@ -258,12 +259,12 @@ void ModelViewer::Update(const float dt)
                 else if (GameInput::IsPressed(GameInput::kKey_left))
                 {
                     state = 3;
-                    m_model->MoveRight(-dt);
+                    m_model->MoveLeft(dt);
                 }
                 else if (GameInput::IsPressed(GameInput::kKey_down))
                 {
                     state = 4;
-                    m_model->MoveFront(-dt * 0.5f);
+                    m_model->MoveBack(dt);
                 }
                 else
                 {
@@ -394,6 +395,26 @@ void ModelViewer::UpdateGui(const float frameRate)
                     m_openModelFileName.assign(wStrFile.begin() + idx + 1, wStrFile.end());
                 }
             }
+            if (ImGui::MenuItem("Save", "Ctrl+S"))
+            {
+                char lpstrFile[100] = "";
+
+                OPENFILENAMEA ofn = {};
+                ZeroMemory(&ofn, sizeof(ofn));
+                ofn.lStructSize     = sizeof(ofn);
+                ofn.hwndOwner       = m_hwnd;
+                ofn.lpstrFilter     = "모든 파일\0*.*";
+                ofn.lpstrFile       = lpstrFile;
+                ofn.nMaxFile        = 100;
+                ofn.lpstrInitialDir = ".";
+
+                if (GetSaveFileNameA(&ofn))
+                {
+                    // Exception thrown at 0x00007FF85E2FFABC (KernelBase.dll) in DirectX12Study_240709.exe:
+                    // 0x000006BA: RPC 서버를 사용할 수 없습니다. 수정 필요
+                    SaveFile(ofn.lpstrFile);
+                }
+            }
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Examples"))
@@ -416,6 +437,9 @@ void ModelViewer::UpdateGui(const float frameRate)
         ImGui::Checkbox("Wire frame", &m_isWireFrame);
         ImGui::Checkbox("Use texture", &m_useTexture);
         ImGui::Checkbox("Use MSAA", &m_useMSAA);
+        //static float speed = 0.0f;
+        //ImGui::SliderFloat("Character front speed", &speed, 0.0001f, 0.001f, "%.7f");
+        //m_model->SetSpeed(speed, FRONT);
     }
     // Mouse & keyboard
     if (ImGui::CollapsingHeader("Inputs"))
@@ -501,4 +525,29 @@ void ModelViewer::ChangeModel()
 
         m_openModelFileName.clear();
     }
+}
+// 엔진에서 쓰일 모델 정보.
+void ModelViewer::SaveFile(const char* filename)
+{
+    FILE *fp = nullptr;
+
+    fopen_s(&fp, filename, "wt");
+    if (!fp)
+    {
+        return;
+    }
+
+    fprintf(fp, m_basPath.c_str());
+    fprintf(fp, "\n");
+    for (auto& e : m_animClips)
+    {
+        fprintf(fp, e.c_str());
+        fprintf(fp, "\n");
+    }
+
+    // 추가로 앞,뒤,옆 이동 속도 추가 (애니메이션과 싱크가 맞춰진 데이터)
+    
+    // 무기 장착 시나리오 추가.
+
+    fclose(fp);
 }

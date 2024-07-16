@@ -50,13 +50,28 @@ class Model
     }
     void MoveFront(const float dt)
     {
-        m_world *= Matrix::CreateTranslation(m_speed * Vector3(0.0f, 0.0f, -1.0f) * dt);
+        m_world *= Matrix::CreateTranslation(m_speed[FRONT] * Vector3(0.0f, 0.0f, -1.0f) * dt);
+        UpdateWorldMatrix(m_world);
+    }
+    void MoveBack(const float dt)
+    {
+        m_world *= Matrix::CreateTranslation(m_speed[BACK] * Vector3(0.0f, 0.0f, -1.0f) * -dt);
         UpdateWorldMatrix(m_world);
     }
     void MoveRight(const float dt)
     {
-        m_world *= Matrix::CreateTranslation(m_speed * Vector3(-1.0f, 0.0f, 0.0f) * dt);
+        m_world *= Matrix::CreateTranslation(m_speed[SIDE] * Vector3(-1.0f, 0.0f, 0.0f) * dt);
         UpdateWorldMatrix(m_world);
+    }
+    void MoveLeft(const float dt)
+    {
+        m_world *= Matrix::CreateTranslation(m_speed[SIDE] * Vector3(1.0f, 0.0f, 0.0f) * dt);
+        UpdateWorldMatrix(m_world);
+    }
+
+    void SetSpeed(float s, int type)
+    {
+        m_speed[type] = s;
     }
 
   private:
@@ -82,5 +97,14 @@ class Model
     Matrix m_worldIT = Matrix();
 
     Vector3 m_pos = Vector3(0.0f, 0.5f, 0.0f);
-    float m_speed = 0.0005f;
+
+    enum MOVE_TYPE
+    {
+        FRONT = 0,
+        SIDE = 1,
+        BACK =2,
+
+        END,
+    };
+    float m_speed[END] = {0.0005f, 0.0005f, 0.00025f};
 };
