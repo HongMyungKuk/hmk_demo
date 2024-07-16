@@ -59,7 +59,7 @@ bool ModelViewer::Initialize()
         }
         {
             m_basPath   = "../../Asset/Model/";
-            m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
+            m_animClips = {"idle2.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
                            "Walking Backward.fbx"};
 
             AnimationData animData = {};
@@ -77,7 +77,7 @@ bool ModelViewer::Initialize()
                 }
             }
 
-            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model.fbx");
+            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model2.fbx");
 
             ((SkinnedMeshModel *)m_model)
                 ->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material, animData);
@@ -452,7 +452,7 @@ void ModelViewer::UpdateGui(const float frameRate)
     {
         static int selected = 0;
         {
-            ImGui::BeginChild("left pane", ImVec2(150, 0), ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX);
+            ImGui::BeginChild("left pane", ImVec2(150, 0));
 
             // 100 => animation size∑Œ ¥Î√º
             for (int i = 0; i < m_animClips.size(); i++)
