@@ -50,5 +50,5 @@ PSInput vsmain(VSInput input)
 
 float4 psmain(PSInput input) : SV_TARGET
 {
-    return texFlag ? albedoTexture[texIdx].Sample(linearWrapSS, input.texCoord) : float4(0.5 * diffuse + 0.5 * specular, 1.0);
+    return float4(0.5 * diffuse + 0.5 * specular, 1.0);
 }

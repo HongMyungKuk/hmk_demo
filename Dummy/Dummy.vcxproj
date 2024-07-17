@@ -71,8 +71,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Users\skdfw\My\Study\DirectX12Study_240709\EngineCore;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\skdfw\My\Study\DirectX12Study_240709\x64\Debug;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)EngineCore\;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)x64\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

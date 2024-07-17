@@ -15,6 +15,7 @@ ModelViewer::~ModelViewer()
 {
     SAFE_DELETE(m_coordController);
     SAFE_DELETE(m_model);
+    SAFE_DELETE(m_terrain);
     SAFE_DELETE(m_ground);
     SAFE_DELETE(m_box);
 }
@@ -59,7 +60,7 @@ bool ModelViewer::Initialize()
         }
         {
             m_basPath   = "../../Asset/Model/";
-            m_animClips = {"idle2.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
+            m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
                            "Walking Backward.fbx"};
 
             AnimationData animData = {};
@@ -77,13 +78,28 @@ bool ModelViewer::Initialize()
                 }
             }
 
-            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model2.fbx");
+            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model.fbx");
 
             ((SkinnedMeshModel *)m_model)
                 ->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material, animData);
             m_model->GetMaterialConstCPU().texFlag = m_useTexture;
             m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
             m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
+        }
+    }
+
+    WaitForPreviousFrame();
+
+    // Create the terrain
+    {
+        CREATE_MODEL_OBJ(m_terrain);
+        {
+            auto [model, _] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "3.fbx");
+            m_terrain->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model);
+            m_terrain->UpdateWorldMatrix(Matrix::CreateScale(10.0f, 10.0f, 10.0f) * Matrix::CreateTranslation(0.0f, -2.0f, 0.0f));
+            m_terrain->GetMaterialConstCPU().diffuse = Vector3(1.0f);
+            m_terrain->GetMaterialConstCPU().specular = Vector3(1.0f);
+            m_terrain->GetMaterialConstCPU().texFlag = false;
         }
     }
 
@@ -437,9 +453,9 @@ void ModelViewer::UpdateGui(const float frameRate)
         ImGui::Checkbox("Wire frame", &m_isWireFrame);
         ImGui::Checkbox("Use texture", &m_useTexture);
         ImGui::Checkbox("Use MSAA", &m_useMSAA);
-        //static float speed = 0.0f;
-        //ImGui::SliderFloat("Character front speed", &speed, 0.0001f, 0.001f, "%.7f");
-        //m_model->SetSpeed(speed, FRONT);
+        // static float speed = 0.0f;
+        // ImGui::SliderFloat("Character front speed", &speed, 0.0001f, 0.001f, "%.7f");
+        // m_model->SetSpeed(speed, FRONT);
     }
     // Mouse & keyboard
     if (ImGui::CollapsingHeader("Inputs"))
@@ -527,7 +543,7 @@ void ModelViewer::ChangeModel()
     }
 }
 // 엔진에서 쓰일 모델 정보.
-void ModelViewer::SaveFile(const char* filename)
+void ModelViewer::SaveFile(const char *filename)
 {
     FILE *fp = nullptr;
 
@@ -539,14 +555,14 @@ void ModelViewer::SaveFile(const char* filename)
 
     fprintf(fp, m_basPath.c_str());
     fprintf(fp, "\n");
-    for (auto& e : m_animClips)
+    for (auto &e : m_animClips)
     {
         fprintf(fp, e.c_str());
         fprintf(fp, "\n");
     }
 
     // 추가로 앞,뒤,옆 이동 속도 추가 (애니메이션과 싱크가 맞춰진 데이터)
-    
+
     // 무기 장착 시나리오 추가.
 
     fclose(fp);

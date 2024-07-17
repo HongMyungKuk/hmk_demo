@@ -1,13 +1,11 @@
 // Core.cpp : Defines the functions for the static library.
 //
-
 #include "pch.h"
 
 #include "EngineCore.h"
+#include "GraphicsCore.h"
 #include "Input.h"
-
-uint32_t g_displayWidth  = 1280;
-uint32_t g_displayHeight = 800;
+#include "Display.h"
 
 namespace EngineCore
 {
@@ -17,6 +15,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 void InitializeApplication(EngineApp& app)
 {
+    Graphics::Initialize();
     GameInput::Initialize();
 
     app.Startup();
@@ -43,6 +42,8 @@ bool UpdateApplication(EngineApp& app)
 
 int RunApplication(EngineApp &app, const wchar_t *className)
 {
+    using namespace Graphics;
+
     // Register class
     WNDCLASSEX wcex;
     wcex.cbSize        = sizeof(WNDCLASSEX);
@@ -88,6 +89,9 @@ int RunApplication(EngineApp &app, const wchar_t *className)
         if (done)
             break;
     } while (UpdateApplication(app)); // Returns false to quit loop
+
+    TerminateApplication(app);
+    Graphics::Shutdown();
 
     return 0;
 }

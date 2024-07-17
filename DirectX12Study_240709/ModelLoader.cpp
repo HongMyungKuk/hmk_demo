@@ -155,11 +155,18 @@ void ModelLoader::ProcessNode(aiNode *node, const aiScene *scene)
         m_anim.boneParentId[boneID] = m_anim.boneNameToId[FindParent(node->mParent)->mName.C_Str()];
     }
 
+    Matrix m(&node->mTransformation.a1);
+    m = m.Transpose();
+
     // process all the node's meshes (if any)
     for (unsigned int i = 0; i < node->mNumMeshes; i++)
     {
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
         auto newMesh = this->ProceesMesh(mesh, scene);
+        for (auto& v : newMesh.vertices)
+        {
+            v.position = Vector3::Transform(v.position, m);
+        }
         m_meshes.push_back(newMesh);
     }
     // then do the same for each of its children
@@ -238,17 +245,19 @@ MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
         }
 
         int maxBones = 0;
-        for (size_t i = 0; i < boneWeights.size(); i++) {
+        for (size_t i = 0; i < boneWeights.size(); i++)
+        {
             maxBones = DirectX::XMMax(maxBones, int(boneWeights[i].size()));
         }
         std::cout << "Max number of influencing bones per vertex = " << maxBones << std::endl;
 
         meshData.skinnedVertices.resize(meshData.vertices.size());
-        for (size_t i = 0; i < meshData.vertices.size(); i++) {
+        for (size_t i = 0; i < meshData.vertices.size(); i++)
+        {
             meshData.skinnedVertices[i].position = meshData.vertices[i].position;
             meshData.skinnedVertices[i].normal   = meshData.vertices[i].normal;
             meshData.skinnedVertices[i].texCoord = meshData.vertices[i].texCoord;
-            
+
             for (size_t j = 0; j < boneWeights[i].size(); j++)
             {
                 meshData.skinnedVertices[i].boneWeights[j] = boneWeights[i][j];
