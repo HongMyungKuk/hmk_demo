@@ -84,7 +84,7 @@ class Model
     std::vector<Mesh> m_meshes             = {};
     std::vector<MaterialConsts> m_material = {};
     uint8_t m_descRef                      = 0;
-    uint8_t m_descNum                      = 9;
+    uint8_t m_descNum                      = 65;
 
     UploadBuffer<MeshConsts> m_meshUpload;
     UploadBuffer<MaterialConsts> m_materialUpload;

@@ -397,7 +397,7 @@ void AppBase::BuildRootSignature()
     // Create root signature.
     CD3DX12_DESCRIPTOR_RANGE rangeObj[1] = {};
     // rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1); // b1 : Mesh Consts, b2 : Material Consts
-    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 3); // t0 : diffuse, t1 : specular, t2 : texture
+    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 65, 3); // t0 : diffuse, t1 : specular, t2 : texture
 
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |

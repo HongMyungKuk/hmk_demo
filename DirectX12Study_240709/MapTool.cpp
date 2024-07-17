@@ -26,17 +26,15 @@ bool MapTool::Initialize()
         CREATE_OBJ(m_camera, Camera);
     }
 
-    m_basePath = "../../Asset/Model/";
+    m_basePath = "../../Asset/Sponza/";
     // Create the terrain
     {
         CREATE_MODEL_OBJ(m_terrain);
         {
-            auto [model, _] = GeometryGenerator::ReadFromModelFile(m_basePath.c_str(), "3.fbx");
-            m_terrain->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model);
+            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basePath.c_str(), "sponza.fbx");
+            m_terrain->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material);
             m_terrain->UpdateWorldMatrix(Matrix::CreateScale(10.0f, 10.0f, 10.0f) *
                                          Matrix::CreateTranslation(0.0f, -2.0f, 0.0f));
-            m_terrain->GetMaterialConstCPU().diffuse  = Vector3(0.5f);
-            m_terrain->GetMaterialConstCPU().specular = Vector3(0.5f);
             m_terrain->GetMaterialConstCPU().texFlag  = false;
         }
     }

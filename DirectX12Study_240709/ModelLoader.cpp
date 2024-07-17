@@ -10,14 +10,14 @@ ModelLoader::ModelLoader(const char *filepath, const char *filename)
 
     uint8_t *fileFullpath = Utils::get_full_directory(filepath, filename);
     const uint8_t *ext    = Utils::get_extension((const char *)fileFullpath);
-    if (!strcmp((const char *)ext, "obj"))
-    {
-        LoadObjFile((const char *)fileFullpath);
-    }
-    else
-    {
-        LoadModel((const char *)fileFullpath);
-    }
+    // if (!strcmp((const char *)ext, "obj"))
+    //{
+    //     LoadObjFile((const char *)fileFullpath);
+    // }
+    // else
+    //{
+    LoadModel((const char *)fileFullpath);
+    //}
 
     free((void *)ext);
     free(fileFullpath);
@@ -163,7 +163,7 @@ void ModelLoader::ProcessNode(aiNode *node, const aiScene *scene)
     {
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
         auto newMesh = this->ProceesMesh(mesh, scene);
-        for (auto& v : newMesh.vertices)
+        for (auto &v : newMesh.vertices)
         {
             v.position = Vector3::Transform(v.position, m);
         }
@@ -194,10 +194,13 @@ MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
         position.z = mesh->mVertices[i].z;
         v.position = position;
 
-        normal.x = mesh->mNormals[i].x;
-        normal.y = mesh->mNormals[i].y;
-        normal.z = mesh->mNormals[i].z;
-        v.normal = normal;
+        if (mesh->mNormals)
+        {
+            normal.x = mesh->mNormals[i].x;
+            normal.y = mesh->mNormals[i].y;
+            normal.z = mesh->mNormals[i].z;
+            v.normal = normal;
+        }
 
         if (mesh->mTextureCoords[0])
         {
@@ -299,6 +302,33 @@ MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
         {
             aiString str;
             material->GetTexture(aiTextureType_DIFFUSE, i, &str);
+
+            const aiTexture *texture = scene->GetEmbeddedTexture(str.C_Str());
+            if (texture)
+            {
+                if (texture->CheckFormat("png") || texture->CheckFormat("jpg"))
+                {
+                    std::string filename =
+                        std::string(std::filesystem::path(texture->mFilename.C_Str()).filename().string());
+                    meshData.albedoTextureFilename = basePath + filename;
+                    {
+                        std::ofstream os;
+                        os.open(meshData.albedoTextureFilename, std::ios::binary | std::ios::out);
+                        os.write((char *)texture->pcData, texture->mWidth);
+                        os.close();
+                    }
+                }
+            }
+            else
+            {
+                meshData.albedoTextureFilename = basePath + str.C_Str();
+            }
+        }
+
+        for (unsigned int i = 0; i < material->GetTextureCount(aiTextureType_BASE_COLOR); i++)
+        {
+            aiString str;
+            material->GetTexture(aiTextureType_BASE_COLOR, i, &str);
             const aiTexture *texture = scene->GetEmbeddedTexture(str.C_Str());
             if (texture)
             {
