@@ -520,7 +520,7 @@ void AppBase::BeginRender()
     //  Global consts
     this->SetGlobalConsts(m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
 
-    // TODO!!
+    // TODO!! 
     // 힙을 한번에 만들어 놓고 쓴다.
     ID3D12DescriptorHeap *descHeaps[] = {m_desciptorHeap};
     m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
@@ -693,6 +693,9 @@ void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename)
     auto uploadResourceFinished = resourceUpload.End(m_commandQueue);
     uploadResourceFinished.wait();
 
+    D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                              D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_desciptorHeap);
+
     // Describe and create a SRV for the texture.
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -702,7 +705,6 @@ void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename)
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_desciptorHeap->GetCPUDescriptorHandleForHeapStart());
     m_device->CreateShaderResourceView(m_envTexture, &srvDesc, srvHandle);
-    g_descCnt++;
 }
 
 LRESULT WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)

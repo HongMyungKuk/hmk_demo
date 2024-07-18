@@ -117,4 +117,5 @@ class AppBase
     bool m_isKeyDown[256] = {};
 
     ID3D12Resource *m_envTexture = nullptr;
+    ID3D12DescriptorHeap *m_desciptorHeap = nullptr;
 };
