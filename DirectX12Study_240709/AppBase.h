@@ -33,6 +33,7 @@ class AppBase
     void SetSissorRect(D3D12_RECT rect);
     void UpdateCamera(const float dt);
     void WaitForPreviousFrame();
+    void InitCubemap(std::wstring basePath, std::wstring envFilename);
 
   private:
     bool InitWindow();
@@ -111,4 +112,7 @@ class AppBase
     Timer *m_timer = nullptr;
     // Key control
     bool m_isKeyDown[256] = {};
+
+    ID3D12Resource *m_envTexture = nullptr;
+    ID3D12DescriptorHeap *m_desciptorHeap = nullptr;
 };

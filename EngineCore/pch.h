@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <queue>
 #include <windows.h>
 
 #include "D3DUtils.h"

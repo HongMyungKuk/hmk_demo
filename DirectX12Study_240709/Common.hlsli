@@ -2,6 +2,8 @@
 
 SamplerState linearWrapSS : register(s0);
 
+TextureCube envTexture : register(t0);
+
 // #define SKINNED 1
 
 #ifdef SKINNED

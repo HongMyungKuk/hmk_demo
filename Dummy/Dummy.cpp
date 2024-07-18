@@ -1,5 +1,10 @@
+//https://www.3dgep.com/learning-directx-12-1/
+
+
 #include "EngineCore.h"
 #include "CommandContext.h"
+#include "Display.h"
+#include "ColorBuffer.h"
 
 #pragma comment(lib, "EngineCore.lib")
 
@@ -17,6 +22,9 @@ public:
 private:
 	D3D12_VIEWPORT m_mainViewport;
 	D3D12_RECT m_mainSicssor;
+
+	// test
+	int m_frameIdx = 0;
 };
 
 CREATE_APPLICATION(ModelViewer);
@@ -51,6 +59,17 @@ void ModelViewer::RenderScene(void)
 	const D3D12_VIEWPORT& viewport = m_mainViewport;
 	const D3D12_RECT& scissor = m_mainSicssor;
 
+	gfxContext.TransitionResource(Display::g_DisplayPlane[m_frameIdx], D3D12_RESOURCE_STATE_RENDER_TARGET);
 
+	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> RTVs = {
+		Display::g_DisplayPlane[m_frameIdx].GetRTV(),
+	};
+	gfxContext.SetRenderTargets(RTVs.size(), RTVs.data());
+	gfxContext.ClearColor(Display::g_DisplayPlane[m_frameIdx]);
 
+	gfxContext.TransitionResource(Display::g_DisplayPlane[m_frameIdx], D3D12_RESOURCE_STATE_PRESENT);
+
+	gfxContext.Finish();
+
+	m_frameIdx = (m_frameIdx + 1) % 2;
 }

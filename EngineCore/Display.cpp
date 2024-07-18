@@ -81,5 +81,6 @@ void Resize(uint32_t width, uint32_t height)
 
 void Present()
 {
+    s_swapChain1->Present(1, 0);
 }
 } // namespace Display

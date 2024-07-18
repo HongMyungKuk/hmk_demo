@@ -2,10 +2,11 @@
 //
 #include "pch.h"
 
+#include "CommandListManager.h"
+#include "Display.h"
 #include "EngineCore.h"
 #include "GraphicsCore.h"
 #include "Input.h"
-#include "Display.h"
 
 namespace EngineCore
 {
@@ -13,7 +14,7 @@ HWND g_hwnd = nullptr;
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-void InitializeApplication(EngineApp& app)
+void InitializeApplication(EngineApp &app)
 {
     Graphics::Initialize();
     GameInput::Initialize();
@@ -21,14 +22,16 @@ void InitializeApplication(EngineApp& app)
     app.Startup();
 }
 
-void TerminateApplication(EngineApp& app)
+void TerminateApplication(EngineApp &app)
 {
+    Graphics::g_CommandManager.WaitForIdle();
+
     app.Cleanup();
 
     GameInput::Destroy();
 }
 
-bool UpdateApplication(EngineApp& app)
+bool UpdateApplication(EngineApp &app)
 {
     float dt = 0.01f;
 
@@ -36,6 +39,8 @@ bool UpdateApplication(EngineApp& app)
 
     app.Update(dt);
     app.RenderScene();
+
+    Display::Present();
 
     return app.IsDone();
 }

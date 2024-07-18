@@ -4,6 +4,8 @@
 #include <d3dcompiler.h>
 #include <directxmath.h>
 #include <directxtk/SimpleMath.h>
+#include <directxtk12/DDSTextureLoader.h>
+#include <directxtk12/ResourceUploadBatch.h>
 #include <dxgi1_6.h>
 #include "d3dx12.h"
 

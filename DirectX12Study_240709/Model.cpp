@@ -19,7 +19,6 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
                        ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                        std::vector<MeshData> meshes, std::vector<MaterialConsts> materials)
 {
-
     D3DUtils::CreateDscriptor(device, m_descNum, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
                               D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_descriptorHeap);
 

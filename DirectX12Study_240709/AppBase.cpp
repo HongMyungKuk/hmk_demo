@@ -395,9 +395,10 @@ void AppBase::GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdap
 void AppBase::BuildRootSignature()
 {
     // Create root signature.
-    CD3DX12_DESCRIPTOR_RANGE rangeObj[1] = {};
+    CD3DX12_DESCRIPTOR_RANGE rangeObj[2] = {};
     // rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1); // b1 : Mesh Consts, b2 : Material Consts
-    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 65, 3); // t0 : diffuse, t1 : specular, t2 : texture
+    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 300, 3); // t0 : diffuse, t1 : specular, t2 : texture
+    rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0);
 
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
@@ -511,6 +512,12 @@ void AppBase::BeginRender()
     m_commandList->SetGraphicsRootSignature(m_rootSignature);
     //  Global consts
     this->SetGlobalConsts(m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
+
+    // TODO!! 
+    // 힙을 한번에 만들어 놓고 쓴다.
+    ID3D12DescriptorHeap *descHeaps[] = {m_desciptorHeap};
+    m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+    m_commandList->SetGraphicsRootDescriptorTable(3, m_desciptorHeap->GetGPUDescriptorHandleForHeapStart());
 
     // Indicate that the back buffer will be used as a render target.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex],
@@ -663,6 +670,34 @@ void AppBase::WaitForPreviousFrame()
         ThrowIfFailed(m_fence->SetEventOnCompletion(fence, m_fenceEvent));
         WaitForSingleObject(m_fenceEvent, INFINITE);
     }
+}
+
+void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename)
+{
+    ResourceUploadBatch resourceUpload(m_device);
+
+    resourceUpload.Begin();
+
+    bool isCubemap = true;
+
+    ThrowIfFailed(DirectX::CreateDDSTextureFromFile(m_device, resourceUpload, (basePath + envFilename).c_str(),
+                                                    &m_envTexture, false, 0, nullptr, &isCubemap));
+
+    auto uploadResourceFinished = resourceUpload.End(m_commandQueue);
+    uploadResourceFinished.wait();
+
+    D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                              D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_desciptorHeap);
+
+    // Describe and create a SRV for the texture.
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Format                          = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURECUBE;
+    srvDesc.Texture2D.MipLevels             = 1;
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_desciptorHeap->GetCPUDescriptorHandleForHeapStart());
+    m_device->CreateShaderResourceView(m_envTexture, &srvDesc, srvHandle);
 }
 
 LRESULT WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)

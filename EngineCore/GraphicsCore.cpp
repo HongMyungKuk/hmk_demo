@@ -139,6 +139,7 @@ void Initialize(bool requireDXRSupport)
 
 void Shutdown()
 {
+    CommandContext::DestroyAllContext();
     Display::Shutdown();
     SAFE_RELEASE(g_Device);
 }
