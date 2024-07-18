@@ -1,6 +1,6 @@
 #include "Common.hlsli"
 
-Texture2D albedoTexture[300] : register(t3);
+Texture2D albedoTexture[299] : register(t1);
 
 PSInput vsmain(VSInput input)
 {
@@ -50,5 +50,5 @@ PSInput vsmain(VSInput input)
 
 float4 psmain(PSInput input) : SV_TARGET
 {
-    return albedoTexture[texIdx].Sample(linearWrapSS, input.texCoord);
+    return texFlag ? albedoTexture[texIdx].Sample(linearWrapSS, input.texCoord) : float4(0.0f, 1.0f, 0.0f, 1.0f);
 }

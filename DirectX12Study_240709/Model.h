@@ -27,7 +27,6 @@ class Model
     void BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                       ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                       const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture);
-    // void BuildDescriptor(ID3D12Device *device);
     void DestroyMeshBuffers();
     void DestroyTextureResource();
 

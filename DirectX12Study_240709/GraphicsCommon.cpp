@@ -176,7 +176,7 @@ void InitPipeLineState(ID3D12Device *device, ID3D12RootSignature *rootSignature)
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&skinnedWirePSO)));
 
     psoDesc.InputLayout     = {skyboxILDesc.data(), UINT(skyboxILDesc.size())};
-    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    psoDesc.RasterizerState = solidCW;
     psoDesc.VS              = CD3DX12_SHADER_BYTECODE(skyboxVS);
     psoDesc.PS              = CD3DX12_SHADER_BYTECODE(skyboxPS);
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&skyboxPSO)));

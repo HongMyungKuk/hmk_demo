@@ -81,6 +81,7 @@ bool AppBase::Initialize()
 
     D3DUtils::CreateDscriptor(m_device, 300, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
                               D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_desciptorHeap);
+    g_descCnt++;
 
     this->BuildGlobalConsts();
 
@@ -402,14 +403,11 @@ void AppBase::GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdap
 void AppBase::BuildRootSignature()
 {
     // Create root signature.
-    CD3DX12_DESCRIPTOR_RANGE rangeObj[2] = {};
-    // rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 1); // b1 : Mesh Consts, b2 : Material Consts
-    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 300, 3); // t0 : diffuse, t1 : specular, t2 : texture
-    rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0);
+    CD3DX12_DESCRIPTOR_RANGE rangeObj[1] = {};
+    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 300, 0); // t0: envTex, t1 ~ 299 : map texture
+    //rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
-    D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-                                                    D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS;
+    D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     CD3DX12_ROOT_PARAMETER rootParameters[5] = {};
     rootParameters[0].InitAsConstantBufferView(0); // b0 : Global Consts
@@ -520,7 +518,7 @@ void AppBase::BeginRender()
     //  Global consts
     this->SetGlobalConsts(m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
 
-    // TODO!! 
+    // TODO!!
     // 힙을 한번에 만들어 놓고 쓴다.
     ID3D12DescriptorHeap *descHeaps[] = {m_desciptorHeap};
     m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
@@ -685,23 +683,25 @@ void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename)
 
     resourceUpload.Begin();
 
-    bool isCubemap = true;
+    bool isCubemap = false;
+    ThrowIfFailed(CreateDDSTextureFromFile(m_device, resourceUpload, (basePath + envFilename).c_str(), &m_envTexture,
+                                           false, 0, nullptr, &isCubemap));
 
-    ThrowIfFailed(DirectX::CreateDDSTextureFromFile(m_device, resourceUpload, (basePath + envFilename).c_str(),
-                                                    &m_envTexture, false, 0, nullptr, &isCubemap));
+    // Upload the resources to the GPU.
+    auto uploadResourcesFinished = resourceUpload.End(m_commandQueue);
 
-    auto uploadResourceFinished = resourceUpload.End(m_commandQueue);
-    uploadResourceFinished.wait();
+    // Wait for the upload thread to terminate
+    uploadResourcesFinished.wait();
 
-    D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-                              D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_desciptorHeap);
+    auto desc = m_envTexture->GetDesc();
 
-    // Describe and create a SRV for the texture.
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Format                          = DXGI_FORMAT_R8G8B8A8_UNORM;
     srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURECUBE;
-    srvDesc.Texture2D.MipLevels             = 1;
+    srvDesc.TextureCube.MostDetailedMip     = 0;
+    srvDesc.TextureCube.MipLevels           = m_envTexture->GetDesc().MipLevels;
+    srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+    srvDesc.Format                          = m_envTexture->GetDesc().Format;
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_desciptorHeap->GetCPUDescriptorHandleForHeapStart());
     m_device->CreateShaderResourceView(m_envTexture, &srvDesc, srvHandle);

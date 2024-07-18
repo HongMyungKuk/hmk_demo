@@ -18,12 +18,14 @@ PixelShaderInput vsmain(VertexShaderInput input)
     output.posModel = input.posModel;
     output.posProj = mul(float4(input.posModel, 1.0), world);
     output.posProj = mul(float4(output.posProj.xyz, 0.0), view);
-    output.posProj = mul(output.posProj, proj);
+    output.posProj = mul(float4(output.posProj.xyz, 1.0), proj);
     
     return output;
 }
 
 float4 psmain(PixelShaderInput input) : SV_TARGET
 {
-    return envTexture.Sample(linearWrapSS, input.posModel);
+    float4 color = envTexture.Sample(linearWrapSS, input.posModel);
+    
+    return color;
 }

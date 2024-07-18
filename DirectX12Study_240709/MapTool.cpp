@@ -36,13 +36,26 @@ bool MapTool::Initialize()
     {
         CREATE_MODEL_OBJ(m_terrain);
         {
-            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basePath.c_str(), "city.fbx");
+            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basePath.c_str(), "gm_bigcity.obj");
             m_terrain->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material);
             m_terrain->UpdateWorldMatrix(Matrix::CreateScale(50.0f, 50.0f, 50.0f) *
                                          Matrix::CreateTranslation(0.0f, -2.0f, 0.0f));
             m_terrain->GetMaterialConstCPU().texFlag = false;
         }
     }
+
+    WaitForPreviousFrame();
+
+    // Create the skybox.
+    {
+        CREATE_MODEL_OBJ(m_skybox);
+        {
+            auto cube = GeometryGenerator::MakeCube(100.0f, 100.0f, 100.0f);
+            m_skybox->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
+        }
+    }
+
+    WaitForPreviousFrame();
 
     return true;
 }
@@ -53,7 +66,9 @@ void MapTool::Update(const float dt)
 
     UpdateCamera(dt);
 
+    m_terrain->GetMaterialConstCPU().texFlag = m_useTexture;
     m_terrain->Update();
+    m_skybox->Update();
 }
 
 void MapTool::Render()
@@ -62,6 +77,9 @@ void MapTool::Render()
 
     m_commandList->SetPipelineState(m_terrain->GetPSO(m_isWireFrame));
     m_terrain->Render(m_commandList);
+
+    m_commandList->SetPipelineState(Graphics::skyboxPSO);
+    m_skybox->Render(m_commandList);
 }
 
 void MapTool::UpdateGui(const float frameRate)
@@ -116,6 +134,19 @@ void MapTool::UpdateGui(const float frameRate)
     if (cameraSpeed != m_camera->GetCameraSpeed())
     {
         m_camera->SetCameraSpeed(cameraSpeed);
+    }
+
+    // Section
+    if (ImGui::CollapsingHeader("Debugging"))
+    {
+        ImGui::Checkbox("First person view", &m_isFPV);
+        ImGui::Checkbox("Draw as normal", &m_drawAsNormal);
+        ImGui::Checkbox("Wire frame", &m_isWireFrame);
+        ImGui::Checkbox("Use texture", &m_useTexture);
+        ImGui::Checkbox("Use MSAA", &m_useMSAA);
+        // static float speed = 0.0f;
+        // ImGui::SliderFloat("Character front speed", &speed, 0.0001f, 0.001f, "%.7f");
+        // m_model->SetSpeed(speed, FRONT);
     }
 
     ImGui::End();

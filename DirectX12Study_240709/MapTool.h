@@ -19,4 +19,5 @@ class MapTool : public AppBase
   private:
     std::string m_basePath = "";
     Model *m_terrain       = nullptr;
+    Model *m_skybox        = nullptr;
 };
