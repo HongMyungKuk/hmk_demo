@@ -152,5 +152,6 @@
     <CustomBuild Include="NormalShader.hlsl" />
     <CustomBuild Include="UIShader.hlsl" />
     <CustomBuild Include="Shaders.hlsl" />
+    <CustomBuild Include="Skybox.hlsl" />
   </ItemGroup>
 </Project>

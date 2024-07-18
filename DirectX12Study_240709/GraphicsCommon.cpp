@@ -13,14 +13,17 @@ D3D12_RASTERIZER_DESC wireCW;
 std::vector<D3D12_INPUT_ELEMENT_DESC> basicILDesc;
 std::vector<D3D12_INPUT_ELEMENT_DESC> skinnedILDesc;
 std::vector<D3D12_INPUT_ELEMENT_DESC> normalILDesc;
+std::vector<D3D12_INPUT_ELEMENT_DESC> skyboxILDesc;
 
 ID3DBlob *basicVS;
 ID3DBlob *skinnedVS;
+ID3DBlob *skyboxVS;
 ID3DBlob *uiVS;
 ID3DBlob *basicPS;
 ID3DBlob *normalVS;
 ID3DBlob *normalGS;
 ID3DBlob *normalPS;
+ID3DBlob *skyboxPS;
 
 D3D12_BLEND_DESC coverBS;
 
@@ -30,6 +33,7 @@ ID3D12PipelineState *defaultWirePSO;
 ID3D12PipelineState *skinnedWirePSO;
 ID3D12PipelineState *normalPSO;
 ID3D12PipelineState *blendCoverPSO;
+ID3D12PipelineState *skyboxPSO;
 
 void InitGraphicsCommon(ID3D12Device *device, ID3D12RootSignature *rootSignature)
 {
@@ -83,6 +87,10 @@ void InitShader()
                                      "gs_5_1", compileFlags, 0, &normalGS, nullptr));
     ThrowIfFailed(D3DCompileFromFile(L"NormalShader.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "psmain",
                                      "ps_5_1", compileFlags, 0, &normalPS, nullptr));
+    ThrowIfFailed(D3DCompileFromFile(L"Skybox.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "vsmain", "vs_5_1",
+                                     compileFlags, 0, &skyboxVS, nullptr));
+    ThrowIfFailed(D3DCompileFromFile(L"Skybox.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "psmain", "ps_5_1",
+                                     compileFlags, 0, &skyboxPS, nullptr));
 
     basicILDesc = {{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
                    {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -99,6 +107,8 @@ void InitShader()
 
     normalILDesc = {{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
                     {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
+
+    skyboxILDesc = {{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
 }
 
 void InitBlendState()
@@ -165,10 +175,16 @@ void InitPipeLineState(ID3D12Device *device, ID3D12RootSignature *rootSignature)
     psoDesc.RasterizerState = wireCW;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&skinnedWirePSO)));
 
-    psoDesc.InputLayout     = {basicILDesc.data(), UINT(basicILDesc.size())};
-    psoDesc.VS              = CD3DX12_SHADER_BYTECODE(uiVS);
+    psoDesc.InputLayout     = {skyboxILDesc.data(), UINT(skyboxILDesc.size())};
     psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    psoDesc.BlendState      = coverBS;
+    psoDesc.VS              = CD3DX12_SHADER_BYTECODE(skyboxVS);
+    psoDesc.PS              = CD3DX12_SHADER_BYTECODE(skyboxPS);
+    ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&skyboxPSO)));
+
+    psoDesc.InputLayout = {basicILDesc.data(), UINT(basicILDesc.size())};
+    psoDesc.VS          = CD3DX12_SHADER_BYTECODE(uiVS);
+    psoDesc.PS          = CD3DX12_SHADER_BYTECODE(basicPS);
+    psoDesc.BlendState  = coverBS;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&blendCoverPSO)));
 
     psoDesc.InputLayout           = {normalILDesc.data(), UINT(normalILDesc.size())};

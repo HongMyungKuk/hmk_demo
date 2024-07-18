@@ -17,7 +17,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::Allocate(uint32_t count)
         desc.Type           = m_type;
         desc.NumDescriptors = 2;
         desc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-        desc.NodeMask       = 1;
+        desc.NodeMask       = 0;
         ThrowIfFailed(Graphics::g_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_currentHeap)));
 
         m_currentHandle        = m_currentHeap->GetCPUDescriptorHandleForHeapStart();

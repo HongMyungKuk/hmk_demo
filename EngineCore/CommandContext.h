@@ -1,6 +1,7 @@
 #pragma once
 
 class CommandContext;
+class ColorBuffer;
 
 class ContextManager
 {
@@ -8,8 +9,17 @@ class ContextManager
     ContextManager(void)
     {
     }
+    ~ContextManager()
+    {
+    }
 
     CommandContext *AllocateContext(D3D12_COMMAND_LIST_TYPE type);
+    void FreeContext(CommandContext *usedContext);
+    void DestroyAllContext();
+
+  private:
+    std::vector<CommandContext *> sm_contextPool[4];
+    std::queue<CommandContext *> sm_availableContext[4]; // D3D12_COMMAND_LIST_TYPE
 };
 
 class CommandContext
@@ -20,14 +30,21 @@ class CommandContext
   private:
     CommandContext(D3D12_COMMAND_LIST_TYPE type);
 
+    void Reset();
+
   public:
     ~CommandContext();
 
     void Initialize();
 
-    static CommandContext &Begin(const std::wstring &ID);
+    static void DestroyAllContext();
 
-    GraphicsContext& GetGraphicsContext()
+    static CommandContext &Begin(const std::wstring &ID);
+    void Finish();
+
+    void TransitionResource(ColorBuffer &res, D3D12_RESOURCE_STATES newState);
+
+    GraphicsContext &GetGraphicsContext()
     {
         assert(m_type != D3D12_COMMAND_LIST_TYPE_COMPUTE);
         return reinterpret_cast<GraphicsContext &>(*this);
@@ -52,4 +69,7 @@ class GraphicsContext : public CommandContext
     {
         return CommandContext::Begin(ID).GetGraphicsContext();
     }
+
+    void ClearColor(ColorBuffer &res);
+    void SetRenderTargets(uint64_t numRTVs, const D3D12_CPU_DESCRIPTOR_HANDLE RTVs[]);
 };

@@ -79,12 +79,12 @@ class Model
     ID3D12PipelineState *m_pipelineState   = nullptr;
     ID3D12Resource *m_meshConstBuffer      = nullptr;
     ID3D12Resource *m_materialConstBuffer  = nullptr;
-    ID3D12DescriptorHeap *m_descriptorHeap = nullptr;
+    //ID3D12DescriptorHeap *m_descriptorHeap = nullptr;
     ID3D12Resource *m_textureUploadHeap    = nullptr;
     std::vector<Mesh> m_meshes             = {};
     std::vector<MaterialConsts> m_material = {};
-    uint8_t m_descRef                      = 0;
-    uint8_t m_descNum                      = 65;
+    uint32_t m_descRef                      = 0;
+    uint32_t m_descNum                      = 300;
 
     UploadBuffer<MeshConsts> m_meshUpload;
     UploadBuffer<MaterialConsts> m_materialUpload;

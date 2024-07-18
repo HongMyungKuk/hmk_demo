@@ -1,8 +1,10 @@
 #include "pch.h"
 
 #include "CommandListManager.h"
+#include "GraphicsCore.h"
 
-CommandQueue::CommandQueue(D3D12_COMMAND_LIST_TYPE type) : m_type(type), m_allocatorPool(type)
+CommandQueue::CommandQueue(D3D12_COMMAND_LIST_TYPE type)
+    : m_type(type), m_allocatorPool(type), m_nextFenceValue((uint64_t)type << 56 | 1)
 {
 }
 
@@ -20,7 +22,7 @@ void CommandQueue::Create(ID3D12Device *device)
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 
     queueDesc.Type     = m_type;
-    queueDesc.NodeMask = 1;
+    queueDesc.NodeMask = 0;
     queueDesc.Flags    = D3D12_COMMAND_QUEUE_FLAG_NONE;
     ThrowIfFailed(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
     m_commandQueue->SetName(L"CommandListManager::m_commandQueue");
@@ -46,6 +48,35 @@ void CommandQueue::Shutdown()
     }
     SAFE_RELEASE(m_fence);
     SAFE_RELEASE(m_commandQueue);
+}
+
+uint64_t CommandQueue::ExcuteCommandList(ID3D12CommandList *list)
+{
+    ThrowIfFailed(((ID3D12GraphicsCommandList *)list)->Close());
+
+    m_commandQueue->ExecuteCommandLists(1, &list);
+
+    m_commandQueue->Signal(m_fence, m_nextFenceValue);
+
+    return m_nextFenceValue++;
+}
+
+void CommandQueue::WaitForFence(uint64_t fenceValue)
+{
+    if (m_fence->GetCompletedValue() >= fenceValue)
+        return;
+
+    {
+        m_fence->SetEventOnCompletion(fenceValue, m_fenceEventHandle);
+        WaitForSingleObject(m_fenceEventHandle, INFINITE);
+    }
+}
+
+uint64_t CommandQueue::IncrementFence()
+{
+    m_commandQueue->Signal(m_fence, m_nextFenceValue);
+
+    return m_nextFenceValue++;
 }
 
 ID3D12CommandAllocator *CommandQueue::RequestAlloctor()
@@ -107,4 +138,17 @@ void CommandListManager::CreateNewCommandList(D3D12_COMMAND_LIST_TYPE type, ID3D
 
     ThrowIfFailed(m_device->CreateCommandList(1, type, *cmdAlloc, nullptr, IID_PPV_ARGS(cmdList)));
     (*cmdList)->SetName(L"CommandList");
+}
+
+void CommandListManager::WaitForFence(uint64_t fenceValue)
+{
+    CommandQueue &Producer = Graphics::g_CommandManager.GetQueue((D3D12_COMMAND_LIST_TYPE)(fenceValue >> 56));
+    Producer.WaitForFence(fenceValue);
+}
+
+void CommandListManager::WaitForIdle()
+{
+    m_graphicsQueue.WaitForIdle();
+    m_computeQueue.WaitForIdle();
+    m_copyQueue.WaitForIdle();
 }

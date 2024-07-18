@@ -12,6 +12,9 @@ extern float g_imguiWidth;
 extern float g_imguiHeight;
 extern HWND g_hwnd;
 
+extern ID3D12DescriptorHeap *m_desciptorHeap;
+extern uint32_t g_descCnt;
+
 class AppBase
 {
   public:
@@ -33,6 +36,7 @@ class AppBase
     void SetSissorRect(D3D12_RECT rect);
     void UpdateCamera(const float dt);
     void WaitForPreviousFrame();
+    void InitCubemap(std::wstring basePath, std::wstring envFilename);
 
   private:
     bool InitWindow();
@@ -111,4 +115,6 @@ class AppBase
     Timer *m_timer = nullptr;
     // Key control
     bool m_isKeyDown[256] = {};
+
+    ID3D12Resource *m_envTexture = nullptr;
 };

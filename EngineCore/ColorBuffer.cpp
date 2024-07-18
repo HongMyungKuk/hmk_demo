@@ -1,4 +1,5 @@
 #include "pch.h"
+
 #include "ColorBuffer.h"
 #include "GraphicsCore.h"
 

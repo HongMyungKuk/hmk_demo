@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "Model.h"
+#include "AppBase.h"
 
 Model::Model()
 {
@@ -10,7 +11,7 @@ Model::~Model()
 {
     DestroyTextureResource();
     DestroyMeshBuffers();
-    SAFE_RELEASE(m_descriptorHeap);
+    //SAFE_RELEASE(m_descriptorHeap);
     SAFE_RELEASE(m_pipelineState);
     SAFE_RELEASE(m_rootSignature);
 }
@@ -19,9 +20,8 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
                        ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                        std::vector<MeshData> meshes, std::vector<MaterialConsts> materials)
 {
-
-    D3DUtils::CreateDscriptor(device, m_descNum, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-                              D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_descriptorHeap);
+    //D3DUtils::CreateDscriptor(device, m_descNum, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+    //                          D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_descriptorHeap);
 
     // BuildConstantBufferView(device);
     m_meshUpload.Initialize(device, 1);
@@ -89,9 +89,9 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
     int idx = 0;
     for (auto &m : m_meshes)
     {
-        ID3D12DescriptorHeap *descHeaps[] = {m_descriptorHeap};
-        commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
-        commandList->SetGraphicsRootDescriptorTable(3, m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+        //ID3D12DescriptorHeap *descHeaps[] = {m_descriptorHeap};
+        //commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+        //commandList->SetGraphicsRootDescriptorTable(3, m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
         commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload.GetResource()->GetGPUVirtualAddress());
         auto address = m_materialUpload.GetResource()->GetGPUVirtualAddress() + idx * sizeof(MaterialConsts);
         commandList->SetGraphicsRootConstantBufferView(2, address);
@@ -145,8 +145,8 @@ void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *comman
                          const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture)
 {
     auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    srvHandle.Offset(m_descRef++, cbvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_desciptorHeap->GetCPUDescriptorHandleForHeapStart());
+    srvHandle.Offset(g_descCnt++, cbvDescriptorSize);
     *uploadTexture =
         D3DUtils::CreateTexture(device, commandList, commandAllocator, commandQueue, filename, texture, srvHandle);
 }

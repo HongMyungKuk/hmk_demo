@@ -12,6 +12,14 @@ class CommandQueue
     void Create(ID3D12Device *device);
     void Shutdown();
 
+    uint64_t ExcuteCommandList(ID3D12CommandList *list);
+    void WaitForFence(uint64_t fenceValue);
+    void WaitForIdle()
+    {
+        WaitForFence(IncrementFence());
+    }
+    uint64_t IncrementFence();
+
     inline bool IsReady()
     {
         return m_commandQueue != nullptr;
@@ -32,6 +40,7 @@ class CommandQueue
 
     ID3D12Fence *m_fence      = nullptr;
     HANDLE m_fenceEventHandle = nullptr;
+    uint64_t m_nextFenceValue;
 };
 
 class CommandListManager
@@ -45,6 +54,21 @@ class CommandListManager
 
     void CreateNewCommandList(D3D12_COMMAND_LIST_TYPE type, ID3D12GraphicsCommandList **cmdList,
                               ID3D12CommandAllocator **cmdAlloc);
+    void WaitForFence(uint64_t fenceValue);
+    void WaitForIdle();
+
+    CommandQueue &GetQueue(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT)
+    {
+        switch (type)
+        {
+        case D3D12_COMMAND_LIST_TYPE_COMPUTE:
+            return m_computeQueue;
+        case D3D12_COMMAND_LIST_TYPE_COPY:
+            return m_copyQueue;
+        default:
+            return m_graphicsQueue;
+        }
+    }
 
     ID3D12CommandQueue *GetCommandQueue()
     {
