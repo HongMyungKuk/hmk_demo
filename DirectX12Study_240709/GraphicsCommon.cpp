@@ -200,6 +200,7 @@ void InitPipeLineState(ID3D12Device *device, ID3D12RootSignature *rootSignature)
 
 void DestroyPipeLineState()
 {
+    SAFE_RELEASE(skyboxPSO);
     SAFE_RELEASE(skinnedWirePSO);
     SAFE_RELEASE(skinnedSolidPSO);
     SAFE_RELEASE(defaultWirePSO);
@@ -210,6 +211,8 @@ void DestroyPipeLineState()
 
 void DestroyShader()
 {
+    SAFE_RELEASE(skyboxPS);
+    SAFE_RELEASE(skyboxVS);
     SAFE_RELEASE(skinnedVS);
     SAFE_RELEASE(uiVS);
     SAFE_RELEASE(normalPS);

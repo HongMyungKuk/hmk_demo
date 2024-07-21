@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ConstantBuffer.h"
+#include "DescriptorHeap.h"
 
 class Model;
 class Camera;
@@ -14,6 +15,7 @@ extern HWND g_hwnd;
 
 extern ID3D12DescriptorHeap *m_desciptorHeap;
 extern uint32_t g_descCnt;
+extern uint32_t g_renderCnt;
 
 class AppBase
 {

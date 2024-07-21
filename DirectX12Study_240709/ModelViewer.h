@@ -30,6 +30,7 @@ class ModelViewer : public AppBase
     Model *m_model          = nullptr;
     Model *m_coordController = nullptr;
     Model *m_terrain         = nullptr;
+    Model *m_skybox          = nullptr;
 
     std::string m_openModelFileBasePath = "";
     std::string m_openModelFileName     = "";

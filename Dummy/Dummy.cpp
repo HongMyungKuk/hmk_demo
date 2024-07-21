@@ -67,6 +67,8 @@ void ModelViewer::RenderScene(void)
 	gfxContext.SetRenderTargets(RTVs.size(), RTVs.data());
 	gfxContext.ClearColor(Display::g_DisplayPlane[m_frameIdx]);
 
+	// Model render
+
 	gfxContext.TransitionResource(Display::g_DisplayPlane[m_frameIdx], D3D12_RESOURCE_STATE_PRESENT);
 
 	gfxContext.Finish();

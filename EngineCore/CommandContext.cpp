@@ -42,6 +42,9 @@ void ContextManager::DestroyAllContext()
 {
     for (uint32_t i = 0; i < 4; i++)
     {
+        for (uint32_t j = 0; j < uint32_t(sm_contextPool[i].size()); j++) {
+            SAFE_DELETE(sm_contextPool[i][j]);
+        }
         sm_contextPool[i].clear();
     }
 }
@@ -54,8 +57,8 @@ CommandContext::CommandContext(D3D12_COMMAND_LIST_TYPE type) : m_type(type)
 
 CommandContext::~CommandContext()
 {
-    SAFE_RELEASE(m_currentAlloctor);
     SAFE_RELEASE(m_cmdList);
+    // alloctor도 여기서 지우면 나중에 Crash
 }
 
 void CommandContext::Initialize()
@@ -92,7 +95,7 @@ void CommandContext::TransitionResource(ColorBuffer &res, D3D12_RESOURCE_STATES 
     res.m_usageState = newState;
 }
 
-CommandContext &CommandContext::Begin(const std::wstring &ID = L"")
+CommandContext &CommandContext::Begin(const std::wstring &ID)
 {
     CommandContext *newContext = g_ContextManager.AllocateContext(D3D12_COMMAND_LIST_TYPE_DIRECT);
     newContext->SetID(ID);

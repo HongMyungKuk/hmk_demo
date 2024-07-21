@@ -14,6 +14,7 @@ MapTool::MapTool()
 
 MapTool::~MapTool()
 {
+    SAFE_DELETE(m_skybox);
     SAFE_DELETE(m_terrain);
 }
 
