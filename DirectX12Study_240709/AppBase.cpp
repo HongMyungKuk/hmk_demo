@@ -17,6 +17,8 @@ HWND g_hwnd                = nullptr;
 
 ID3D12DescriptorHeap *m_desciptorHeap = nullptr;
 uint32_t g_descCnt                    = 0;
+uint32_t g_renderDescCnt              = 1;
+uint32_t g_updateDescCnt              = 0;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -37,6 +39,9 @@ AppBase::~AppBase()
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+
+    SAFE_RELEASE(m_envTexture);
+    SAFE_RELEASE(m_desciptorHeap);
 
     SAFE_DELETE(m_camera);
     SAFE_RELEASE(m_rootSignature)
@@ -79,9 +84,8 @@ bool AppBase::Initialize()
 
     this->BuildRootSignature();
 
-    D3DUtils::CreateDscriptor(m_device, 300, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+    D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
                               D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_desciptorHeap);
-    g_descCnt++;
 
     this->BuildGlobalConsts();
 
@@ -403,18 +407,21 @@ void AppBase::GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdap
 void AppBase::BuildRootSignature()
 {
     // Create root signature.
-    CD3DX12_DESCRIPTOR_RANGE rangeObj[1] = {};
-    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 300, 0); // t0: envTex, t1 ~ 299 : map texture
-    //rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+    CD3DX12_DESCRIPTOR_RANGE rangeObj1[1] = {};
+    rangeObj1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 300, 1); // t0: envTex, t1 ~ 299 : map texture
+
+    CD3DX12_DESCRIPTOR_RANGE rangeObj2[1] = {};
+    rangeObj2[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0: envTex, t1 ~ 299 : map texture
 
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-    CD3DX12_ROOT_PARAMETER rootParameters[5] = {};
+    CD3DX12_ROOT_PARAMETER rootParameters[6] = {};
     rootParameters[0].InitAsConstantBufferView(0); // b0 : Global Consts
     rootParameters[1].InitAsConstantBufferView(1); // b1 : Mesh Consts
     rootParameters[2].InitAsConstantBufferView(2); // b2 : material Consts
-    rootParameters[3].InitAsDescriptorTable(_countof(rangeObj), rangeObj, D3D12_SHADER_VISIBILITY_ALL);
-    rootParameters[4].InitAsConstantBufferView(3); // b3 : material Consts
+    rootParameters[3].InitAsDescriptorTable(_countof(rangeObj1), rangeObj1, D3D12_SHADER_VISIBILITY_ALL);
+    rootParameters[4].InitAsDescriptorTable(_countof(rangeObj2), rangeObj2, D3D12_SHADER_VISIBILITY_ALL);
+    rootParameters[5].InitAsConstantBufferView(3); // b3 : material Consts
 
     D3D12_STATIC_SAMPLER_DESC sampler = {};
     sampler.Filter                    = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -517,12 +524,6 @@ void AppBase::BeginRender()
     m_commandList->SetGraphicsRootSignature(m_rootSignature);
     //  Global consts
     this->SetGlobalConsts(m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
-
-    // TODO!!
-    // 힙을 한번에 만들어 놓고 쓴다.
-    ID3D12DescriptorHeap *descHeaps[] = {m_desciptorHeap};
-    m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
-    m_commandList->SetGraphicsRootDescriptorTable(3, m_desciptorHeap->GetGPUDescriptorHandleForHeapStart());
 
     // Indicate that the back buffer will be used as a render target.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex],
@@ -692,8 +693,6 @@ void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename)
 
     // Wait for the upload thread to terminate
     uploadResourcesFinished.wait();
-
-    auto desc = m_envTexture->GetDesc();
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;

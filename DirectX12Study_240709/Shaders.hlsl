@@ -1,6 +1,6 @@
 #include "Common.hlsli"
 
-Texture2D albedoTexture[299] : register(t1);
+Texture2D albedoTexture[300] : register(t1);
 
 PSInput vsmain(VSInput input)
 {

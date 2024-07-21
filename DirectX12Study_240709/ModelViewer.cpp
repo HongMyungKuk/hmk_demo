@@ -15,7 +15,6 @@ ModelViewer::~ModelViewer()
 {
     SAFE_DELETE(m_coordController);
     SAFE_DELETE(m_model);
-    SAFE_DELETE(m_terrain);
     SAFE_DELETE(m_ground);
     SAFE_DELETE(m_box);
 }
@@ -31,6 +30,8 @@ bool ModelViewer::Initialize()
     {
         CREATE_OBJ(m_camera, Camera);
     }
+
+    AppBase::InitCubemap(L"../../Asset/Skybox/", L"DGarden_diffuseIBL.dds");
 
     // Create the coordinate controller.
     {
@@ -85,21 +86,6 @@ bool ModelViewer::Initialize()
             m_model->GetMaterialConstCPU().texFlag = m_useTexture;
             m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
             m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-        }
-    }
-
-    WaitForPreviousFrame();
-
-    // Create the terrain
-    {
-        CREATE_MODEL_OBJ(m_terrain);
-        {
-            auto [model, _] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "3.fbx");
-            m_terrain->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model);
-            m_terrain->UpdateWorldMatrix(Matrix::CreateScale(10.0f, 10.0f, 10.0f) * Matrix::CreateTranslation(0.0f, -2.0f, 0.0f));
-            m_terrain->GetMaterialConstCPU().diffuse = Vector3(1.0f);
-            m_terrain->GetMaterialConstCPU().specular = Vector3(1.0f);
-            m_terrain->GetMaterialConstCPU().texFlag = false;
         }
     }
 

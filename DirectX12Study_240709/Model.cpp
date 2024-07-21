@@ -1,7 +1,7 @@
 #include "pch.h"
 
-#include "Model.h"
 #include "AppBase.h"
+#include "Model.h"
 
 Model::Model()
 {
@@ -11,8 +11,8 @@ Model::~Model()
 {
     DestroyTextureResource();
     DestroyMeshBuffers();
-    //SAFE_RELEASE(m_descriptorHeap);
     SAFE_RELEASE(m_pipelineState);
+    SAFE_RELEASE(m_objDescriptorHeap);
     SAFE_RELEASE(m_rootSignature);
 }
 
@@ -20,8 +20,8 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
                        ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                        std::vector<MeshData> meshes, std::vector<MaterialConsts> materials)
 {
-    //D3DUtils::CreateDscriptor(device, m_descNum, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-    //                          D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_descriptorHeap);
+    D3DUtils::CreateDscriptor(device, meshes.size(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                              D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_objDescriptorHeap);
 
     // BuildConstantBufferView(device);
     m_meshUpload.Initialize(device, 1);
@@ -47,7 +47,6 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
             this->BuildTexture(device, commandList, commandAllocator, commandQueue, m.albedoTextureFilename,
                                &newMesh.albedoTexture, &newMesh.albedoUploadTexture);
             count++;
-
         }
 
         m_meshes.push_back(newMesh);
@@ -86,12 +85,19 @@ void Model::Update()
 
 void Model::Render(ID3D12GraphicsCommandList *commandList)
 {
+    //// TODO!!
+    //// 힙을 한번에 만들어 놓고 쓴다.
+    // ID3D12DescriptorHeap *descHeaps[] = {m_desciptorHeap, m_objDescriptorHeap};
+    // commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+    // commandList->SetGraphicsRootDescriptorTable(4, m_desciptorHeap->GetGPUDescriptorHandleForHeapStart());
+    // commandList->SetGraphicsRootDescriptorTable(3, m_objDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
     int idx = 0;
     for (auto &m : m_meshes)
     {
-        //ID3D12DescriptorHeap *descHeaps[] = {m_descriptorHeap};
-        //commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
-        //commandList->SetGraphicsRootDescriptorTable(3, m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+        ID3D12DescriptorHeap *descHeaps[] = {m_desciptorHeap};
+        commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+        commandList->SetGraphicsRootDescriptorTable(3, m_desciptorHeap->GetGPUDescriptorHandleForHeapStart());
         commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload.GetResource()->GetGPUVirtualAddress());
         auto address = m_materialUpload.GetResource()->GetGPUVirtualAddress() + idx * sizeof(MaterialConsts);
         commandList->SetGraphicsRootConstantBufferView(2, address);
@@ -118,7 +124,7 @@ void Model::RenderNormal(ID3D12GraphicsCommandList *commandList)
 
 void Model::UpdateWorldMatrix(Matrix worldRow)
 {
-    m_world = worldRow;
+    m_world   = worldRow;
     m_worldIT = worldRow;
 
     m_worldIT.Translation(Vector3(0.0f));
@@ -140,13 +146,15 @@ void Model::BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshDat
     mesh.indexCount  = uint32_t(meshData.indices.size());
 }
 
+// 여러 물체를 그릴 경우 descriptor heap을 동적으로 관리할 필요성이 있음.
+// or 각 물체가 그려지는 텍스쳐의 카운트 횟수를 기억해두고 다음 물체에 인덱스를 전달함
 void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                          ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
                          const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture)
 {
     auto cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_desciptorHeap->GetCPUDescriptorHandleForHeapStart());
-    srvHandle.Offset(g_descCnt++, cbvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_objDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    srvHandle.Offset(m_descRef++, cbvDescriptorSize);
     *uploadTexture =
         D3DUtils::CreateTexture(device, commandList, commandAllocator, commandQueue, filename, texture, srvHandle);
 }
