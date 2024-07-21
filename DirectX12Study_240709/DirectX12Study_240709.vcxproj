@@ -175,6 +175,7 @@
     <ClInclude Include="D3DUtils.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="Define.h" />
+    <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="GraphicsCommon.h" />
     <ClInclude Include="Input.h" />

@@ -74,14 +74,12 @@ class Model
     }
 
   private:
-    ID3D12RootSignature *m_rootSignature      = nullptr;
-    ID3D12DescriptorHeap *m_objDescriptorHeap = nullptr;
-    ID3D12PipelineState *m_pipelineState      = nullptr;
-    ID3D12Resource *m_meshConstBuffer         = nullptr;
-    ID3D12Resource *m_materialConstBuffer     = nullptr;
-    ID3D12Resource *m_textureUploadHeap       = nullptr;
-    std::vector<Mesh> m_meshes                = {};
-    std::vector<MaterialConsts> m_material    = {};
+    ID3D12RootSignature *m_rootSignature   = nullptr;
+    ID3D12PipelineState *m_pipelineState   = nullptr;
+    std::vector<Mesh> m_meshes             = {};
+    std::vector<MaterialConsts> m_material = {};
+    uint32_t m_descRef                      = 0;
+    uint32_t m_descNum                      = 300;
 
     UploadBuffer<MeshConsts> m_meshUpload;
     UploadBuffer<MaterialConsts> m_materialUpload;
@@ -105,5 +103,6 @@ class Model
     };
     float m_speed[END] = {0.0005f, 0.0005f, 0.00025f};
 
-    uint32_t m_descRef = 0;
+
+    uint32_t m_cbvDescriptorSize = 0;
 };

@@ -17,8 +17,7 @@ HWND g_hwnd                = nullptr;
 
 ID3D12DescriptorHeap *m_desciptorHeap = nullptr;
 uint32_t g_descCnt                    = 0;
-uint32_t g_renderDescCnt              = 1;
-uint32_t g_updateDescCnt              = 0;
+uint32_t g_renderCnt                  = 0;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -41,9 +40,8 @@ AppBase::~AppBase()
     ImGui::DestroyContext();
 
     SAFE_RELEASE(m_envTexture);
-    SAFE_RELEASE(m_desciptorHeap);
-
     SAFE_DELETE(m_camera);
+    SAFE_RELEASE(m_desciptorHeap);
     SAFE_RELEASE(m_rootSignature)
     SAFE_DELETE(m_timer);
     SAFE_RELEASE(m_fence);
@@ -407,11 +405,9 @@ void AppBase::GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdap
 void AppBase::BuildRootSignature()
 {
     // Create root signature.
-    CD3DX12_DESCRIPTOR_RANGE rangeObj1[1] = {};
-    rangeObj1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 300, 1); // t0: envTex, t1 ~ 299 : map texture
-
-    CD3DX12_DESCRIPTOR_RANGE rangeObj2[1] = {};
-    rangeObj2[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0: envTex, t1 ~ 299 : map texture
+    CD3DX12_DESCRIPTOR_RANGE rangeObj[1] = {};
+    rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 300, 0); // t0: envTex, t1 ~ 299 : map texture
+    // rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
@@ -525,6 +521,14 @@ void AppBase::BeginRender()
     //  Global consts
     this->SetGlobalConsts(m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
 
+    // TODO!!
+    // 힙을 한번에 만들어 놓고 쓴다.
+    ID3D12DescriptorHeap *descHeaps[] = {m_desciptorHeap};
+    m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+
+    auto handle = m_desciptorHeap->GetGPUDescriptorHandleForHeapStart();
+    m_commandList->SetGraphicsRootDescriptorTable(3, handle);
+
     // Indicate that the back buffer will be used as a render target.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex],
                                                                             D3D12_RESOURCE_STATE_PRESENT,
@@ -556,6 +560,8 @@ void AppBase::EndRender()
     WaitForPreviousFrame();
 
     m_frameIndex = (m_frameIndex + 1) % s_frameCount;
+
+    g_renderCnt = 0;
 }
 
 void AppBase::DestroyPSO()
@@ -603,23 +609,26 @@ LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 
         if (m_swapChain)
         {
-            this->Resize();
+            if (g_screenWidth && g_screenHeight)
+            {
+                this->Resize();
 
-            D3D12_VIEWPORT viewport = {};
-            viewport.TopLeftX       = 0;
-            viewport.TopLeftY       = 0;
-            viewport.MinDepth       = 0.0f;
-            viewport.MaxDepth       = 1.0f;
-            viewport.Width          = (FLOAT)g_screenWidth;
-            viewport.Height         = (FLOAT)g_screenHeight;
-            this->SetViewport(viewport);
+                D3D12_VIEWPORT viewport = {};
+                viewport.TopLeftX       = 0;
+                viewport.TopLeftY       = 0;
+                viewport.MinDepth       = 0.0f;
+                viewport.MaxDepth       = 1.0f;
+                viewport.Width          = (FLOAT)g_screenWidth;
+                viewport.Height         = (FLOAT)g_screenHeight;
+                this->SetViewport(viewport);
 
-            D3D12_RECT rect = {};
-            rect.left       = 0;
-            rect.top        = 0;
-            rect.right      = g_screenWidth;
-            rect.bottom     = g_screenHeight;
-            this->SetSissorRect(rect);
+                D3D12_RECT rect = {};
+                rect.left       = 0;
+                rect.top        = 0;
+                rect.right      = g_screenWidth;
+                rect.bottom     = g_screenHeight;
+                this->SetSissorRect(rect);
+            }
         }
     }
     break;

@@ -39,7 +39,7 @@ class CommandContext
 
     static void DestroyAllContext();
 
-    static CommandContext &Begin(const std::wstring &ID);
+    static CommandContext &Begin(const std::wstring &ID = L"");
     void Finish();
 
     void TransitionResource(ColorBuffer &res, D3D12_RESOURCE_STATES newState);
@@ -55,7 +55,7 @@ class CommandContext
         m_ID = ID;
     }
 
-  protected:
+  public:
     std::wstring m_ID;
     D3D12_COMMAND_LIST_TYPE m_type;
     ID3D12GraphicsCommandList *m_cmdList;

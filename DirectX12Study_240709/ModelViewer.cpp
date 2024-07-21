@@ -17,6 +17,7 @@ ModelViewer::~ModelViewer()
     SAFE_DELETE(m_model);
     SAFE_DELETE(m_ground);
     SAFE_DELETE(m_box);
+    SAFE_DELETE(m_skybox);
 }
 
 bool ModelViewer::Initialize()
@@ -31,7 +32,13 @@ bool ModelViewer::Initialize()
         CREATE_OBJ(m_camera, Camera);
     }
 
-    AppBase::InitCubemap(L"../../Asset/Skybox/", L"DGarden_diffuseIBL.dds");
+    // AppBase::InitCubemap(L"../../Asset/Skybox/", L"DGarden_specularIBL.dds");
+
+    {
+        CREATE_OBJ(m_skybox, Model);
+        MeshData cube = GeometryGenerator::MakeCube(50.0f, 50.0f, 50.0f);
+        m_skybox->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
+    }
 
     // Create the coordinate controller.
     {
@@ -61,7 +68,7 @@ bool ModelViewer::Initialize()
         }
         {
             m_basPath   = "../../Asset/Model/";
-            m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
+            m_animClips = {"idle2.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
                            "Walking Backward.fbx"};
 
             AnimationData animData = {};
@@ -79,7 +86,7 @@ bool ModelViewer::Initialize()
                 }
             }
 
-            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model.fbx");
+            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model2.fbx");
 
             ((SkinnedMeshModel *)m_model)
                 ->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material, animData);
@@ -91,19 +98,34 @@ bool ModelViewer::Initialize()
 
     WaitForPreviousFrame();
 
-    // Create the box.
-    {
-        CREATE_MODEL_OBJ(m_box);
-        {
-            MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
-            cube.albedoTextureFilename = "boxTex.jpeg";
-            m_box->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
-            m_box->GetMaterialConstCPU().diffuse = XMFLOAT3(0.0f, 1.0f, 0.0f);
-            m_box->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-        }
-    }
+    //// Create the terrain
+    //{
+    //    CREATE_MODEL_OBJ(m_terrain);
+    //    {
+    //        auto [model, _] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "3.fbx");
+    //        m_terrain->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model);
+    //        m_terrain->UpdateWorldMatrix(Matrix::CreateScale(10.0f, 10.0f, 10.0f) * Matrix::CreateTranslation(0.0f, -2.0f, 0.0f));
+    //        m_terrain->GetMaterialConstCPU().diffuse = Vector3(1.0f);
+    //        m_terrain->GetMaterialConstCPU().specular = Vector3(1.0f);
+    //        m_terrain->GetMaterialConstCPU().texFlag = false;
+    //    }
+    //}
 
-    WaitForPreviousFrame();
+    //WaitForPreviousFrame();
+
+    //// Create the box.
+    //{
+    //    CREATE_MODEL_OBJ(m_box);
+    //    {
+    //        MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
+    //        cube.albedoTextureFilename = "boxTex.jpeg";
+    //        m_box->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
+    //        m_box->GetMaterialConstCPU().diffuse = XMFLOAT3(0.0f, 1.0f, 0.0f);
+    //        m_box->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
+    //    }
+    //}
+
+   // WaitForPreviousFrame();
 
     // Create the ground.
     {
@@ -283,7 +305,8 @@ void ModelViewer::Update(const float dt)
 
     // etc...
     {
-        m_box->Update();
+        //m_box->Update();
+        m_skybox->Update();
         m_ground->Update();
     }
 }
@@ -310,6 +333,9 @@ void ModelViewer::Render()
         m_commandList->SetPipelineState(Graphics::normalPSO);
         m_model->RenderNormal(m_commandList);
     }
+
+    m_commandList->SetPipelineState(Graphics::skyboxPSO);
+    m_skybox->Render(m_commandList);
 }
 
 void ModelViewer::UpdateGui(const float frameRate)
