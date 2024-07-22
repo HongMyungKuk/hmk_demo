@@ -27,12 +27,14 @@ bool ModelViewer::Initialize()
         return false;
     }
 
+    ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
+
     // Init cameara
     {
         CREATE_OBJ(m_camera, Camera);
     }
 
-    // AppBase::InitCubemap(L"../../Asset/Skybox/", L"DGarden_specularIBL.dds");
+    AppBase::InitCubemap(L"../../Asset/Skybox/", L"DGarden_specularIBL.dds");
 
     {
         CREATE_OBJ(m_skybox, Model);
@@ -57,8 +59,6 @@ bool ModelViewer::Initialize()
         }
     }
 
-    WaitForPreviousFrame();
-
     // Create the model.
     {
         m_model = new SkinnedMeshModel;
@@ -68,7 +68,7 @@ bool ModelViewer::Initialize()
         }
         {
             m_basPath   = "../../Asset/Model/";
-            m_animClips = {"idle2.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
+            m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
                            "Walking Backward.fbx"};
 
             AnimationData animData = {};
@@ -86,7 +86,7 @@ bool ModelViewer::Initialize()
                 }
             }
 
-            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model2.fbx");
+            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model.fbx");
 
             ((SkinnedMeshModel *)m_model)
                 ->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material, animData);
@@ -96,22 +96,20 @@ bool ModelViewer::Initialize()
         }
     }
 
-    WaitForPreviousFrame();
-
     //// Create the terrain
     //{
     //    CREATE_MODEL_OBJ(m_terrain);
     //    {
     //        auto [model, _] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "3.fbx");
     //        m_terrain->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model);
-    //        m_terrain->UpdateWorldMatrix(Matrix::CreateScale(10.0f, 10.0f, 10.0f) * Matrix::CreateTranslation(0.0f, -2.0f, 0.0f));
-    //        m_terrain->GetMaterialConstCPU().diffuse = Vector3(1.0f);
+    //        m_terrain->UpdateWorldMatrix(Matrix::CreateScale(10.0f, 10.0f, 10.0f) * Matrix::CreateTranslation(0.0f,
+    //        -2.0f, 0.0f)); m_terrain->GetMaterialConstCPU().diffuse = Vector3(1.0f);
     //        m_terrain->GetMaterialConstCPU().specular = Vector3(1.0f);
     //        m_terrain->GetMaterialConstCPU().texFlag = false;
     //    }
     //}
 
-    //WaitForPreviousFrame();
+    // WaitForPreviousFrame();
 
     //// Create the box.
     //{
@@ -125,7 +123,7 @@ bool ModelViewer::Initialize()
     //    }
     //}
 
-   // WaitForPreviousFrame();
+    // WaitForPreviousFrame();
 
     // Create the ground.
     {
@@ -134,11 +132,18 @@ bool ModelViewer::Initialize()
             MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
             square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
             m_ground->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {square});
-            m_ground->GetMaterialConstCPU().diffuse = XMFLOAT3(1.0f, 1.0f, 1.0f);
-            m_ground->GetMaterialConstCPU().texFlag = true;
-            m_ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
+            m_ground->GetMaterialConstCPU().ambient  = Vector3(0.2f);
+            m_ground->GetMaterialConstCPU().diffuse  = Vector3(0.0f);
+            m_ground->GetMaterialConstCPU().specular = Vector3(0.8f);
+            m_ground->GetMaterialConstCPU().texFlag  = false;
+            // m_ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
         }
     }
+
+    ThrowIfFailed(m_commandList->Close());
+    // Execute the command list.
+    ID3D12CommandList *ppCommandLists[] = {m_commandList};
+    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     WaitForPreviousFrame();
 
@@ -305,21 +310,23 @@ void ModelViewer::Update(const float dt)
 
     // etc...
     {
-        //m_box->Update();
+        // m_box->Update();
         m_skybox->Update();
         m_ground->Update();
     }
+
+    UpdateLights();
 }
 
 void ModelViewer::Render()
 {
     AppBase::Render();
 
-    m_commandList->SetPipelineState(Graphics::blendCoverPSO);
-    m_coordController->Render(m_commandList);
+    // m_commandList->SetPipelineState(Graphics::blendCoverPSO);
+    // m_coordController->Render(m_commandList);
 
-    m_commandList->SetPipelineState(m_model->GetPSO(m_isWireFrame));
-    m_model->Render(m_commandList);
+    // m_commandList->SetPipelineState(m_model->GetPSO(m_isWireFrame));
+    // m_model->Render(m_commandList);
 
     // m_commandList->SetPipelineState(m_box->GetPSO());
     // m_box->Render(m_device, m_commandList);
@@ -474,6 +481,8 @@ void ModelViewer::UpdateGui(const float frameRate)
     {
         ImGui::Text("Mouse Xpos: %.3f", m_mouseX);
         ImGui::Text("Mouse Ypos: %.3f", m_mouseY);
+        ImGui::Text("Eye position: %.1f, %1f, %1f", m_globalConstData.eyeWorld.x, m_globalConstData.eyeWorld.y,
+                    m_globalConstData.eyeWorld.z);
     }
     // Mouse & keyboard
     if (ImGui::CollapsingHeader("Animation list"))
@@ -527,6 +536,15 @@ void ModelViewer::UpdateGui(const float frameRate)
             }
             ImGui::EndGroup();
         }
+    }
+
+    // Light
+    if (ImGui::CollapsingHeader("Lights"))
+    {
+        ImGui::SliderFloat3("light direction", &m_light.direction.x, -2.0f, 2.0f);
+        ImGui::SliderFloat3("light position", &m_light.position.x, -2.0f, 2.0f);
+        ImGui::SliderFloat("Spot power", &m_light.spotPower, 1.0f, 256.0f);
+        ImGui::SliderFloat("light Shininess", &m_light.shininess, 1.0f, 256.0f);
     }
 
     ImGui::End();

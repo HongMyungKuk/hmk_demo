@@ -146,7 +146,9 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ConstantBuffer.cpp" />
     <ClCompile Include="D3DUtils.cpp" />
+    <ClCompile Include="DesciptorHeap.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
+    <ClCompile Include="GPUbuffer.cpp" />
     <ClCompile Include="GraphicsCommon.cpp" />
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="Main.cpp" />
@@ -164,6 +166,7 @@
     </ClCompile>
     <ClCompile Include="RootSignature.cpp" />
     <ClCompile Include="SkinnedMeshModel.cpp" />
+    <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Timer.cpp" />
     <ClCompile Include="Utils.cpp" />
   </ItemGroup>
@@ -177,6 +180,7 @@
     <ClInclude Include="Define.h" />
     <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="GeometryGenerator.h" />
+    <ClInclude Include="GPUbuffer.h" />
     <ClInclude Include="GraphicsCommon.h" />
     <ClInclude Include="Input.h" />
     <ClInclude Include="Macro.h" />
@@ -189,6 +193,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="RootSignature.h" />
     <ClInclude Include="SkinnedMeshModel.h" />
+    <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>
@@ -197,13 +202,15 @@
     <None Include="Common.hlsli" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="Shaders.hlsl">
+    <FxCompile Include="DefaultVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <FileType>Document</FileType>
-    </CustomBuild>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="NormalShader.hlsl">
@@ -231,6 +238,16 @@
     <CustomBuild Include="Skybox.hlsl">
       <FileType>Document</FileType>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="DefaultPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

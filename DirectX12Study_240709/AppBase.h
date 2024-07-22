@@ -12,10 +12,18 @@ extern uint32_t g_screenHeight;
 extern float g_imguiWidth;
 extern float g_imguiHeight;
 extern HWND g_hwnd;
+extern ID3D12Device *g_Device;
 
 extern ID3D12DescriptorHeap *m_desciptorHeap;
+extern ID3D12DescriptorHeap *m_copyDescriptorHeap;
 extern uint32_t g_descCnt;
 extern uint32_t g_renderCnt;
+
+extern DescriptorAllocator g_DescriptorAllocator[];
+inline D3D12_CPU_DESCRIPTOR_HANDLE AllocateDesciptor(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t count = 1)
+{
+    return g_DescriptorAllocator[type].Allocate(count);
+}
 
 class AppBase
 {
@@ -39,6 +47,8 @@ class AppBase
     void UpdateCamera(const float dt);
     void WaitForPreviousFrame();
     void InitCubemap(std::wstring basePath, std::wstring envFilename);
+    void InitLights();
+    void UpdateLights();
 
   private:
     bool InitWindow();
@@ -116,7 +126,11 @@ class AppBase
   private:
     Timer *m_timer = nullptr;
     // Key control
-    bool m_isKeyDown[256] = {};
-
+    bool m_isKeyDown[256]        = {};
     ID3D12Resource *m_envTexture = nullptr;
+    D3D12_CPU_DESCRIPTOR_HANDLE m_envCPUHandle = {};
+    DescriptorHandle m_commonTexture;
+
+  protected:
+    Light m_light = {};
 };

@@ -25,6 +25,8 @@ bool MapTool::Initialize()
         return false;
     }
 
+    ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
+
     // Init cameara
     {
         CREATE_OBJ(m_camera, Camera);
@@ -41,11 +43,10 @@ bool MapTool::Initialize()
             m_terrain->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material);
             m_terrain->UpdateWorldMatrix(Matrix::CreateScale(50.0f, 50.0f, 50.0f) *
                                          Matrix::CreateTranslation(0.0f, -2.0f, 0.0f));
+            m_terrain->GetMaterialConstCPU().ambient = Vector3(1.0f);
             m_terrain->GetMaterialConstCPU().texFlag = false;
         }
     }
-
-    WaitForPreviousFrame();
 
     // Create the skybox.
     {
@@ -55,6 +56,11 @@ bool MapTool::Initialize()
             m_skybox->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
         }
     }
+
+    ThrowIfFailed(m_commandList->Close());
+    // Execute the command list.
+    ID3D12CommandList *ppCommandLists[] = {m_commandList};
+    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     WaitForPreviousFrame();
 
@@ -70,6 +76,8 @@ void MapTool::Update(const float dt)
     m_terrain->GetMaterialConstCPU().texFlag = m_useTexture;
     m_terrain->Update();
     m_skybox->Update();
+
+    UpdateLights();
 }
 
 void MapTool::Render()

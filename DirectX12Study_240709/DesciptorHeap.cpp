@@ -1,7 +1,7 @@
 #include "pch.h"
 
-#include "DesciptorHeap.h"
-#include "GraphicsCore.h"
+#include "AppBase.h"
+#include "DescriptorHeap.h"
 
 DescriptorAllocator::~DescriptorAllocator()
 {
@@ -13,19 +13,13 @@ D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::Allocate(uint32_t count)
     // 현재 descripter heap이 없거나, 할당 받을 수 있는 heap 공간이 없을 경우
     if (m_currentHeap == nullptr || m_remainingFreeHandles < count)
     {
-        D3D12_DESCRIPTOR_HEAP_DESC desc;
-        desc.Type           = m_type;
-        desc.NumDescriptors = sm_NumDescriptorsPerHeap;
-        desc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-        desc.NodeMask       = 0;
-        ThrowIfFailed(Graphics::g_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_currentHeap)));
-
+        m_currentHeap          = RequestNewHeap(m_type);
         m_currentHandle        = m_currentHeap->GetCPUDescriptorHandleForHeapStart();
-        m_remainingFreeHandles = sm_NumDescriptorsPerHeap;
+        m_remainingFreeHandles = sm_numDescriptorPerHeap;
 
         if (m_descriptorSize == 0)
         {
-            m_descriptorSize = Graphics::g_Device->GetDescriptorHandleIncrementSize(m_type);
+            m_descriptorSize = g_Device->GetDescriptorHandleIncrementSize(m_type);
         }
     }
 
@@ -35,6 +29,18 @@ D3D12_CPU_DESCRIPTOR_HANDLE DescriptorAllocator::Allocate(uint32_t count)
     m_currentHandle.ptr += count * m_descriptorSize;
     m_remainingFreeHandles -= count;
     return ret;
+}
+
+ID3D12DescriptorHeap *DescriptorAllocator::RequestNewHeap(D3D12_DESCRIPTOR_HEAP_TYPE type)
+{
+    D3D12_DESCRIPTOR_HEAP_DESC desc;
+    desc.Type           = type;
+    desc.NumDescriptors = sm_numDescriptorPerHeap;
+    desc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    desc.NodeMask       = 0;
+    ThrowIfFailed(g_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_currentHeap)));
+
+    return m_currentHeap;
 }
 
 void DescriptorAllocator::Shutdown()

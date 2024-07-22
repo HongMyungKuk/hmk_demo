@@ -2,6 +2,7 @@
 
 #include "AppBase.h"
 #include "Camera.h"
+#include "DescriptorHeap.h"
 #include "GeometryGenerator.h"
 #include "GraphicsCommon.h"
 #include "Input.h"
@@ -14,10 +15,17 @@ uint32_t g_screenHeight    = 800;
 extern float g_imguiWidth  = 0.0f;
 extern float g_imguiHeight = 0.0f;
 HWND g_hwnd                = nullptr;
+ID3D12Device *g_Device     = nullptr;
 
-ID3D12DescriptorHeap *m_desciptorHeap = nullptr;
-uint32_t g_descCnt                    = 0;
-uint32_t g_renderCnt                  = 0;
+ ID3D12DescriptorHeap *m_desciptorHeap      = nullptr;
+ ID3D12DescriptorHeap *m_copyDescriptorHeap = nullptr;
+ uint32_t g_descCnt                         = 0;
+ uint32_t g_renderCnt                       = 0;
+DescriptorHeap s_Texture;
+
+DescriptorAllocator g_DescriptorAllocator[] = {D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                                               D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+                                               D3D12_DESCRIPTOR_HEAP_TYPE_DSV};
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -41,7 +49,7 @@ AppBase::~AppBase()
 
     SAFE_RELEASE(m_envTexture);
     SAFE_DELETE(m_camera);
-    SAFE_RELEASE(m_desciptorHeap);
+    // SAFE_RELEASE(m_desciptorHeap);
     SAFE_RELEASE(m_rootSignature)
     SAFE_DELETE(m_timer);
     SAFE_RELEASE(m_fence);
@@ -82,8 +90,11 @@ bool AppBase::Initialize()
 
     this->BuildRootSignature();
 
-    D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-                              D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_desciptorHeap);
+     D3DUtils::CreateDscriptor(m_device, 300, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                               D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_desciptorHeap);
+     g_descCnt++;
+    // 
+    // s_Texture.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4098);
 
     this->BuildGlobalConsts();
 
@@ -213,27 +224,14 @@ bool AppBase::InitD3D()
         SAFE_RELEASE(hardwareAdapter);
     }
 
+    g_Device = m_device;
+
     // Describe and create the command queue.
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags                    = D3D12_COMMAND_QUEUE_FLAG_NONE;
     queueDesc.Type                     = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
     ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
-
-    // Describe and create the swap chain.
-    // DXGI_SWAP_CHAIN_DESC swapChainDesc               = {};
-    // swapChainDesc.BufferCount                        = s_frameCount;
-    // swapChainDesc.BufferDesc.Width                   = g_screenWidth;
-    // swapChainDesc.BufferDesc.Height                  = g_screenHeight;
-    // swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-    // swapChainDesc.BufferDesc.RefreshRate.Numerator   = 60;
-    // swapChainDesc.BufferDesc.Format                  = DXGI_FORMAT_R8G8B8A8_UNORM;
-    // swapChainDesc.OutputWindow                       = m_hwnd;
-    // swapChainDesc.Windowed                           = true;
-    // swapChainDesc.Flags                              = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    // swapChainDesc.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    // swapChainDesc.SwapEffect                         = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    // swapChainDesc.SampleDesc.Count                   = 1;
 
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
     swapChainDesc.BufferCount           = s_frameCount;
@@ -407,17 +405,15 @@ void AppBase::BuildRootSignature()
     // Create root signature.
     CD3DX12_DESCRIPTOR_RANGE rangeObj[1] = {};
     rangeObj[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 300, 0); // t0: envTex, t1 ~ 299 : map texture
-    // rangeObj[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
     D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-    CD3DX12_ROOT_PARAMETER rootParameters[6] = {};
+    CD3DX12_ROOT_PARAMETER rootParameters[5] = {};
     rootParameters[0].InitAsConstantBufferView(0); // b0 : Global Consts
     rootParameters[1].InitAsConstantBufferView(1); // b1 : Mesh Consts
     rootParameters[2].InitAsConstantBufferView(2); // b2 : material Consts
-    rootParameters[3].InitAsDescriptorTable(_countof(rangeObj1), rangeObj1, D3D12_SHADER_VISIBILITY_ALL);
-    rootParameters[4].InitAsDescriptorTable(_countof(rangeObj2), rangeObj2, D3D12_SHADER_VISIBILITY_ALL);
-    rootParameters[5].InitAsConstantBufferView(3); // b3 : material Consts
+    rootParameters[3].InitAsDescriptorTable(_countof(rangeObj), rangeObj, D3D12_SHADER_VISIBILITY_ALL);
+    rootParameters[4].InitAsConstantBufferView(3); // b3 : material Consts
 
     D3D12_STATIC_SAMPLER_DESC sampler = {};
     sampler.Filter                    = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -446,6 +442,8 @@ void AppBase::BuildRootSignature()
 
 void AppBase::BuildGlobalConsts()
 {
+    InitLights();
+
     m_globalConstsBuffer.Initialize(m_device, 1);
 }
 
@@ -712,7 +710,27 @@ void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename)
     srvDesc.Format                          = m_envTexture->GetDesc().Format;
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_desciptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+    //m_envCPUHandle = AllocateDesciptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     m_device->CreateShaderResourceView(m_envTexture, &srvDesc, srvHandle);
+    //m_commonTexture    = s_Texture.Alloc(1);
+    //uint32_t descCount = 1;
+    //m_device->CopyDescriptors(1, &m_commonTexture, &descCount, descCount, &m_envCPUHandle, &descCount,
+    //                          D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+}
+
+void AppBase::InitLights()
+{
+    m_light.type |= DIRECTIONAL_LIGHT;
+}
+
+void AppBase::UpdateLights()
+{
+    m_globalConstData.lights[0] = m_light;
+
+    m_globalConstData.lights[1].type |= LIGHT_OFF;
+
+    m_globalConstData.lights[2].type |= LIGHT_OFF;
 }
 
 LRESULT WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)

@@ -1,4 +1,11 @@
 #define MAX_LIGHTS 3
+#define NUM_DIRECTIONAL_LIGHTS 1
+#define NUM_POINT_LIGHTS 1
+#define NUM_SPOT_LIGHTS 1
+#define DIRECTIONAL_LIGHT 0x01
+#define POINT_LIGHT       0x02
+#define SPOT_LIGHT        0x04
+#define LIGHT_OFF         0x00;
 
 SamplerState linearWrapSS : register(s0);
 
@@ -16,10 +23,14 @@ cbuffer SkinnedMeshConsts : register(b3)
 struct Light
 {
     float3 direction;
-    float3 position;
-    float3 irRadiance;
     float shininess;
+    float3 position;
     float spotPower;
+    float3 irRadiance;
+    float fallOffStart;
+    float fallOffEnd;
+    uint type;
+    float2 dummy;
 };
 
 cbuffer GloabalConsts : register(b0)
@@ -30,6 +41,7 @@ cbuffer GloabalConsts : register(b0)
     Matrix projInv;
     Matrix viewProjInv;
     float3 eyeWorld;
+    float dt;
 
     Light light[MAX_LIGHTS];
 }
@@ -67,6 +79,87 @@ struct VSInput
 struct PSInput
 {
     float4 posProj : SV_POSITION;
+    float3 posWorld : POSITION;
     float3 normalWorld : NORMAL;
     float2 texCoord : TEXCOORD;
 };
+
+float CalcAttenuation(float fallOffStart, float fallOffEnd, float d)
+{
+    return saturate((fallOffEnd - d) / (fallOffEnd - fallOffStart));
+}
+
+// Compute Light.
+float3 BlinnPhong(Light L, float3 lightVec, float3 lightStrength, float3 toEye, float3 normalWorld)
+{
+    float3 halfWay = normalize(toEye + lightVec);
+    float ndoth = dot(halfWay, normalWorld);
+    
+    float3 _specular = specular * pow(max(0.0, ndoth), L.shininess);
+    
+    return ambient + (diffuse + _specular) * lightStrength;
+}
+
+float3 ComputeDirectionalLight(Light L, float3 toEye, float3 normalWorld)
+{
+    float3 lightVec = normalize(-L.direction);
+    
+    float ndotl = dot(lightVec, normalWorld);
+    float3 lightStrength = max(0.0, ndotl) * L.irRadiance;
+    
+    return BlinnPhong(L, lightVec, lightStrength, toEye, normalWorld);
+}
+
+float3 ComputePointLights(Light L, float3 posWorld, float3 toEye, float3 normalWorld)
+{
+    float3 lightVec = L.position - posWorld;
+    
+    float d = length(lightVec);
+    
+    if (d > L.fallOffEnd)
+    {
+        return float3(0.0, 0.0, 0.0);
+    }
+    else
+    {
+        lightVec /= d;
+        
+        float ndotl = max(0.0, dot(lightVec, normalWorld));
+        float3 lightStrength = ndotl * L.irRadiance;
+        
+        float att = CalcAttenuation(L.fallOffStart, L.fallOffEnd, d);
+        
+        lightStrength *= att;
+        
+        return BlinnPhong(L, lightVec, lightStrength, toEye, normalWorld);
+    }
+}
+
+float3 ComputeSpotLight(Light L, float3 posWorld, float3 toEye, float3 normalWorld)
+{
+    float3 lightVec = L.position - posWorld;
+    
+    float d = length(lightVec);
+    
+    if (d > L.fallOffEnd)
+    {
+        return float3(0.0, 0.0, 0.0);
+    }
+    else
+    {
+        lightVec /= d;
+        
+        float ndotl = max(0.0, dot(lightVec, normalWorld));
+        float3 lightStrength = ndotl * L.irRadiance;
+        
+        float att = CalcAttenuation(L.fallOffStart, L.fallOffEnd, d);
+        
+        lightStrength *= att;
+        
+        float spotPower = pow(max(0.0, dot(lightVec, normalize(-L.direction))), L.spotPower);
+        
+        lightStrength *= spotPower;
+        
+        return BlinnPhong(L, lightVec, lightStrength, toEye, normalWorld);
+    }
+}

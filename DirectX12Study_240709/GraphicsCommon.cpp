@@ -72,25 +72,23 @@ void InitShader()
     UINT compileFlags = 0;
 #endif
 
-    ThrowIfFailed(D3DCompileFromFile(L"Shaders.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "vsmain", "vs_5_1",
-                                     compileFlags, 0, &basicVS, nullptr));
-    std::vector<D3D_SHADER_MACRO> macro = {{"SKINNED", "1"}, {NULL, NULL}};
-    ThrowIfFailed(D3DCompileFromFile(L"Shaders.hlsl", macro.data(), D3D_COMPILE_STANDARD_FILE_INCLUDE, "vsmain",
-                                     "vs_5_1", compileFlags, 0, &skinnedVS, nullptr));
-    ThrowIfFailed(D3DCompileFromFile(L"UIShader.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "vsmain", "vs_5_1",
-                                     compileFlags, 0, &uiVS, nullptr));
-    ThrowIfFailed(D3DCompileFromFile(L"Shaders.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "psmain", "ps_5_1",
-                                     compileFlags, 0, &basicPS, nullptr));
-    ThrowIfFailed(D3DCompileFromFile(L"NormalShader.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "vsmain",
-                                     "vs_5_1", compileFlags, 0, &normalVS, nullptr));
-    ThrowIfFailed(D3DCompileFromFile(L"NormalShader.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "gsmain",
-                                     "gs_5_1", compileFlags, 0, &normalGS, nullptr));
-    ThrowIfFailed(D3DCompileFromFile(L"NormalShader.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "psmain",
-                                     "ps_5_1", compileFlags, 0, &normalPS, nullptr));
-    ThrowIfFailed(D3DCompileFromFile(L"Skybox.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "vsmain", "vs_5_1",
-                                     compileFlags, 0, &skyboxVS, nullptr));
-    ThrowIfFailed(D3DCompileFromFile(L"Skybox.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "psmain", "ps_5_1",
-                                     compileFlags, 0, &skyboxPS, nullptr));
+    D3DUtils::CreateShader(L"DefaultVS.hlsl", &basicVS, "main", "vs_5_1");
+
+    D3DUtils::CreateShader(L"DefaultVS.hlsl", &skinnedVS, "main", "vs_5_1", {{"SKINNED", "1"}, {NULL, NULL}});
+
+    D3DUtils::CreateShader(L"UIShader.hlsl", &uiVS, "vsmain", "vs_5_1");
+
+    D3DUtils::CreateShader(L"DefaultPS.hlsl", &basicPS, "main", "ps_5_1");
+
+    D3DUtils::CreateShader(L"NormalShader.hlsl", &normalVS, "vsmain", "vs_5_1");
+
+    D3DUtils::CreateShader(L"NormalShader.hlsl", &normalGS, "gsmain", "gs_5_1");
+
+    D3DUtils::CreateShader(L"NormalShader.hlsl", &normalPS, "psmain", "ps_5_1");
+
+    D3DUtils::CreateShader(L"Skybox.hlsl", &skyboxVS, "vsmain", "vs_5_1");
+
+    D3DUtils::CreateShader(L"Skybox.hlsl", &skyboxPS, "psmain", "ps_5_1");
 
     basicILDesc = {{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
                    {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},

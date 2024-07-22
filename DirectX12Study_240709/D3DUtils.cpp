@@ -8,11 +8,9 @@ void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int
 void ReadImage(uint8_t **image, int &w, int &h, int &c, XMFLOAT3 color);
 
 ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
-                                        ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
-                                        const std::string &filename, ID3D12Resource **texture, XMFLOAT3 color)
+                                      const std::string &filename,
+                             ID3D12Resource **texture, D3D12_CPU_DESCRIPTOR_HANDLE &descHandle, XMFLOAT3 color)
 {
-    ThrowIfFailed(commandList->Reset(commandAllocator, nullptr));
-
     int32_t width = 0, height = 0, channels = 0;
 
     uint8_t *image = nullptr;
@@ -57,71 +55,7 @@ ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsComm
     textureData.RowPitch               = width * channels;
     textureData.SlicePitch             = textureData.RowPitch * height;
 
-    UpdateSubresources(commandList, *texture, textureUploadHeap, 0, 0, 1, &textureData);
-    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(*texture, D3D12_RESOURCE_STATE_COPY_DEST,
-                                                                          D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-
-    ThrowIfFailed(commandList->Close());
-    // Execute the command list.
-    ID3D12CommandList *ppCommandLists[] = {commandList};
-    commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-    SAFE_ARR_DELETE(image);
-
-    return textureUploadHeap;
-}
-
-ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
-                                        ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
-                                        const std::string &filename, ID3D12Resource **texture,
-                                        D3D12_CPU_DESCRIPTOR_HANDLE &descHandle, XMFLOAT3 color)
-{
-    ThrowIfFailed(commandList->Reset(commandAllocator, nullptr));
-
-    int32_t width = 0, height = 0, channels = 0;
-
-    uint8_t *image = nullptr;
-
-    if (!filename.empty())
-    {
-        ReadImage(&image, filename, width, height, channels);
-    }
-    else
-    {
-        ReadImage(&image, width, height, channels, color);
-    }
-
-    channels = 4;
-
-    // Describe and create a Texture2D.
-    D3D12_RESOURCE_DESC textureDesc = {};
-    textureDesc.MipLevels           = 1;
-    textureDesc.Format              = DXGI_FORMAT_R8G8B8A8_UNORM;
-    textureDesc.Width               = UINT64(width);
-    textureDesc.Height              = UINT64(height);
-    textureDesc.Flags               = D3D12_RESOURCE_FLAG_NONE;
-    textureDesc.DepthOrArraySize    = 1;
-    textureDesc.SampleDesc.Count    = 1;
-    textureDesc.SampleDesc.Quality  = 0;
-    textureDesc.Dimension           = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-
-    ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-                                                  D3D12_HEAP_FLAG_NONE, &textureDesc, D3D12_RESOURCE_STATE_COPY_DEST,
-                                                  nullptr, IID_PPV_ARGS(texture)));
-
-    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(*texture, 0, 1);
-
-    // Create the GPU upload buffer.Z
-    ID3D12Resource *textureUploadHeap = nullptr;
-    ThrowIfFailed(
-        device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
-                                        &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-                                        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&textureUploadHeap)));
-    D3D12_SUBRESOURCE_DATA textureData = {};
-    textureData.pData                  = (void *)image;
-    textureData.RowPitch               = width * channels;
-    textureData.SlicePitch             = textureData.RowPitch * height;
-
+    // 이후 컨텍스트로 관리
     UpdateSubresources(commandList, *texture, textureUploadHeap, 0, 0, 1, &textureData);
     commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(*texture, D3D12_RESOURCE_STATE_COPY_DEST,
                                                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
@@ -133,13 +67,8 @@ ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsComm
     srvDesc.Texture2D.MipLevels             = 1;
     device->CreateShaderResourceView(*texture, &srvDesc, descHandle);
 
-    ThrowIfFailed(commandList->Close());
-    // Execute the command list.
-    ID3D12CommandList *ppCommandLists[] = {commandList};
-    commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
     SAFE_ARR_DELETE(image);
-
+    
     return textureUploadHeap;
 }
 
@@ -151,6 +80,44 @@ void D3DUtils::CreateDscriptor(ID3D12Device *device, uint32_t numDesc, D3D12_DES
     desciptorHeapDesc.Type                       = type;
     desciptorHeapDesc.Flags                      = flag;
     ThrowIfFailed(device->CreateDescriptorHeap(&desciptorHeapDesc, IID_PPV_ARGS(descHeap)));
+}
+
+void CheckResult(HRESULT hr, ID3DBlob *errorBlob)
+{
+    if (FAILED(hr))
+    {
+        // 파일이 없을 경우
+        if ((hr & D3D11_ERROR_FILE_NOT_FOUND) != 0)
+        {
+            std::cout << "File not found." << std::endl;
+        }
+
+        // 에러 메시지가 있으면 출력
+        if (errorBlob)
+        {
+            std::cout << "Shader compile error\n" << (char *)errorBlob->GetBufferPointer() << std::endl;
+        }
+    }
+}
+void D3DUtils::CreateShader(const std::wstring filename, ID3DBlob **vsShader, const std::string mainEntry,
+                            const std::string version, std::vector<D3D_SHADER_MACRO> macro)
+{
+#if defined(_DEBUG)
+    // Enable better shader debugging with the graphics debugging tools.
+    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+    UINT compileFlags = 0;
+#endif
+
+    ID3DBlob *errorBlob = nullptr;
+    HRESULT hr =
+        D3DCompileFromFile(filename.c_str(), macro.empty() ? nullptr : macro.data(), D3D_COMPILE_STANDARD_FILE_INCLUDE,
+                           mainEntry.c_str(), version.c_str(), compileFlags, 0, vsShader, &errorBlob);
+
+    CheckResult(hr, errorBlob);
+
+    // error 가 있는 상태에서 ptr 을 free하게 되면 에러 발생함.
+    SAFE_DELETE(errorBlob);
 }
 
 void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int &c)

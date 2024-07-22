@@ -11,15 +11,23 @@ __declspec(align(256)) struct MeshConsts
     Matrix worldIT;
 };
 
-#define MAX_LIGHTS 3
+#define MAX_LIGHTS        3
+#define DIRECTIONAL_LIGHT 0x01
+#define POINT_LIGHT       0x02
+#define SPOT_LIGHT        0x04
+#define LIGHT_OFF         0x00;
 
 struct Light
 {
-    Vector3 direction;
-    Vector3 position;
-    Vector3 irRadiance;
-    float shininess;
-    float spotPower;
+    Vector3 direction  = Vector3(0.0f, 0.0f, -1.0f);
+    float shininess    = 250.0f;
+    Vector3 position   = Vector3(0.0f, 0.0f, -5.0f);
+    float spotPower    = 1.0f;
+    Vector3 irRadiance = Vector3(1.0f);
+    float fallOffStart = 0.0f;
+    float fallOffEnd   = 1000.0f;
+    uint8_t type;
+    Vector2 dummy;
 };
 
 __declspec(align(256)) struct GlobalConsts
@@ -30,6 +38,7 @@ __declspec(align(256)) struct GlobalConsts
     Matrix projInv;
     Matrix viewProjInv;
     Vector3 eyeWorld;
+    float dt;
 
     Light lights[MAX_LIGHTS];
 };

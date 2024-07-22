@@ -1,8 +1,6 @@
 #include "Common.hlsli"
 
-Texture2D albedoTexture : register(t1);
-
-PSInput vsmain(VSInput input)
+PSInput main(VSInput input)
 {
     PSInput output;
     
@@ -38,17 +36,23 @@ PSInput vsmain(VSInput input)
     
 #endif
 
-    output.posProj = mul(float4(input.posModel, 1.0), world);
-    output.posProj = mul(output.posProj, view);
-    output.posProj = mul(output.posProj, proj);
+    float4 posProj = 0.0;
+    
+    // position world
+    posProj = mul(float4(input.posModel, 1.0), world);
+    output.posWorld = posProj.xyz;
+    
+    // position projection
+    posProj = mul(posProj, view);
+    posProj = mul(posProj, proj);
+    output.posProj = posProj;
 
-    output.normalWorld = input.normalModel;
+    // normal world
+    output.normalWorld = normalize(mul(float4(input.normalModel, 0.0), worldIT)).xyz;
+    
+    // texture coordinate.
     output.texCoord = input.texCoord;
     
     return output;
 }
 
-float4 psmain(PSInput input) : SV_TARGET
-{
-    return texFlag ? albedoTexture.Sample(linearWrapSS, input.texCoord) : float4(0.0f, 1.0f, 0.0f, 1.0f);
-}
