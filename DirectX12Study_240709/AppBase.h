@@ -14,11 +14,7 @@ extern float g_imguiHeight;
 extern HWND g_hwnd;
 extern ID3D12Device *g_Device;
 
-extern ID3D12DescriptorHeap *m_desciptorHeap;
-extern ID3D12DescriptorHeap *m_copyDescriptorHeap;
-extern uint32_t g_descCnt;
-extern uint32_t g_renderCnt;
-
+extern DescriptorHeap s_Texture;
 extern DescriptorAllocator g_DescriptorAllocator[];
 inline D3D12_CPU_DESCRIPTOR_HANDLE AllocateDesciptor(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t count = 1)
 {
@@ -58,6 +54,7 @@ class AppBase
                             bool requestHighPerformanceAdapter = false);
     void BuildRootSignature();
     void BuildGlobalConsts();
+    void BuildSRVDesriptorHeap();
     void UpdateGlobalConsts(const float dt);
     void SetGlobalConsts(const D3D12_GPU_VIRTUAL_ADDRESS resAddress);
     void BeginRender();
@@ -126,10 +123,10 @@ class AppBase
   private:
     Timer *m_timer = nullptr;
     // Key control
-    bool m_isKeyDown[256]        = {};
-    ID3D12Resource *m_envTexture = nullptr;
+    bool m_isKeyDown[256]                      = {};
+    ID3D12Resource *m_envTexture               = nullptr;
     D3D12_CPU_DESCRIPTOR_HANDLE m_envCPUHandle = {};
-    DescriptorHandle m_commonTexture;
+    DescriptorHandle m_handle;
 
   protected:
     Light m_light = {};

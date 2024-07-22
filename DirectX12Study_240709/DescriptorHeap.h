@@ -53,7 +53,27 @@ class DescriptorHandle
         return &m_CPU;
     }
 
-  public:
+    operator D3D12_CPU_DESCRIPTOR_HANDLE() const
+    {
+        return m_CPU;
+    }
+
+    operator D3D12_GPU_DESCRIPTOR_HANDLE() const
+    {
+        return m_GPU;
+    }
+
+    bool IsNULL()
+    {
+        return !m_CPU.ptr;
+    }
+
+    bool IsShaderVisible()
+    {
+        return m_GPU.ptr;
+    }
+
+  private:
     D3D12_CPU_DESCRIPTOR_HANDLE m_CPU = {};
     D3D12_GPU_DESCRIPTOR_HANDLE m_GPU = {};
 };
@@ -61,6 +81,8 @@ class DescriptorHandle
 class DescriptorHeap
 {
   public:
+    ~DescriptorHeap();
+
     void Create(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t maxCount)
     {
         D3D12_DESCRIPTOR_HEAP_DESC desc;
@@ -83,6 +105,21 @@ class DescriptorHeap
         m_secondHandle += count * m_descriptorSize;
         m_numFreeDescriptor -= count;
         return ret;
+    }
+
+    ID3D12DescriptorHeap *Get()
+    {
+        return m_descriptorHeap;
+    }
+
+    DescriptorHandle FirstHandle()
+    {
+        return m_firstHandle;
+    }
+
+    DescriptorHandle operator[](int idx)
+    {
+        return m_firstHandle + idx * m_descriptorSize;
     }
 
   public:

@@ -147,6 +147,7 @@
     <ClCompile Include="ConstantBuffer.cpp" />
     <ClCompile Include="D3DUtils.cpp" />
     <ClCompile Include="DesciptorHeap.cpp" />
+    <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="GPUbuffer.cpp" />
     <ClCompile Include="GraphicsCommon.cpp" />

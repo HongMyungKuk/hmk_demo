@@ -26,7 +26,7 @@ class Model
     virtual void BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshData);
     void BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                       ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
-                      const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture);
+                      const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture, DescriptorHandle& handle);
     void DestroyMeshBuffers();
     void DestroyTextureResource();
 

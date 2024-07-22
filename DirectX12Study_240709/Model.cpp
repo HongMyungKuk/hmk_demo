@@ -33,7 +33,7 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
         if (!m.albedoTextureFilename.empty())
         {
             this->BuildTexture(device, commandList, commandAllocator, commandQueue, m.albedoTextureFilename,
-                               &newMesh.albedoTexture, &newMesh.albedoUploadTexture);
+                               &newMesh.albedoTexture, &newMesh.albedoUploadTexture, newMesh.albedoDescriptorHandle);
             count++;
         }
 
@@ -73,10 +73,9 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
     int idx = 0;
     for (auto &m : m_meshes)
     {
-        auto handle = m_desciptorHeap->GetGPUDescriptorHandleForHeapStart();
-        handle.ptr += g_renderCnt * m_cbvDescriptorSize;
+        if (m.albedoDescriptorHandle.IsShaderVisible())
+            commandList->SetGraphicsRootDescriptorTable(4, D3D12_GPU_DESCRIPTOR_HANDLE(m.albedoDescriptorHandle));
 
-        commandList->SetGraphicsRootDescriptorTable(3, handle);
         commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload.GetResource()->GetGPUVirtualAddress());
         auto address = m_materialUpload.GetResource()->GetGPUVirtualAddress() + idx * sizeof(MaterialConsts);
         commandList->SetGraphicsRootConstantBufferView(2, address);
@@ -85,8 +84,6 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
         commandList->IASetVertexBuffers(0, 1, &m.VertexBufferView());
         commandList->IASetIndexBuffer(&m.IndexBufferView());
         commandList->DrawIndexedInstanced(m.indexCount, 1, 0, 0, 0);
-
-        g_renderCnt++;
         idx++;
     }
 }
@@ -126,18 +123,13 @@ void Model::BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshDat
     mesh.indexCount  = uint32_t(meshData.indices.size());
 }
 
-
 void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                          ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
-                         const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture)
+                         const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture,
+                         DescriptorHandle &handle)
 {
-    m_cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_desciptorHeap->GetCPUDescriptorHandleForHeapStart());
-    srvHandle.Offset(g_descCnt, m_cbvDescriptorSize);
-        
-    *uploadTexture =  D3DUtils::CreateTexture(device, commandList, filename, texture, srvHandle);
-
-    g_descCnt++;
+    handle = s_Texture.Alloc(1);
+    *uploadTexture = D3DUtils::CreateTexture(device, commandList, filename, texture, D3D12_CPU_DESCRIPTOR_HANDLE(handle));
 }
 
 void Model::DestroyMeshBuffers()

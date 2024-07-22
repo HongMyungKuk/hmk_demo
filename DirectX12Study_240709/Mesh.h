@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DescriptorHeap.h"
+
 using namespace DirectX;
 using DirectX::SimpleMath::Vector2;
 using DirectX::SimpleMath::Vector3;
@@ -53,6 +55,7 @@ struct Mesh
     // Teture
     ID3D12Resource *albedoTexture       = nullptr;
     ID3D12Resource *albedoUploadTexture = nullptr;
+    DescriptorHandle albedoDescriptorHandle;
     // Material
     ID3D12Resource *diffuseUploadTexture  = nullptr;
     ID3D12Resource *specularUploadTexture = nullptr;
