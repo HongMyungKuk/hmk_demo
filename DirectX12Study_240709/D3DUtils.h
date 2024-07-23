@@ -82,4 +82,7 @@ class D3DUtils
                                 D3D12_DESCRIPTOR_HEAP_FLAGS flag, ID3D12DescriptorHeap **descHeap);
     static void CreateShader(const std::wstring filename, ID3DBlob **vsShader, const std::string mainEntry,
                              const std::string version, std::vector<D3D_SHADER_MACRO> macro = {});
+    static D3D12_VIEWPORT CreateViewport(const float xLT, const float yLT, const float w, const float h,
+                                         const float minDepth = 0.0f, const float maxDepth = 1.0f);
+    static D3D12_RECT CreateScissorRect(const long left, const long top, const long right, const long bottom);
 };

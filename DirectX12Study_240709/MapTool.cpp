@@ -40,7 +40,7 @@ bool MapTool::Initialize()
         CREATE_MODEL_OBJ(m_terrain);
         {
             auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basePath.c_str(), "gm_bigcity.obj");
-            m_terrain->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material);
+            m_terrain->Initialize(m_device, m_commandList, model, material);
             m_terrain->UpdateWorldMatrix(Matrix::CreateScale(50.0f, 50.0f, 50.0f) *
                                          Matrix::CreateTranslation(0.0f, -2.0f, 0.0f));
             m_terrain->GetMaterialConstCPU().ambient = Vector3(1.0f);
@@ -53,7 +53,7 @@ bool MapTool::Initialize()
         CREATE_MODEL_OBJ(m_skybox);
         {
             auto cube = GeometryGenerator::MakeCube(100.0f, 100.0f, 100.0f);
-            m_skybox->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
+            m_skybox->Initialize(m_device, m_commandList, {cube});
         }
     }
 
@@ -93,6 +93,8 @@ void MapTool::Render()
 
 void MapTool::UpdateGui(const float frameRate)
 {
+    using namespace Display;
+
     ImGuiWindowFlags window_flags = 0;
     if (false)
         window_flags |= ImGuiWindowFlags_NoTitleBar;
@@ -128,14 +130,10 @@ void MapTool::UpdateGui(const float frameRate)
     g_imguiHeight = float(g_screenHeight);
     ImGui::SetWindowSize(ImVec2(float(g_imguiWidth), float(g_imguiHeight)));
     ImGui::SetWindowPos(ImVec2(float(g_screenWidth - g_imguiWidth), 0.0f));
-    D3D12_VIEWPORT viewport = {};
-    viewport.TopLeftX       = 0;
-    viewport.TopLeftY       = 0;
-    viewport.MinDepth       = 0.0f;
-    viewport.MaxDepth       = 1.0f;
-    viewport.Width          = (FLOAT)g_screenWidth - g_imguiWidth;
-    viewport.Height         = (FLOAT)g_screenHeight;
-    this->SetViewport(viewport);
+    Graphics::mainViewport =
+        D3DUtils::CreateViewport(0.0f, 0.0f, (float)(g_screenWidth - g_imguiWidth), (float)g_screenHeight);
+    Graphics::mainSissorRect = D3DUtils::CreateScissorRect(0, 0, long(g_screenWidth - g_imguiWidth), g_screenHeight);
+    
 
     ImGui::Text("App average %.3f ms/frame (%.1f FPS)", 1000.0f / frameRate, frameRate);
     auto cameraSpeed = m_camera->GetCameraSpeed();

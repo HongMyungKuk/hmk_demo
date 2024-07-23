@@ -1,18 +1,28 @@
 #pragma once
 
+#include "ColorBuffer.h"
 #include "ConstantBuffer.h"
+#include "DepthBuffer.h"
 #include "DescriptorHeap.h"
+#include "PostEffects.h"
 
 class Model;
 class Camera;
 class Timer;
+class ColorBuffer;
 
+namespace Display
+{
 extern uint32_t g_screenWidth;
 extern uint32_t g_screenHeight;
 extern float g_imguiWidth;
 extern float g_imguiHeight;
-extern HWND g_hwnd;
+} // namespace Display
+
+namespace Graphics
+{
 extern ID3D12Device *g_Device;
+extern ColorBuffer g_DisplayPlane[];
 
 extern DescriptorHeap s_Texture;
 extern DescriptorAllocator g_DescriptorAllocator[];
@@ -20,6 +30,9 @@ inline D3D12_CPU_DESCRIPTOR_HANDLE AllocateDesciptor(D3D12_DESCRIPTOR_HEAP_TYPE 
 {
     return g_DescriptorAllocator[type].Allocate(count);
 }
+} // namespace Graphics
+
+extern HWND g_hwnd;
 
 class AppBase
 {
@@ -38,12 +51,10 @@ class AppBase
     LRESULT CALLBACK MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
   protected:
-    void SetViewport(D3D12_VIEWPORT viewport);
-    void SetSissorRect(D3D12_RECT rect);
     void UpdateCamera(const float dt);
     void WaitForPreviousFrame();
     void InitCubemap(std::wstring basePath, std::wstring envFilename);
-    void InitLights();
+    virtual void InitLights();
     void UpdateLights();
 
   private:
@@ -52,14 +63,14 @@ class AppBase
     virtual bool InitGui();
     void GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdapter,
                             bool requestHighPerformanceAdapter = false);
-    void BuildRootSignature();
     void BuildGlobalConsts();
     void BuildSRVDesriptorHeap();
     void UpdateGlobalConsts(const float dt);
-    void SetGlobalConsts(const D3D12_GPU_VIRTUAL_ADDRESS resAddress);
-    void BeginRender();
-    void EndRender();
+    void DepthOnlyPass();
+    void RenderOpaqueObject();
+    void RenderDepthMapViewport();
     void DestroyPSO();
+    void CreateBuffers();
     void Resize();
 
     void OnMouse(const float x, const float y);
@@ -67,34 +78,27 @@ class AppBase
   public:
     static float GetAspect()
     {
-        return ((float)g_screenWidth - g_imguiWidth) / g_screenHeight;
+        return ((float)Display::g_screenWidth - Display::g_imguiWidth) / Display::g_screenHeight;
     }
 
   protected:
     Camera *m_camera                   = nullptr;
     static const uint32_t s_frameCount = 2;
     // Pipeline objects.
-    D3D12_VIEWPORT m_viewport                     = {};
-    D3D12_RECT m_scissorRect                      = {};
-    IDXGISwapChain1 *m_swapChain                  = nullptr;
-    ID3D12Device *m_device                        = nullptr;
-    ID3D12CommandAllocator *m_commandAllocator    = nullptr;
-    ID3D12CommandQueue *m_commandQueue            = nullptr;
-    ID3D12DescriptorHeap *m_rtvHeap               = nullptr;
-    ID3D12DescriptorHeap *m_dsvHeap               = nullptr;
-    ID3D12DescriptorHeap *m_srvHeap               = nullptr;
-    ID3D12GraphicsCommandList *m_commandList      = nullptr;
-    ID3D12RootSignature *m_rootSignature          = nullptr;
-    ID3D12Resource *m_depthStencilBuffer          = nullptr;
-    ID3D12Resource *m_renderTargets[s_frameCount] = {
-        nullptr,
-    };
+    IDXGISwapChain1 *m_swapChain               = nullptr;
+    ID3D12Device *m_device                     = nullptr;
+    ID3D12CommandAllocator *m_commandAllocator = nullptr;
+    ID3D12CommandQueue *m_commandQueue         = nullptr;
+    ID3D12GraphicsCommandList *m_commandList   = nullptr;
 
-    GlobalConsts m_globalConstData = {};
+    GlobalConsts m_globalConstData    = {};
+    GlobalConsts m_depthOnlyConstData = {};
     UploadBuffer<GlobalConsts> m_globalConstsBuffer;
+    UploadBuffer<GlobalConsts> m_depthOnlyConstsBuffer;
 
-    uint32_t m_rtvDescriptorSize = 0;
-    uint32_t m_dsvDescriptorSize = 0;
+    DepthBuffer m_depthBuffer;
+    DepthBuffer m_depthOnlyBuffer;
+    DescriptorHeap m_imguiInitHeap;
 
     // Synchronization objects.
     uint32_t m_frameIndex = 0;
@@ -129,5 +133,11 @@ class AppBase
     DescriptorHandle m_handle;
 
   protected:
-    Light m_light = {};
+    Light m_light[3]                    = {};
+    std::vector<Model *> m_lightSpheres = {};
+    std::vector<Model *> m_opaqueList   = {};
+    Model *m_skybox                     = nullptr;
+    Model *m_depthMap                   = nullptr;
+
+    PostEffects m_postEffects;
 };

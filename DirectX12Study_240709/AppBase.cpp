@@ -2,6 +2,7 @@
 
 #include "AppBase.h"
 #include "Camera.h"
+#include "ColorBuffer.h"
 #include "DescriptorHeap.h"
 #include "GeometryGenerator.h"
 #include "GraphicsCommon.h"
@@ -9,18 +10,28 @@
 #include "Model.h"
 #include "Timer.h"
 
-AppBase *g_appBase         = nullptr;
+AppBase *g_appBase = nullptr;
+
+namespace Display
+{
 uint32_t g_screenWidth     = 1200;
 uint32_t g_screenHeight    = 800;
 extern float g_imguiWidth  = 0.0f;
 extern float g_imguiHeight = 0.0f;
-HWND g_hwnd                = nullptr;
-ID3D12Device *g_Device     = nullptr;
+} // namespace Display
+
+namespace Graphics
+{
+ID3D12Device *g_Device = nullptr;
+ColorBuffer g_DisplayPlane[2];
 
 DescriptorHeap s_Texture;
 DescriptorAllocator g_DescriptorAllocator[] = {D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
                                                D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
                                                D3D12_DESCRIPTOR_HEAP_TYPE_DSV};
+} // namespace Graphics
+
+HWND g_hwnd = nullptr;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -42,19 +53,18 @@ AppBase::~AppBase()
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
+    SAFE_VECTOR_CLEAR(m_lightSpheres);
+    SAFE_VECTOR_CLEAR(m_opaqueList);
+    SAFE_DELETE(m_depthMap);
+    SAFE_DELETE(m_skybox);
+
     SAFE_RELEASE(m_envTexture);
     SAFE_DELETE(m_camera);
-    SAFE_RELEASE(m_rootSignature)
+    //SAFE_RELEASE(m_rootSignature)
     SAFE_DELETE(m_timer);
     SAFE_RELEASE(m_fence);
     SAFE_RELEASE(m_commandList);
     SAFE_RELEASE(m_commandAllocator);
-    SAFE_RELEASE(m_depthStencilBuffer);
-    for (uint8_t i = 0; i < s_frameCount; i++)
-        SAFE_RELEASE(m_renderTargets[i]);
-    SAFE_RELEASE(m_srvHeap);
-    SAFE_RELEASE(m_dsvHeap);
-    SAFE_RELEASE(m_rtvHeap);
     SAFE_RELEASE(m_swapChain);
     SAFE_RELEASE(m_commandQueue);
     SAFE_RELEASE(m_device);
@@ -82,14 +92,30 @@ bool AppBase::Initialize()
     // Mouse & Keyboard input initialize.
     GameInput::Initialize();
 
-    this->BuildRootSignature();
-
     this->BuildSRVDesriptorHeap();
-    
     this->BuildGlobalConsts();
 
     // Init graphics common.
-    Graphics::InitGraphicsCommon(m_device, m_rootSignature);
+    Graphics::InitGraphicsCommon(m_device);
+
+    // Init Light
+    InitLights();
+
+    // Create sky box.
+    CREATE_OBJ(m_skybox, Model);
+    {
+        MeshData cube = GeometryGenerator::MakeCube(50.0f, 50.0f, 50.0f);
+        m_skybox->Initialize(m_device, m_commandList, {cube});
+    }
+
+    // Create depth map square
+    CREATE_OBJ(m_depthMap, Model)
+    {
+        MeshData square = GeometryGenerator::MakeSquare(2.0f, 2.0f);
+        m_depthMap->Initialize(m_device, m_commandList, {square});
+    }
+
+    m_postEffects.Initialize();
 
     return true;
 }
@@ -100,10 +126,25 @@ void AppBase::Update(const float dt)
     GameInput::Update(dt);
 
     UpdateGlobalConsts(dt);
+
+    for (auto &e : m_opaqueList)
+    {
+        e->Update();
+    }
+
+    m_skybox->Update();
 }
 
 void AppBase::Render()
 {
+    ThrowIfFailed(m_commandAllocator->Reset());
+    ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
+    // Depth only pass.
+    DepthOnlyPass();
+    // Render Object.
+    RenderOpaqueObject();
+    // Render Depth viewport
+    RenderDepthMapViewport();
 }
 
 int32_t AppBase::Run()
@@ -137,11 +178,28 @@ int32_t AppBase::Run()
 
             this->Update(io.Framerate);
 
-            AppBase::BeginRender();
             this->Render();
-            m_commandList->SetDescriptorHeaps(1, &m_srvHeap);
+
+            ID3D12DescriptorHeap *descHeaps[] = {m_imguiInitHeap.Get()};
+            m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
             ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_commandList);
-            AppBase::EndRender();
+
+            // Indicate that the back buffer will now be used to present.
+            m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+                                                  Graphics::g_DisplayPlane[m_frameIndex].GetResource(),
+                                                  D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+            ThrowIfFailed(m_commandList->Close());
+            // Execute the command list.
+            ID3D12CommandList *ppCommandLists[] = {m_commandList};
+            m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+            // Present the frame.
+            ThrowIfFailed(m_swapChain->Present(1, 0));
+
+            WaitForPreviousFrame();
+
+            m_frameIndex = (m_frameIndex + 1) % s_frameCount;
         }
     }
     // Return this part of the WM_QUIT message to Windows.
@@ -160,7 +218,7 @@ bool AppBase::InitWindow()
     windowClass.lpszClassName = L"DX12Study";
     RegisterClassEx(&windowClass);
 
-    RECT windowRect = {0, 0, static_cast<LONG>(g_screenWidth), static_cast<LONG>(g_screenHeight)};
+    RECT windowRect = {0, 0, static_cast<LONG>(Display::g_screenWidth), static_cast<LONG>(Display::g_screenHeight)};
     AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
 
     // Create the window and store a handle to it.
@@ -214,7 +272,7 @@ bool AppBase::InitD3D()
         SAFE_RELEASE(hardwareAdapter);
     }
 
-    g_Device = m_device;
+    Graphics::g_Device = m_device;
 
     // Describe and create the command queue.
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -225,8 +283,8 @@ bool AppBase::InitD3D()
 
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
     swapChainDesc.BufferCount           = s_frameCount;
-    swapChainDesc.Width                 = g_screenWidth;
-    swapChainDesc.Height                = g_screenHeight;
+    swapChainDesc.Width                 = Display::g_screenWidth;
+    swapChainDesc.Height                = Display::g_screenHeight;
     swapChainDesc.Format                = DXGI_FORMAT_R8G8B8A8_UNORM;
     swapChainDesc.BufferUsage           = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.SwapEffect            = DXGI_SWAP_EFFECT_FLIP_DISCARD;
@@ -241,22 +299,6 @@ bool AppBase::InitD3D()
     ThrowIfFailed(factory->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
     m_swapChain = swapChain;
     swapChain   = nullptr;
-
-    // Create descriptor heaps.
-    {
-        D3DUtils::CreateDscriptor(m_device, s_frameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-                                  D3D12_DESCRIPTOR_HEAP_FLAG_NONE, &m_rtvHeap);
-        m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-        // Describe and create a render target view (DSV) descriptor heap.
-        D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-                                  &m_dsvHeap);
-        m_dsvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-        // Describe and create a render target view (SRV) descriptor heap.
-        D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-                                  D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_srvHeap);
-    }
 
     ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
 
@@ -281,22 +323,6 @@ bool AppBase::InitD3D()
         }
     }
 
-    D3D12_VIEWPORT viewport = {};
-    viewport.TopLeftX       = 0;
-    viewport.TopLeftY       = 0;
-    viewport.MinDepth       = 0.0f;
-    viewport.MaxDepth       = 1.0f;
-    viewport.Width          = (FLOAT)g_screenWidth;
-    viewport.Height         = (FLOAT)g_screenHeight;
-    this->SetViewport(viewport);
-
-    D3D12_RECT sissorRect = {};
-    sissorRect.left       = 0;
-    sissorRect.top        = 0;
-    sissorRect.right      = g_screenWidth;
-    sissorRect.bottom     = g_screenHeight;
-    this->SetSissorRect(sissorRect);
-
     this->Resize();
 
     SAFE_RELEASE(factory);
@@ -318,11 +344,13 @@ bool AppBase::InitGui()
     ImGui::StyleColorsDark();
     // ImGui::StyleColorsLight();
 
+    m_imguiInitHeap.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(m_hwnd);
-    ImGui_ImplDX12_Init(m_device, 3, DXGI_FORMAT_R8G8B8A8_UNORM, m_srvHeap,
-                        m_srvHeap->GetCPUDescriptorHandleForHeapStart(),
-                        m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+    ImGui_ImplDX12_Init(m_device, 3, DXGI_FORMAT_R8G8B8A8_UNORM, m_imguiInitHeap.Get(),
+                        D3D12_CPU_DESCRIPTOR_HANDLE(m_imguiInitHeap[0]),
+                        D3D12_GPU_DESCRIPTOR_HANDLE(m_imguiInitHeap[0]));
     return true;
 }
 
@@ -390,53 +418,8 @@ void AppBase::GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdap
     SAFE_RELEASE(factory6);
 }
 
-void AppBase::BuildRootSignature()
-{
-    // Create root signature.
-    CD3DX12_DESCRIPTOR_RANGE rangeObj1[1] = {};
-    rangeObj1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0: envTex, t1 ~ 299 : map texture
-    CD3DX12_DESCRIPTOR_RANGE rangeObj2[1] = {};
-    rangeObj2[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1
-
-    D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-    CD3DX12_ROOT_PARAMETER rootParameters[6] = {};
-    rootParameters[0].InitAsConstantBufferView(0); // b0 : Global Consts
-    rootParameters[1].InitAsConstantBufferView(1); // b1 : Mesh Consts
-    rootParameters[2].InitAsConstantBufferView(2); // b2 : material Consts
-    rootParameters[3].InitAsDescriptorTable(_countof(rangeObj1), rangeObj1, D3D12_SHADER_VISIBILITY_ALL); // t0
-    rootParameters[4].InitAsDescriptorTable(_countof(rangeObj2), rangeObj2, D3D12_SHADER_VISIBILITY_ALL); // t1
-    rootParameters[5].InitAsConstantBufferView(3); // b3 : material Consts
-
-    D3D12_STATIC_SAMPLER_DESC sampler = {};
-    sampler.Filter                    = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    sampler.AddressU                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sampler.AddressV                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sampler.AddressW                  = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    sampler.MipLODBias                = 0;
-    sampler.MaxAnisotropy             = 0;
-    sampler.ComparisonFunc            = D3D12_COMPARISON_FUNC_NEVER;
-    sampler.BorderColor               = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-    sampler.MinLOD                    = 0.0f;
-    sampler.MaxLOD                    = D3D12_FLOAT32_MAX;
-    sampler.ShaderRegister            = 0;
-    sampler.RegisterSpace             = 0;
-    sampler.ShaderVisibility          = D3D12_SHADER_VISIBILITY_ALL;
-
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(_countof(rootParameters), rootParameters, 1, &sampler, rootSignatureFlags);
-
-    ID3DBlob *signature = nullptr;
-    ID3DBlob *error     = nullptr;
-    ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-    ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(),
-                                                IID_PPV_ARGS(&m_rootSignature)));
-}
-
 void AppBase::BuildGlobalConsts()
 {
-    InitLights();
-
     m_globalConstsBuffer.Initialize(m_device, 1);
 }
 
@@ -488,69 +471,76 @@ void AppBase::UpdateGui(const float frameRate)
 {
 }
 
-void AppBase::SetGlobalConsts(const D3D12_GPU_VIRTUAL_ADDRESS resAddress)
+void AppBase::DepthOnlyPass()
 {
-    m_commandList->SetGraphicsRootConstantBufferView(0, resAddress);
-}
+    m_commandList->RSSetViewports(1, &Graphics::mainViewport);
+    m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
 
-void AppBase::BeginRender()
-{
-    // Command list allocators can only be reset when the associated
-    // command lists have finished execution on the GPU; apps should use
-    // fences to determine GPU execution progress.
-    ThrowIfFailed(m_commandAllocator->Reset());
+    m_commandList->SetGraphicsRootSignature(
+        Graphics::defaultRootSignature); // Root signature 이후에 변경 .... 방법 찾기
+    m_commandList->SetGraphicsRootConstantBufferView(0, m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
 
-    // However, when ExecuteCommandList() is called on a particular command
-    // list, that command list can then be reset at any time and must be before
-    // re-recording.
-    ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
-
-    m_commandList->RSSetViewports(1, &m_viewport);
-    m_commandList->RSSetScissorRects(1, &m_scissorRect);
-
-    m_commandList->SetGraphicsRootSignature(m_rootSignature);
-    //  Global consts
-    this->SetGlobalConsts(m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
-
-    // TODO!!
-    // 힙을 한번에 만들어 놓고 쓴다.
-    ID3D12DescriptorHeap *descHeaps[] = {s_Texture.m_descriptorHeap};
+    ID3D12DescriptorHeap *descHeaps[] = {Graphics::s_Texture.Get()};
     m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
-
-    // auto handle = m_desciptorHeap->GetGPUDescriptorHandleForHeapStart();
     m_commandList->SetGraphicsRootDescriptorTable(3, D3D12_GPU_DESCRIPTOR_HANDLE(m_handle));
 
-    // Indicate that the back buffer will be used as a render target.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex],
-                                                                            D3D12_RESOURCE_STATE_PRESENT,
-                                                                            D3D12_RESOURCE_STATE_RENDER_TARGET));
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex,
-                                            m_rtvDescriptorSize);
-    m_commandList->OMSetRenderTargets(1, &rtvHandle, false, &m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-    // Record commands.
-    const float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
-    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(),
-                                         D3D12_CLEAR_FLAG_STENCIL | D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    m_commandList->OMSetRenderTargets(0, nullptr, false, &m_depthOnlyBuffer.GetDSV());
+    m_commandList->ClearDepthStencilView(m_depthOnlyBuffer.GetDSV(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    // render object.
+    m_commandList->SetPipelineState(Graphics::depthOnlyPSO);
+    for (auto &e : m_opaqueList)
+    {
+        e->Render(m_commandList);
+    }
+    // render skybox
+    m_skybox->Render(m_commandList);
 }
 
-void AppBase::EndRender()
+void AppBase::RenderOpaqueObject()
 {
-    // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex],
-                                                                            D3D12_RESOURCE_STATE_RENDER_TARGET,
-                                                                            D3D12_RESOURCE_STATE_PRESENT));
-    ThrowIfFailed(m_commandList->Close());
-    // Execute the command list.
-    ID3D12CommandList *ppCommandLists[] = {m_commandList};
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    m_commandList->RSSetViewports(1, &Graphics::mainViewport);
+    m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
 
-    // Present the frame.
-    ThrowIfFailed(m_swapChain->Present(1, 0));
+    // Indicate that the back buffer will be used as a render target.
+    m_commandList->ResourceBarrier(
+        1, &CD3DX12_RESOURCE_BARRIER::Transition(Graphics::g_DisplayPlane[m_frameIndex].GetResource(),
+                                                 D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    WaitForPreviousFrame();
+    m_commandList->OMSetRenderTargets(1, &Graphics::g_DisplayPlane[m_frameIndex].GetRTV(), false,
+                                      &m_depthBuffer.GetDSV());
+    // Record commands.
+    const float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
+    m_commandList->ClearRenderTargetView(Graphics::g_DisplayPlane[m_frameIndex].GetRTV(), clearColor, 0, nullptr);
+    m_commandList->ClearDepthStencilView(m_depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_STENCIL | D3D12_CLEAR_FLAG_DEPTH,
+                                         1.0f, 0, 0, nullptr);
 
-    m_frameIndex = (m_frameIndex + 1) % s_frameCount;
+    // render object.
+    for (auto &e : m_opaqueList)
+    {
+        m_commandList->SetPipelineState(e->GetPSO(m_isWireFrame));
+        e->Render(m_commandList);
+
+        if (m_drawAsNormal)
+        {
+            m_commandList->SetPipelineState(Graphics::normalPSO);
+            e->RenderNormal(m_commandList);
+        }
+    }
+
+    // render skybox
+    m_commandList->SetPipelineState(Graphics::skyboxPSO);
+    m_skybox->Render(m_commandList);
+}
+
+void AppBase::RenderDepthMapViewport()
+{
+    m_commandList->RSSetViewports(1, &Graphics::depthMapViewport);
+    m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
+    m_commandList->SetPipelineState(Graphics::depthViewportPSO);
+    m_commandList->SetGraphicsRootSignature(Graphics::depthOnlyRootSignature);
+    m_commandList->SetGraphicsRootShaderResourceView(0, m_depthBuffer.GetResource()->GetGPUVirtualAddress());
+
+    m_postEffects.Render(m_commandList);
 }
 
 void AppBase::DestroyPSO()
@@ -559,8 +549,29 @@ void AppBase::DestroyPSO()
     SAFE_RELEASE(Graphics::defaultSolidPSO);
 }
 
+void AppBase::CreateBuffers()
+{
+    using namespace Display;
+    using namespace Graphics;
+    // Create a RTV for each frame.
+    for (UINT n = 0; n < s_frameCount; n++)
+    {
+        ID3D12Resource *backBuffer = nullptr;
+        ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&backBuffer)));
+        g_DisplayPlane[n].CreateFromSwapChain(backBuffer);
+    }
+
+    // Create depth stencil buffer.
+    m_depthBuffer.Create(g_screenWidth, g_screenHeight, DXGI_FORMAT_R24G8_TYPELESS);
+
+    // Create depth only buffer
+    m_depthOnlyBuffer.Create(g_screenWidth, g_screenHeight, DXGI_FORMAT_R32_TYPELESS, true);
+}
+
 void AppBase::OnMouse(const float x, const float y)
 {
+    using namespace Display;
+
     auto newScreenWidth = float(g_screenWidth - g_imguiWidth);
     auto newSreenHeight = float(g_screenHeight);
 
@@ -581,7 +592,7 @@ void AppBase::OnMouse(const float x, const float y)
 
 void AppBase::BuildSRVDesriptorHeap()
 {
-    s_Texture.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4098);
+    Graphics::s_Texture.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4098);
 }
 
 LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -595,6 +606,7 @@ LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
         return 0;
 
     case WM_SIZE: {
+        using namespace Display;
 
         RECT rect = {};
         GetClientRect(hWnd, &rect);
@@ -607,21 +619,8 @@ LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
             {
                 this->Resize();
 
-                D3D12_VIEWPORT viewport = {};
-                viewport.TopLeftX       = 0;
-                viewport.TopLeftY       = 0;
-                viewport.MinDepth       = 0.0f;
-                viewport.MaxDepth       = 1.0f;
-                viewport.Width          = (FLOAT)g_screenWidth;
-                viewport.Height         = (FLOAT)g_screenHeight;
-                this->SetViewport(viewport);
-
-                D3D12_RECT rect = {};
-                rect.left       = 0;
-                rect.top        = 0;
-                rect.right      = g_screenWidth;
-                rect.bottom     = g_screenHeight;
-                this->SetSissorRect(rect);
+                Graphics::mainViewport   = D3DUtils::CreateViewport(0.0f, 0.0f, g_screenWidth, g_screenHeight);
+                Graphics::mainSissorRect = D3DUtils::CreateScissorRect(0.0f, 0.0f, g_screenWidth, g_screenHeight);
             }
         }
     }
@@ -705,30 +704,44 @@ void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename)
     srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
     srvDesc.Format                          = m_envTexture->GetDesc().Format;
 
-    // CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_desciptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-    m_handle = s_Texture.Alloc(1);
-
-    // m_envCPUHandle = AllocateDesciptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    m_handle = Graphics::s_Texture.Alloc(1);
     m_device->CreateShaderResourceView(m_envTexture, &srvDesc, D3D12_CPU_DESCRIPTOR_HANDLE(m_handle));
-    // m_commonTexture    = s_Texture.Alloc(1);
-    // uint32_t descCount = 1;
-    // m_device->CopyDescriptors(1, &m_commonTexture, &descCount, descCount, &m_envCPUHandle, &descCount,
-    //                           D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 void AppBase::InitLights()
 {
-    m_light.type |= DIRECTIONAL_LIGHT;
+    // directional light
+    {
+        m_light[0].type |= DIRECTIONAL_LIGHT;
+    }
+    // point light
+    {
+        m_light[1].type |= POINT_LIGHT;
+        m_light[1].position = Vector3(0.0f, 1.0f, -5.0f);
+
+        MeshData sphere    = GeometryGenerator::MakeSphere(0.025f, 10, 10);
+        Model *lightSphere = new Model;
+        lightSphere->Initialize(m_device, m_commandList, {sphere});
+        lightSphere->GetMaterialConstCPU().ambient = Vector3(1.0f, 0.0f, 0.0f);
+        lightSphere->UpdateWorldMatrix(Matrix::CreateTranslation(m_light[1].position));
+        m_lightSpheres.push_back(lightSphere);
+    }
+    // spot light
+    {
+        m_light[2].type |= SPOT_LIGHT;
+        m_light[2].position = Vector3(1.0f, 2.0f, -3.0f);
+
+        MeshData sphere    = GeometryGenerator::MakeSphere(0.025f, 10, 10);
+        Model *lightSphere = new Model;
+        lightSphere->Initialize(m_device, m_commandList, {sphere});
+        lightSphere->GetMaterialConstCPU().ambient = Vector3(1.0f, 0.0f, 0.0f);
+        lightSphere->UpdateWorldMatrix(Matrix::CreateTranslation(m_light[2].position));
+        m_lightSpheres.push_back(lightSphere);
+    }
 }
 
 void AppBase::UpdateLights()
 {
-    m_globalConstData.lights[0] = m_light;
-
-    m_globalConstData.lights[1].type |= LIGHT_OFF;
-
-    m_globalConstData.lights[2].type |= LIGHT_OFF;
 }
 
 LRESULT WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -736,92 +749,56 @@ LRESULT WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return g_appBase->MemberWndProc(hWnd, message, wParam, lParam);
 }
 
-void AppBase::SetViewport(D3D12_VIEWPORT viewport)
-{
-    m_viewport = viewport;
-}
-
-void AppBase::SetSissorRect(D3D12_RECT rect)
-{
-    m_scissorRect = rect;
-}
-
 void AppBase::Resize()
 {
+    using namespace Display;
+    using namespace Graphics;
+
     m_commandList->Reset(m_commandAllocator, nullptr);
-    // Create frame resources.
+
+    // Reset a RTV for each frame.
+    if (g_DisplayPlane[0].GetResource())
     {
-        // Reset a RTV for each frame.
-        if (m_renderTargets[0])
-        {
-            for (UINT n = 0; n < s_frameCount; n++)
-            {
-                m_renderTargets[n]->Release();
-                m_renderTargets[n] = nullptr;
-            }
-        }
-        if (m_depthStencilBuffer)
-        {
-            m_depthStencilBuffer->Release();
-            m_depthStencilBuffer = nullptr;
-        }
-        // swap chain resize.
-        if (m_swapChain)
-        {
-            ThrowIfFailed(m_swapChain->ResizeBuffers(s_frameCount, g_screenWidth, g_screenHeight,
-                                                     DXGI_FORMAT_R8G8B8A8_UNORM,
-                                                     DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
-        }
-
-        m_frameIndex = 0;
-
-        // Create a RTV for each frame.
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
         for (UINT n = 0; n < s_frameCount; n++)
         {
-            ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
-            m_device->CreateRenderTargetView(m_renderTargets[n], nullptr, rtvHandle);
-            rtvHandle.Offset(1, m_rtvDescriptorSize);
+            g_DisplayPlane[n].GetResource()->Release();
         }
+    }
+    if (m_depthBuffer.GetResource())
+    {
+        m_depthBuffer.GetResource()->Release();
+    }
+    // swap chain resize.
+    if (m_swapChain)
+    {
+        ThrowIfFailed(m_swapChain->ResizeBuffers(s_frameCount, g_screenWidth, g_screenHeight,
+                                                 DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+    }
 
-        D3D12_RESOURCE_DESC depthStencilDesc = {};
-        depthStencilDesc.Dimension           = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        depthStencilDesc.Alignment           = 0;
-        depthStencilDesc.Width               = (UINT64)g_screenWidth;
-        depthStencilDesc.Height              = (UINT64)g_screenHeight;
-        depthStencilDesc.DepthOrArraySize    = 1;
-        depthStencilDesc.MipLevels           = 1;
-        depthStencilDesc.Format              = DXGI_FORMAT_R24G8_TYPELESS;
-        depthStencilDesc.SampleDesc.Count    = 1;
-        depthStencilDesc.SampleDesc.Quality  = 0;
-        depthStencilDesc.Layout              = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-        depthStencilDesc.Flags               = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    // Create frame resources.
+    {
+        // 추상화
+        // Describe and create a render target view (SRV) descriptor heap.
+        // D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+        //                          D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_srvHeap);
+        m_frameIndex = 0;
 
-        D3D12_CLEAR_VALUE optClear;
-        optClear.Format               = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        optClear.DepthStencil.Depth   = 1.0f;
-        optClear.DepthStencil.Stencil = 0;
+        this->CreateBuffers();
 
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &depthStencilDesc,
-            D3D12_RESOURCE_STATE_COMMON, &optClear, IID_PPV_ARGS(&m_depthStencilBuffer)));
-
-        D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-        dsvDesc.Flags              = D3D12_DSV_FLAG_NONE;
-        dsvDesc.ViewDimension      = D3D12_DSV_DIMENSION_TEXTURE2D;
-        dsvDesc.Format             = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        dsvDesc.Texture2D.MipSlice = 0;
-        m_device->CreateDepthStencilView(m_depthStencilBuffer, &dsvDesc,
-                                         m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
         // Transition the resource from its initial state to be used as a depth buffer.
-        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencilBuffer,
+        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthBuffer.GetResource(),
                                                                                 D3D12_RESOURCE_STATE_COMMON,
                                                                                 D3D12_RESOURCE_STATE_DEPTH_WRITE));
-        // For texture loading.
-        ThrowIfFailed(m_commandList->Close());
-        ID3D12CommandList *ppCommandLists[] = {m_commandList};
-        m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-        WaitForPreviousFrame();
+        // Transition the resource from its initial state to be used as a depth buffer.
+        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthOnlyBuffer.GetResource(),
+                                                                                D3D12_RESOURCE_STATE_COMMON,
+                                                                                D3D12_RESOURCE_STATE_DEPTH_WRITE));
     }
+
+    // For texture loading.
+    ThrowIfFailed(m_commandList->Close());
+    ID3D12CommandList *ppCommandLists[] = {m_commandList};
+    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+    WaitForPreviousFrame();
 }

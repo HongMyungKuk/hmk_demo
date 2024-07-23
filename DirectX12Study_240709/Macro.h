@@ -28,8 +28,14 @@
         return false;                                                                                                  \
     }
 
-#define CREATE_MODEL_OBJ(obj)                                                                                          \
-    CREATE_OBJ(obj, Model)
+#define CREATE_MODEL_OBJ(obj) CREATE_OBJ(obj, Model)
+#define CREATE_SKINNED_OBJ(obj) CREATE_OBJ(obj, SkinnedMeshModel)
 
-#define CREATE_SKINNED_OBJ(obj)                                                                                        \
-    CREATE_OBJ(obj, SkinnedMeshModel)
+template <typename T> void SAFE_VECTOR_CLEAR(T& vec)
+{
+    for (size_t i = 0; i < vec.size(); i++)
+    {
+        SAFE_DELETE(vec[i]);
+    }
+    vec.clear();
+}

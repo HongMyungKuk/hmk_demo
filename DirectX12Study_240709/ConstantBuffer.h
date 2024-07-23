@@ -15,11 +15,11 @@ __declspec(align(256)) struct MeshConsts
 #define DIRECTIONAL_LIGHT 0x01
 #define POINT_LIGHT       0x02
 #define SPOT_LIGHT        0x04
-#define LIGHT_OFF         0x00;
+#define LIGHT_OFF         0x00
 
 struct Light
 {
-    Vector3 direction  = Vector3(0.0f, 0.0f, -1.0f);
+    Vector3 direction  = Vector3(0.0f, 0.0f, 1.0f);
     float shininess    = 250.0f;
     Vector3 position   = Vector3(0.0f, 0.0f, -5.0f);
     float spotPower    = 1.0f;

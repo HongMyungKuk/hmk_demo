@@ -16,9 +16,8 @@ Model::~Model()
     SAFE_RELEASE(m_rootSignature);
 }
 
-void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
-                       ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
-                       std::vector<MeshData> meshes, std::vector<MaterialConsts> materials)
+void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, std::vector<MeshData> meshes,
+                       std::vector<MaterialConsts> materials)
 {
     m_meshUpload.Initialize(device, 1);
     m_materialUpload.Initialize(device, uint32_t(meshes.size()));
@@ -32,8 +31,8 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
         // Set Texture
         if (!m.albedoTextureFilename.empty())
         {
-            this->BuildTexture(device, commandList, commandAllocator, commandQueue, m.albedoTextureFilename,
-                               &newMesh.albedoTexture, &newMesh.albedoUploadTexture, newMesh.albedoDescriptorHandle);
+            this->BuildTexture(device, commandList, m.albedoTextureFilename, &newMesh.albedoTexture,
+                               &newMesh.albedoUploadTexture, newMesh.albedoDescriptorHandle);
             count++;
         }
 
@@ -123,13 +122,12 @@ void Model::BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshDat
     mesh.indexCount  = uint32_t(meshData.indices.size());
 }
 
-void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
-                         ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
-                         const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture,
-                         DescriptorHandle &handle)
+void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, const std::string &filename,
+                         ID3D12Resource **texture, ID3D12Resource **uploadTexture, DescriptorHandle &handle)
 {
-    handle = s_Texture.Alloc(1);
-    *uploadTexture = D3DUtils::CreateTexture(device, commandList, filename, texture, D3D12_CPU_DESCRIPTOR_HANDLE(handle));
+    handle = Graphics::s_Texture.Alloc(1);
+    *uploadTexture =
+        D3DUtils::CreateTexture(device, commandList, filename, texture, D3D12_CPU_DESCRIPTOR_HANDLE(handle));
 }
 
 void Model::DestroyMeshBuffers()

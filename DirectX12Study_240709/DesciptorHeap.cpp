@@ -3,6 +3,8 @@
 #include "AppBase.h"
 #include "DescriptorHeap.h"
 
+using namespace Graphics;
+
 DescriptorAllocator::~DescriptorAllocator()
 {
     Shutdown();

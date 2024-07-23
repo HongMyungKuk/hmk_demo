@@ -2,9 +2,9 @@
 
 #include "SkinnedMeshModel.h"
 
-void SkinnedMeshModel::Initialize(
-    ID3D12Device *device, ID3D12GraphicsCommandList *commandList, ID3D12CommandAllocator *commandAllocator,
-    ID3D12CommandQueue *commandQueue, std::vector<MeshData> meshes, std::vector<MaterialConsts> material, AnimationData anim)
+void SkinnedMeshModel::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
+                                  std::vector<MeshData> meshes, std::vector<MaterialConsts> material,
+                                  AnimationData anim)
 {
     if (!anim.clips.empty())
     {
@@ -19,7 +19,7 @@ void SkinnedMeshModel::Initialize(
         }
     }
 
-    Model::Initialize(device, commandList, commandAllocator, commandQueue, meshes, material);
+    Model::Initialize(device, commandList, meshes, material);
 }
 
 void SkinnedMeshModel::UpdateAnimation(int clipID, int frameCount)

@@ -16,8 +16,8 @@ ModelViewer::~ModelViewer()
     SAFE_DELETE(m_coordController);
     SAFE_DELETE(m_model);
     SAFE_DELETE(m_ground);
+    SAFE_DELETE(m_sphere);
     SAFE_DELETE(m_box);
-    SAFE_DELETE(m_skybox);
 }
 
 bool ModelViewer::Initialize()
@@ -36,65 +36,59 @@ bool ModelViewer::Initialize()
 
     AppBase::InitCubemap(L"../../Asset/Skybox/", L"DGarden_specularIBL.dds");
 
-    {
-        CREATE_OBJ(m_skybox, Model);
-        MeshData cube = GeometryGenerator::MakeCube(50.0f, 50.0f, 50.0f);
-        m_skybox->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
-    }
+    //// Create the coordinate controller.
+    //{
+    //    CREATE_MODEL_OBJ(m_coordController);
+    //    {
+    //        const float radius = 0.3f;
 
-    // Create the coordinate controller.
-    {
-        CREATE_MODEL_OBJ(m_coordController);
-        {
-            const float radius = 0.3f;
+    //        MeshData sphere              = GeometryGenerator::MakeSphere(radius, 25, 25);
+    //        sphere.albedoTextureFilename = "../../Asset/CoordTexture.png";
+    //        m_coordController->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {sphere});
+    //        m_coordController->GetMaterialConstCPU().texFlag = true;
+    //        m_coordController->UpdateWorldMatrix(Matrix::CreateTranslation(m_controllerCenter));
 
-            MeshData sphere              = GeometryGenerator::MakeSphere(radius, 25, 25);
-            sphere.albedoTextureFilename = "../../Asset/CoordTexture.png";
-            m_coordController->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {sphere});
-            m_coordController->GetMaterialConstCPU().texFlag = true;
-            m_coordController->UpdateWorldMatrix(Matrix::CreateTranslation(m_controllerCenter));
+    //        // bounding sphere.
+    //        m_boundingSphere = BoundingSphere(Vector3(m_controllerCenter), radius);
+    //    }
+    //}
 
-            // bounding sphere.
-            m_boundingSphere = BoundingSphere(Vector3(m_controllerCenter), radius);
-        }
-    }
+    //// Create the model.
+    //{
+    //    m_model = new SkinnedMeshModel;
+    //    if (!m_model)
+    //    {
+    //        return false;
+    //    }
+    //    {
+    //        m_basPath   = "../../Asset/Model/";
+    //        m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
+    //                       "Walking Backward.fbx"};
 
-    // Create the model.
-    {
-        m_model = new SkinnedMeshModel;
-        if (!m_model)
-        {
-            return false;
-        }
-        {
-            m_basPath   = "../../Asset/Model/";
-            m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
-                           "Walking Backward.fbx"};
+    //        AnimationData animData = {};
+    //        for (const auto &clip : m_animClips)
+    //        {
+    //            auto [_, anim] = GeometryGenerator::ReadFromAnimationFile(m_basPath.c_str(), clip.c_str());
 
-            AnimationData animData = {};
-            for (const auto &clip : m_animClips)
-            {
-                auto [_, anim] = GeometryGenerator::ReadFromAnimationFile(m_basPath.c_str(), clip.c_str());
+    //            if (animData.clips.empty())
+    //            {
+    //                animData = anim;
+    //            }
+    //            else
+    //            {
+    //                animData.clips.push_back(anim.clips.front());
+    //            }
+    //        }
 
-                if (animData.clips.empty())
-                {
-                    animData = anim;
-                }
-                else
-                {
-                    animData.clips.push_back(anim.clips.front());
-                }
-            }
+    //        auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model.fbx");
 
-            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model.fbx");
-
-            ((SkinnedMeshModel *)m_model)
-                ->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material, animData);
-            m_model->GetMaterialConstCPU().texFlag = m_useTexture;
-            m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
-            m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-        }
-    }
+    //        ((SkinnedMeshModel *)m_model)
+    //            ->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material, animData);
+    //        m_model->GetMaterialConstCPU().texFlag = m_useTexture;
+    //        m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
+    //        m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
+    //    }
+    //}
 
     //// Create the terrain
     //{
@@ -125,19 +119,36 @@ bool ModelViewer::Initialize()
 
     // WaitForPreviousFrame();
 
+    // Create the sphere.
+    {
+        Model *obj = nullptr;
+        CREATE_MODEL_OBJ(obj);
+        {
+            MeshData sphere = GeometryGenerator::MakeSphere(1.0f, 25, 25);
+            obj->Initialize(m_device, m_commandList, {sphere});
+            obj->GetMaterialConstCPU().ambient  = Vector3(0.2f);
+            obj->GetMaterialConstCPU().diffuse  = Vector3(0.5f);
+            obj->GetMaterialConstCPU().specular = Vector3(0.5f);
+            obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(0.0f, 1.0f, 0.0f)));
+        }
+        m_opaqueList.push_back(obj);
+    }
+
     // Create the ground.
     {
-        CREATE_MODEL_OBJ(m_ground);
+        Model *ground = nullptr;
+        CREATE_MODEL_OBJ(ground);
         {
             MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
             square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
-            m_ground->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {square});
-            m_ground->GetMaterialConstCPU().ambient  = Vector3(0.2f);
-            m_ground->GetMaterialConstCPU().diffuse  = Vector3(0.0f);
-            m_ground->GetMaterialConstCPU().specular = Vector3(0.8f);
-            m_ground->GetMaterialConstCPU().texFlag  = false;
-            // m_ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
+            ground->Initialize(m_device, m_commandList, {square});
+            ground->GetMaterialConstCPU().ambient  = Vector3(0.2f);
+            ground->GetMaterialConstCPU().diffuse  = Vector3(0.0f);
+            ground->GetMaterialConstCPU().specular = Vector3(0.8f);
+            ground->GetMaterialConstCPU().texFlag  = true;
+            ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
         }
+        m_opaqueList.push_back(ground);
     }
 
     ThrowIfFailed(m_commandList->Close());
@@ -156,165 +167,159 @@ void ModelViewer::Update(const float dt)
 
     UpdateCamera(dt);
 
-    ChangeModel();
+    // ChangeModel();
 
-    {
-        m_coordController->GetMaterialConstCPU().diffuse = XMFLOAT3(1.0f, 1.0f, 1.0f);
-        m_coordController->Update();
-    }
+    //{
+    //    m_coordController->GetMaterialConstCPU().diffuse = XMFLOAT3(1.0f, 1.0f, 1.0f);
+    //    m_coordController->Update();
+    //}
 
-    // picking
-    {
-        if (m_leftButtonDown)
-        {
-            Vector4 ndcNear = Vector4(m_ndcX, m_ndcY, 0.0f, 1.0f);
-            Vector4 ndcFar  = Vector4(m_ndcX, m_ndcY, 1.0f, 1.0f);
+    //// picking
+    //{
+    //    if (m_leftButtonDown)
+    //    {
+    //        Vector4 ndcNear = Vector4(m_ndcX, m_ndcY, 0.0f, 1.0f);
+    //        Vector4 ndcFar  = Vector4(m_ndcX, m_ndcY, 1.0f, 1.0f);
 
-            auto viewRow = m_camera->GetViewMatrix();
-            auto projRow = m_camera->GetProjectionMatrix();
+    //        auto viewRow = m_camera->GetViewMatrix();
+    //        auto projRow = m_camera->GetProjectionMatrix();
 
-            auto InverseViewProjection = (viewRow * projRow).Invert();
+    //        auto InverseViewProjection = (viewRow * projRow).Invert();
 
-            auto worldNear = Vector4::Transform(ndcNear, InverseViewProjection);
-            auto worldFar  = Vector4::Transform(ndcFar, InverseViewProjection);
-            worldNear /= worldNear.w;
-            worldFar /= worldFar.w;
+    //        auto worldNear = Vector4::Transform(ndcNear, InverseViewProjection);
+    //        auto worldFar  = Vector4::Transform(ndcFar, InverseViewProjection);
+    //        worldNear /= worldNear.w;
+    //        worldFar /= worldFar.w;
 
-            Vector3 worldNear3 = Vector3(worldNear);
-            Vector3 worldFar3  = Vector3(worldFar);
+    //        Vector3 worldNear3 = Vector3(worldNear);
+    //        Vector3 worldFar3  = Vector3(worldFar);
 
-            Vector3 dir = worldFar3 - worldNear3;
-            dir.Normalize();
+    //        Vector3 dir = worldFar3 - worldNear3;
+    //        dir.Normalize();
 
-            SimpleMath::Ray curRay = SimpleMath::Ray(worldNear3, dir);
-            float dist             = 0.0f;
-            bool isPicking         = false;
+    //        SimpleMath::Ray curRay = SimpleMath::Ray(worldNear3, dir);
+    //        float dist             = 0.0f;
+    //        bool isPicking         = false;
 
-            // 화면이 Imgui 크기 만큼 차지하고 있어 마우스의 ndc scale이 변경되었음.
-            // 현재 수정 완료.
-            m_boundingSphere.Center = Vector3::Transform(m_controllerCenter, viewRow.Invert());
-            isPicking               = curRay.Intersects(m_boundingSphere, dist);
-            if (isPicking)
-            {
-                Vector3 collesionPositon = worldNear3 + dist * dir;
+    //        // 화면이 Imgui 크기 만큼 차지하고 있어 마우스의 ndc scale이 변경되었음.
+    //        // 현재 수정 완료.
+    //        m_boundingSphere.Center = Vector3::Transform(m_controllerCenter, viewRow.Invert());
+    //        isPicking               = curRay.Intersects(m_boundingSphere, dist);
+    //        if (isPicking)
+    //        {
+    //            Vector3 collesionPositon = worldNear3 + dist * dir;
 
-                SimpleMath::Quaternion q;
-                static Vector3 prevVector(0.0f);
-                if (m_leftButtonDragStart)
-                {
-                    m_leftButtonDragStart = false;
-                    prevVector            = collesionPositon - m_boundingSphere.Center;
-                    prevVector.Normalize();
-                }
-                else
-                {
-                    Vector3 currentVector = collesionPositon - m_boundingSphere.Center;
-                    currentVector.Normalize();
+    //            SimpleMath::Quaternion q;
+    //            static Vector3 prevVector(0.0f);
+    //            if (m_leftButtonDragStart)
+    //            {
+    //                m_leftButtonDragStart = false;
+    //                prevVector            = collesionPositon - m_boundingSphere.Center;
+    //                prevVector.Normalize();
+    //            }
+    //            else
+    //            {
+    //                Vector3 currentVector = collesionPositon - m_boundingSphere.Center;
+    //                currentVector.Normalize();
 
-                    if ((currentVector - prevVector).Length() > 1e-5)
-                    {
-                        q          = SimpleMath::Quaternion::FromToRotation(prevVector, currentVector);
-                        prevVector = currentVector;
-                    }
-                }
+    //                if ((currentVector - prevVector).Length() > 1e-5)
+    //                {
+    //                    q          = SimpleMath::Quaternion::FromToRotation(prevVector, currentVector);
+    //                    prevVector = currentVector;
+    //                }
+    //            }
 
-                auto translation = m_coordController->GetWorldRow().Translation();
-                m_coordController->GetWorldRow().Translation(Vector3(0.0f));
-                m_coordController->UpdateWorldMatrix(m_coordController->GetWorldRow() *
-                                                     Matrix::CreateFromQuaternion(q) *
-                                                     Matrix::CreateTranslation(translation));
+    //            auto translation = m_coordController->GetWorldRow().Translation();
+    //            m_coordController->GetWorldRow().Translation(Vector3(0.0f));
+    //            m_coordController->UpdateWorldMatrix(m_coordController->GetWorldRow() *
+    //                                                 Matrix::CreateFromQuaternion(q) *
+    //                                                 Matrix::CreateTranslation(translation));
 
-                translation = m_model->GetWorldRow().Translation();
-                m_model->GetWorldRow().Translation(Vector3(0.0f));
-                m_model->UpdateWorldMatrix(m_model->GetWorldRow() * Matrix::CreateFromQuaternion(q) *
-                                           Matrix::CreateTranslation(translation));
-            }
-        }
-    }
+    //            translation = m_model->GetWorldRow().Translation();
+    //            m_model->GetWorldRow().Translation(Vector3(0.0f));
+    //            m_model->UpdateWorldMatrix(m_model->GetWorldRow() * Matrix::CreateFromQuaternion(q) *
+    //                                       Matrix::CreateTranslation(translation));
+    //        }
+    //    }
+    //}
 
-    m_model->Update();
+    // m_model->Update();
 
-    SkinnedMeshModel *model = dynamic_cast<SkinnedMeshModel *>(m_model);
+    // SkinnedMeshModel *model = dynamic_cast<SkinnedMeshModel *>(m_model);
 
-    if (model != nullptr)
-    {
-        if (((SkinnedMeshModel *)m_model)->GetAnim().clips.size() > 0)
-        {
-            // update animation.
+    // if (model != nullptr)
+    //{
+    //     if (((SkinnedMeshModel *)m_model)->GetAnim().clips.size() > 0)
+    //     {
+    //         // update animation.
 
-            {
-                static int frameCount = 0;
-                static int state      = 0;
+    //        {
+    //            static int frameCount = 0;
+    //            static int state      = 0;
 
-                if (GameInput::IsFirstPressed(GameInput::kKey_up))
-                {
-                    if (state == 0)
-                    {
-                        state = 1;
-                    }
-                }
-                if (GameInput::IsFirstPressed(GameInput::kKey_right))
-                {
-                    if (state == 0)
-                    {
-                        state = 2;
-                    }
-                }
-                if (GameInput::IsFirstPressed(GameInput::kKey_left))
-                {
-                    if (state == 0)
-                    {
-                        state = 3;
-                    }
-                }
-                if (GameInput::IsFirstPressed(GameInput::kKey_down))
-                {
-                    if (state == 0)
-                    {
-                        state = 4;
-                    }
-                }
+    //            if (GameInput::IsFirstPressed(GameInput::kKey_up))
+    //            {
+    //                if (state == 0)
+    //                {
+    //                    state = 1;
+    //                }
+    //            }
+    //            if (GameInput::IsFirstPressed(GameInput::kKey_right))
+    //            {
+    //                if (state == 0)
+    //                {
+    //                    state = 2;
+    //                }
+    //            }
+    //            if (GameInput::IsFirstPressed(GameInput::kKey_left))
+    //            {
+    //                if (state == 0)
+    //                {
+    //                    state = 3;
+    //                }
+    //            }
+    //            if (GameInput::IsFirstPressed(GameInput::kKey_down))
+    //            {
+    //                if (state == 0)
+    //                {
+    //                    state = 4;
+    //                }
+    //            }
 
-                if (GameInput::IsPressed(GameInput::kKey_up))
-                {
-                    state = 1;
-                    m_model->MoveFront(dt);
-                }
-                else if (GameInput::IsPressed(GameInput::kKey_right))
-                {
-                    state = 2;
-                    m_model->MoveRight(dt);
-                }
-                else if (GameInput::IsPressed(GameInput::kKey_left))
-                {
-                    state = 3;
-                    m_model->MoveLeft(dt);
-                }
-                else if (GameInput::IsPressed(GameInput::kKey_down))
-                {
-                    state = 4;
-                    m_model->MoveBack(dt);
-                }
-                else
-                {
-                    state = 0;
-                }
+    //            if (GameInput::IsPressed(GameInput::kKey_up))
+    //            {
+    //                state = 1;
+    //                m_model->MoveFront(dt);
+    //            }
+    //            else if (GameInput::IsPressed(GameInput::kKey_right))
+    //            {
+    //                state = 2;
+    //                m_model->MoveRight(dt);
+    //            }
+    //            else if (GameInput::IsPressed(GameInput::kKey_left))
+    //            {
+    //                state = 3;
+    //                m_model->MoveLeft(dt);
+    //            }
+    //            else if (GameInput::IsPressed(GameInput::kKey_down))
+    //            {
+    //                state = 4;
+    //                m_model->MoveBack(dt);
+    //            }
+    //            else
+    //            {
+    //                state = 0;
+    //            }
 
-                if (m_aniPlayFlag)
-                    state = m_selectedAnim;
+    //            if (m_aniPlayFlag)
+    //                state = m_selectedAnim;
 
-                ((SkinnedMeshModel *)m_model)->UpdateAnimation(state, frameCount++);
-            }
-        }
-    }
+    //            ((SkinnedMeshModel *)m_model)->UpdateAnimation(state, frameCount++);
+    //        }
+    //    }
+    //}
 
-    // etc...
-    {
-        // m_box->Update();
-        m_skybox->Update();
-        m_ground->Update();
-    }
-
+    // update light.
     UpdateLights();
 }
 
@@ -331,22 +336,28 @@ void ModelViewer::Render()
     // m_commandList->SetPipelineState(m_box->GetPSO());
     // m_box->Render(m_device, m_commandList);
 
-    m_commandList->SetPipelineState(m_ground->GetPSO(m_isWireFrame));
-    m_ground->Render(m_commandList);
+    m_commandList->RSSetViewports(1, &Graphics::mainViewport);
+    m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
 
-    if (m_drawAsNormal)
+    for (uint32_t i = 0; i < 3; i++)
     {
-        // Set normal PSO
-        m_commandList->SetPipelineState(Graphics::normalPSO);
-        m_model->RenderNormal(m_commandList);
+        if (m_light[i].type == POINT_LIGHT)
+        {
+            m_commandList->SetPipelineState(m_lightSpheres[0]->GetPSO(m_isWireFrame));
+            m_lightSpheres[0]->Render(m_commandList);
+        }
+        if (m_light[i].type == SPOT_LIGHT)
+        {
+            m_commandList->SetPipelineState(m_lightSpheres[1]->GetPSO(m_isWireFrame));
+            m_lightSpheres[1]->Render(m_commandList);
+        }
     }
-
-    m_commandList->SetPipelineState(Graphics::skyboxPSO);
-    m_skybox->Render(m_commandList);
 }
 
 void ModelViewer::UpdateGui(const float frameRate)
 {
+    using namespace Display;
+
     ImGuiWindowFlags window_flags = 0;
     if (false)
         window_flags |= ImGuiWindowFlags_NoTitleBar;
@@ -382,14 +393,10 @@ void ModelViewer::UpdateGui(const float frameRate)
     g_imguiHeight = float(g_screenHeight);
     ImGui::SetWindowSize(ImVec2(float(g_imguiWidth), float(g_imguiHeight)));
     ImGui::SetWindowPos(ImVec2(float(g_screenWidth - g_imguiWidth), 0.0f));
-    D3D12_VIEWPORT viewport = {};
-    viewport.TopLeftX       = 0;
-    viewport.TopLeftY       = 0;
-    viewport.MinDepth       = 0.0f;
-    viewport.MaxDepth       = 1.0f;
-    viewport.Width          = (FLOAT)g_screenWidth - g_imguiWidth;
-    viewport.Height         = (FLOAT)g_screenHeight;
-    this->SetViewport(viewport);
+
+    Graphics::mainViewport =
+        D3DUtils::CreateViewport(0.0f, 0.0f, (float)(g_screenWidth - g_imguiWidth), g_screenHeight);
+    Graphics::mainSissorRect = D3DUtils::CreateScissorRect(0, 0, g_screenWidth - g_imguiWidth, g_screenHeight);
 
     ImGui::Text("App average %.3f ms/frame (%.1f FPS)", 1000.0f / frameRate, frameRate);
     auto cameraSpeed = m_camera->GetCameraSpeed();
@@ -541,13 +548,90 @@ void ModelViewer::UpdateGui(const float frameRate)
     // Light
     if (ImGui::CollapsingHeader("Lights"))
     {
-        ImGui::SliderFloat3("light direction", &m_light.direction.x, -2.0f, 2.0f);
-        ImGui::SliderFloat3("light position", &m_light.position.x, -2.0f, 2.0f);
-        ImGui::SliderFloat("Spot power", &m_light.spotPower, 1.0f, 256.0f);
-        ImGui::SliderFloat("light Shininess", &m_light.shininess, 1.0f, 256.0f);
+        ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+        if (ImGui::TreeNode("Directional Light"))
+        {
+            ImGui::Checkbox("Use directional light", &m_useDL);
+            ImGui::Text("Current light direction: (%.0f, %.0f, %.0f)", m_light[0].direction.x, m_light[0].direction.y,
+                        m_light[0].direction.z);
+            ImGui::SliderFloat3("light direction", &m_light[0].direction.x, -5.0f, 5.0f);
+            ImGui::TreePop();
+            ImGui::Spacing();
+        }
+
+        if (ImGui::TreeNode("Point Light"))
+        {
+            ImGui::Checkbox("Use point light", &m_usePL);
+            ImGui::SliderFloat3("light position", &m_light[1].position.x, -5.0f, 5.0f);
+            ImGui::TreePop();
+            ImGui::Spacing();
+        }
+
+        if (ImGui::TreeNode("Spot Light"))
+        {
+            ImGui::Checkbox("Use spot light", &m_useSL);
+            ImGui::SliderFloat3("light direction", &m_light[2].direction.x, -5.0f, 5.0f);
+            ImGui::SliderFloat3("light position", &m_light[2].position.x, -5.0f, 5.0f);
+            ImGui::TreePop();
+            ImGui::Spacing();
+        }
+
+        if (ImGui::TreeNode("Common"))
+        {
+            ImGui::SliderFloat("Spot power", &m_light[2].spotPower, 1.0f, 512.0f);
+            ImGui::SliderFloat("light Shininess", &m_light[1].shininess, 1.0f, 256.0f);
+            ImGui::TreePop();
+            ImGui::Spacing();
+        }
     }
 
     ImGui::End();
+}
+
+void ModelViewer::InitLights()
+{
+    AppBase::InitLights();
+}
+
+void ModelViewer::UpdateLights()
+{
+    AppBase::UpdateLights();
+
+    if (m_useDL)
+        m_light[0].type |= DIRECTIONAL_LIGHT;
+    else
+        m_light[0].type &= LIGHT_OFF;
+
+    if (m_usePL)
+        m_light[1].type |= POINT_LIGHT;
+    else
+        m_light[1].type &= LIGHT_OFF;
+
+    if (m_useSL)
+        m_light[2].type |= SPOT_LIGHT;
+    else
+        m_light[2].type &= LIGHT_OFF;
+
+    m_globalConstData.lights[0] = m_light[0];
+    m_globalConstData.lights[1] = m_light[1];
+    m_globalConstData.lights[2] = m_light[2];
+
+    for (uint32_t i = 0; i < 3; i++)
+    {
+        if (m_light[i].type == POINT_LIGHT)
+        {
+            m_lightSpheres[0]->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(m_light[i].position)));
+        }
+        if (m_light[i].type == SPOT_LIGHT)
+        {
+            m_lightSpheres[1]->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(m_light[i].position)));
+        }
+    }
+
+    for (const auto &l : m_lightSpheres)
+    {
+        l->Update();
+    }
 }
 
 void ModelViewer::ChangeModel()
@@ -562,7 +646,7 @@ void ModelViewer::ChangeModel()
             GeometryGenerator::ReadFromModelFile(m_openModelFileBasePath.c_str(), m_openModelFileName.c_str());
 
         // model을 재사용 할 수 있도록 수정
-        m_model->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material);
+        m_model->Initialize(m_device, m_commandList, model, material);
         m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
         m_model->GetMaterialConstCPU().texFlag = false;
         m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));

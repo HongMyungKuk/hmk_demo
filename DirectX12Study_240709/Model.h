@@ -13,9 +13,7 @@ class Model
     virtual ~Model();
 
   public:
-    void Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
-                    ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
-                    std::vector<MeshData> meshes,
+    void Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, std::vector<MeshData> meshes,
                     std::vector<MaterialConsts> materials = {}); // const buffer, mesh data
     virtual void Update();
     virtual void Render(ID3D12GraphicsCommandList *commandList);
@@ -24,9 +22,8 @@ class Model
 
   private:
     virtual void BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshData);
-    void BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
-                      ID3D12CommandAllocator *commandAllocator, ID3D12CommandQueue *commandQueue,
-                      const std::string &filename, ID3D12Resource **texture, ID3D12Resource **uploadTexture, DescriptorHandle& handle);
+    void BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, const std::string &filename,
+                      ID3D12Resource **texture, ID3D12Resource **uploadTexture, DescriptorHandle &handle);
     void DestroyMeshBuffers();
     void DestroyTextureResource();
 
@@ -78,8 +75,8 @@ class Model
     ID3D12PipelineState *m_pipelineState   = nullptr;
     std::vector<Mesh> m_meshes             = {};
     std::vector<MaterialConsts> m_material = {};
-    uint32_t m_descRef                      = 0;
-    uint32_t m_descNum                      = 300;
+    uint32_t m_descRef                     = 0;
+    uint32_t m_descNum                     = 300;
 
     UploadBuffer<MeshConsts> m_meshUpload;
     UploadBuffer<MaterialConsts> m_materialUpload;
@@ -102,7 +99,6 @@ class Model
         END,
     };
     float m_speed[END] = {0.0005f, 0.0005f, 0.00025f};
-
 
     uint32_t m_cbvDescriptorSize = 0;
 };

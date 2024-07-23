@@ -1,6 +1,9 @@
 #pragma once
 
+namespace Graphics
+{
 extern ID3D12Device *g_Device;
+}
 
 class DescriptorAllocator
 {
@@ -58,6 +61,11 @@ class DescriptorHandle
         return m_CPU;
     }
 
+    operator D3D12_CPU_DESCRIPTOR_HANDLE() 
+    {
+        return m_CPU;
+    }
+
     operator D3D12_GPU_DESCRIPTOR_HANDLE() const
     {
         return m_GPU;
@@ -90,11 +98,11 @@ class DescriptorHeap
         desc.NumDescriptors = maxCount;
         desc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // D3D12_DESCRIPTOR_HEAP_FLAG_NONE
         desc.NodeMask       = 0;
-        ThrowIfFailed(g_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_descriptorHeap)));
+        ThrowIfFailed(Graphics::g_Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_descriptorHeap)));
 
         m_firstHandle       = DescriptorHandle(m_descriptorHeap->GetCPUDescriptorHandleForHeapStart(),
                                                m_descriptorHeap->GetGPUDescriptorHandleForHeapStart());
-        m_descriptorSize    = g_Device->GetDescriptorHandleIncrementSize(type);
+        m_descriptorSize    = Graphics::g_Device->GetDescriptorHandleIncrementSize(type);
         m_numFreeDescriptor = desc.NumDescriptors;
         m_secondHandle      = m_firstHandle;
     }

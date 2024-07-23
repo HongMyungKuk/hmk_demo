@@ -8,8 +8,8 @@ void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int
 void ReadImage(uint8_t **image, int &w, int &h, int &c, XMFLOAT3 color);
 
 ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
-                                      const std::string &filename,
-                             ID3D12Resource **texture, D3D12_CPU_DESCRIPTOR_HANDLE &descHandle, XMFLOAT3 color)
+                                        const std::string &filename, ID3D12Resource **texture,
+                                        D3D12_CPU_DESCRIPTOR_HANDLE &descHandle, XMFLOAT3 color)
 {
     int32_t width = 0, height = 0, channels = 0;
 
@@ -68,7 +68,7 @@ ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsComm
     device->CreateShaderResourceView(*texture, &srvDesc, descHandle);
 
     SAFE_ARR_DELETE(image);
-    
+
     return textureUploadHeap;
 }
 
@@ -118,6 +118,30 @@ void D3DUtils::CreateShader(const std::wstring filename, ID3DBlob **vsShader, co
 
     // error 가 있는 상태에서 ptr 을 free하게 되면 에러 발생함.
     SAFE_DELETE(errorBlob);
+}
+
+D3D12_VIEWPORT D3DUtils::CreateViewport(const float xLT, const float yLT, const float w, const float h,
+                                        const float minDepth, const float maxDepth)
+{
+    D3D12_VIEWPORT ret;
+    ret.TopLeftX = xLT;
+    ret.TopLeftY = yLT;
+    ret.MinDepth = 0.0f;
+    ret.MaxDepth = 1.0f;
+    ret.Width    = (FLOAT)w;
+    ret.Height   = (FLOAT)h;
+    return ret;
+}
+
+D3D12_RECT D3DUtils::CreateScissorRect(const long left, const long top, const long right, const long bottom)
+{
+    D3D12_RECT ret;
+    ret.left   = left;
+    ret.top    = top;
+    ret.right  = right;
+    ret.bottom = bottom;
+
+    return ret;
 }
 
 void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int &c)

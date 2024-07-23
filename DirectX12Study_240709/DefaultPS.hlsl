@@ -10,22 +10,14 @@ float4 main(PSInput input) : SV_TARGET
     
     float3 normalWorld = input.normalWorld;
     
-    //int i = 0;
-    //[unroll]
-    //for (i = 0; i < NUM_DIRECTIONAL_LIGHTS; i++)
-    //{
-    //    color += ComputeDirectionalLight(light[i], toEye, normalWorld);
-    //}
-    //[unroll]
-    //for (i = NUM_DIRECTIONAL_LIGHTS; i < NUM_DIRECTIONAL_LIGHTS + NUM_POINT_LIGHTS; i++)
-    //{
-    //    color += ComputePointLights(light[i], input.posWorld, toEye, normalWorld);
-    //}
-    //[unroll]
-    //for (i = NUM_DIRECTIONAL_LIGHTS + NUM_POINT_LIGHTS; i < NUM_DIRECTIONAL_LIGHTS + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS; i++)
-    //{
-    //    color += ComputeSpotLight(light[i], input.posWorld, toEye, normalWorld);
-    //}
+    if (texFlag)
+    {
+        color = albedoTexture.Sample(linearWrapSS, input.texCoord).xyz;
+    }
+    else
+    {
+        color = ambient;
+    }
     
     int i = 0;
     
@@ -36,15 +28,12 @@ float4 main(PSInput input) : SV_TARGET
         {
             Light L = light[i];
             
-            color += (L.type & DIRECTIONAL_LIGHT) ? ComputeDirectionalLight(L, toEye, normalWorld) : float3(0.0, 1.0, 0.0);
-            color += (L.type & POINT_LIGHT) ? ComputePointLights(L, input.posWorld, toEye, normalWorld) : float3(0.0, 1.0, 0.0);
-            color += (L.type & SPOT_LIGHT) ? ComputeSpotLight(L, input.posWorld, toEye, normalWorld) : float3(0.0, 1.0, 0.0);
+            // 이러한 방식은 3개의 조명이 중첩 됐을때 너무 밝아진다.
+            // 다른 방식을 강구...
+            color += (L.type & DIRECTIONAL_LIGHT) ? ComputeDirectionalLight(L, toEye, normalWorld) : 0.0;
+            color += (L.type & POINT_LIGHT) ? ComputePointLights(L, input.posWorld, toEye, normalWorld) : 0.0;
+            color += (L.type & SPOT_LIGHT) ? ComputeSpotLight(L, input.posWorld, toEye, normalWorld) : 0.0;
         }
-    }
-    
-    if (texFlag)
-    {
-        color = albedoTexture.Sample(linearWrapSS, input.texCoord).xyz;
     }
     
     return float4(color, 1.0);
