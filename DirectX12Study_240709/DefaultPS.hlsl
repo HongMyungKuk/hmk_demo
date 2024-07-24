@@ -1,7 +1,5 @@
 #include "Common.hlsli"
 
-Texture2D albedoTexture : register(t1);
-
 float4 main(PSInput input) : SV_TARGET
 {
     float3 color = 0.0;

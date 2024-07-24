@@ -12,6 +12,7 @@ namespace Graphics
 {
 
 extern D3D12_STATIC_SAMPLER_DESC slinearWrapSamplerDesc;
+extern D3D12_STATIC_SAMPLER_DESC slinearClampSamplerDesc;
 extern std::vector<D3D12_STATIC_SAMPLER_DESC> vecSamplerDesc;
 
 extern D3D12_RASTERIZER_DESC solidCW;

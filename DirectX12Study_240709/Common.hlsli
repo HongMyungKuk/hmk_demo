@@ -8,8 +8,11 @@
 #define LIGHT_OFF         0x00;
 
 SamplerState linearWrapSS : register(s0);
+SamplerState linearClampSS : register(s1);
 
 TextureCube envTexture : register(t0);
+Texture2D albedoTexture : register(t1);
+Texture2D shadowMap[3] : register(t2);
 
 // #define SKINNED 1
 

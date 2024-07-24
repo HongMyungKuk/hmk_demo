@@ -339,6 +339,14 @@ void ModelViewer::Render()
     m_commandList->RSSetViewports(1, &Graphics::mainViewport);
     m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
 
+    // Root signature 이후에 변경 .... 방법 찾기
+    m_commandList->SetGraphicsRootSignature(Graphics::defaultRootSignature);
+    m_commandList->SetGraphicsRootConstantBufferView(0, m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
+
+    ID3D12DescriptorHeap *descHeaps[] = {Graphics::s_Texture.Get()};
+    m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+    m_commandList->SetGraphicsRootDescriptorTable(3, Graphics::s_Texture[1]);
+
     for (uint32_t i = 0; i < 3; i++)
     {
         if (m_light[i].type == POINT_LIGHT)
@@ -388,11 +396,11 @@ void ModelViewer::UpdateGui(const float frameRate)
         return;
     }
 
-    // size tuning.
-    g_imguiWidth  = float(g_screenWidth) / 4.0f;
-    g_imguiHeight = float(g_screenHeight);
-    ImGui::SetWindowSize(ImVec2(float(g_imguiWidth), float(g_imguiHeight)));
-    ImGui::SetWindowPos(ImVec2(float(g_screenWidth - g_imguiWidth), 0.0f));
+    //// size tuning.
+    //g_imguiWidth  = float(g_screenWidth) / 4.0f;
+    //g_imguiHeight = float(g_screenHeight);
+    //ImGui::SetWindowSize(ImVec2(float(g_imguiWidth), float(g_imguiHeight)));
+    //ImGui::SetWindowPos(ImVec2(float(g_screenWidth - g_imguiWidth), 0.0f));
 
     Graphics::mainViewport =
         D3DUtils::CreateViewport(0.0f, 0.0f, (float)(g_screenWidth - g_imguiWidth), g_screenHeight);
@@ -488,8 +496,8 @@ void ModelViewer::UpdateGui(const float frameRate)
     {
         ImGui::Text("Mouse Xpos: %.3f", m_mouseX);
         ImGui::Text("Mouse Ypos: %.3f", m_mouseY);
-        ImGui::Text("Eye position: %.1f, %1f, %1f", m_globalConstData.eyeWorld.x, m_globalConstData.eyeWorld.y,
-                    m_globalConstData.eyeWorld.z);
+        ImGui::Text("Eye position: %.1f, %1f, %1f", m_globalConstsData.eyeWorld.x, m_globalConstsData.eyeWorld.y,
+                    m_globalConstsData.eyeWorld.z);
     }
     // Mouse & keyboard
     if (ImGui::CollapsingHeader("Animation list"))
@@ -612,9 +620,9 @@ void ModelViewer::UpdateLights()
     else
         m_light[2].type &= LIGHT_OFF;
 
-    m_globalConstData.lights[0] = m_light[0];
-    m_globalConstData.lights[1] = m_light[1];
-    m_globalConstData.lights[2] = m_light[2];
+    m_globalConstsData.lights[0] = m_light[0];
+    m_globalConstsData.lights[1] = m_light[1];
+    m_globalConstsData.lights[2] = m_light[2];
 
     for (uint32_t i = 0; i < 3; i++)
     {

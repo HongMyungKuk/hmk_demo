@@ -5,6 +5,8 @@ namespace Graphics
 extern ID3D12Device *g_Device;
 }
 
+#include "DescriptorHeap.h"
+
 class DepthBuffer
 {
   public:
@@ -18,7 +20,7 @@ class DepthBuffer
         return m_dsv;
     }
 
-    const D3D12_CPU_DESCRIPTOR_HANDLE &GetSRV()
+    const DescriptorHandle &GetSRV()
     {
         return m_srv;
     }
@@ -29,7 +31,7 @@ class DepthBuffer
     }
 
   private:
-    ID3D12Resource *m_resource           = nullptr;
+    ID3D12Resource *m_resource        = nullptr;
     D3D12_CPU_DESCRIPTOR_HANDLE m_dsv = {}; // [0] : backbuffer depth, [1] : depth only
-    D3D12_CPU_DESCRIPTOR_HANDLE m_srv    = {};
+    DescriptorHandle m_srv            = {};
 };

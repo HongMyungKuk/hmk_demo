@@ -1,15 +1,29 @@
 #include "Common.hlsli"
 
-Texture2D depthMap : register(t0);
-
 struct PixelShaderInput
 {
     float4 posModel : SV_POSITION;
     float2 texCoord : TEXCOORD;
 };
 
-float4 main(PixelShaderInput input) : SV_TARGET
-{   
-    return depthMap.Sample(linearWrapSS, input.texCoord);
+float3 TextureToView(float2 texCoord)
+{
+    float4 p = 0.0;
+    
+    p.x = texCoord.x * 2.0 - 1.0;
+    p.y = -texCoord.y * 2.0 + 1.0;
+    p.z = shadowMap[1].Sample(linearWrapSS, texCoord).r;
+    p.w = 1.0;
+    
+    p = mul(p, projInv);
+    p /= p.w;
+    
+    return p.xyz;
+}
 
+float4 main(PixelShaderInput input) : SV_TARGET
+{
+    float z = TextureToView(input.texCoord).z;
+    
+    return float4(z, z, z, 1.0) * 0.01f;
 }

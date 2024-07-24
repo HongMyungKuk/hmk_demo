@@ -15,7 +15,6 @@ DepthBuffer::~DepthBuffer()
 void DepthBuffer::Create(uint32_t w, uint32_t h, DXGI_FORMAT format, bool depthOnly)
 {
     m_dsv = Graphics::AllocateDesciptor(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-    m_srv = Graphics::AllocateDesciptor(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     D3D12_RESOURCE_DESC depthStencilDesc  = {};
     D3D12_CLEAR_VALUE optClear            = {};
@@ -51,6 +50,7 @@ void DepthBuffer::Create(uint32_t w, uint32_t h, DXGI_FORMAT format, bool depthO
     }
     else
     {
+        m_srv = Graphics::s_Texture.Alloc(1);
         // depth only
         depthStencilDesc.Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
         depthStencilDesc.Alignment          = 0;
@@ -58,14 +58,14 @@ void DepthBuffer::Create(uint32_t w, uint32_t h, DXGI_FORMAT format, bool depthO
         depthStencilDesc.Height             = (UINT64)h;
         depthStencilDesc.DepthOrArraySize   = 1;
         depthStencilDesc.MipLevels          = 1;
-        depthStencilDesc.Format             = format;
+        depthStencilDesc.Format             = DXGI_FORMAT_R24G8_TYPELESS;
         depthStencilDesc.SampleDesc.Count   = 1;
         depthStencilDesc.SampleDesc.Quality = 0;
         depthStencilDesc.Layout             = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         depthStencilDesc.Flags              = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
         D3D12_CLEAR_VALUE optClear;
-        optClear.Format               = DXGI_FORMAT_D32_FLOAT;
+        optClear.Format               = DXGI_FORMAT_D24_UNORM_S8_UINT;
         optClear.DepthStencil.Depth   = 1.0f;
         optClear.DepthStencil.Stencil = 0;
 
@@ -75,14 +75,14 @@ void DepthBuffer::Create(uint32_t w, uint32_t h, DXGI_FORMAT format, bool depthO
 
         dsvDesc.Flags              = D3D12_DSV_FLAG_NONE;
         dsvDesc.ViewDimension      = D3D12_DSV_DIMENSION_TEXTURE2D;
-        dsvDesc.Format             = DXGI_FORMAT_D32_FLOAT;
+        dsvDesc.Format             = DXGI_FORMAT_D24_UNORM_S8_UINT;
         dsvDesc.Texture2D.MipSlice = 0;
         Graphics::g_Device->CreateDepthStencilView(m_resource, &dsvDesc, m_dsv);
 
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
         srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURE2D;
-        srvDesc.Format                          = DXGI_FORMAT_R32_FLOAT;
+        srvDesc.Format                          = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
         srvDesc.Texture2D.MipLevels             = 1;
         srvDesc.Texture2D.MostDetailedMip       = 0;
         Graphics::g_Device->CreateShaderResourceView(m_resource, &srvDesc, m_srv);

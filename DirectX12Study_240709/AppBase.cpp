@@ -60,7 +60,7 @@ AppBase::~AppBase()
 
     SAFE_RELEASE(m_envTexture);
     SAFE_DELETE(m_camera);
-    //SAFE_RELEASE(m_rootSignature)
+    // SAFE_RELEASE(m_rootSignature)
     SAFE_DELETE(m_timer);
     SAFE_RELEASE(m_fence);
     SAFE_RELEASE(m_commandList);
@@ -92,8 +92,8 @@ bool AppBase::Initialize()
     // Mouse & Keyboard input initialize.
     GameInput::Initialize();
 
-    this->BuildSRVDesriptorHeap();
-    this->BuildGlobalConsts();
+    // this->BuildSRVDesriptorHeap();
+    this->InitGlobalConsts();
 
     // Init graphics common.
     Graphics::InitGraphicsCommon(m_device);
@@ -133,6 +133,8 @@ void AppBase::Update(const float dt)
     }
 
     m_skybox->Update();
+
+    m_postEffects.Update(m_globalConstsData);
 }
 
 void AppBase::Render()
@@ -140,7 +142,7 @@ void AppBase::Render()
     ThrowIfFailed(m_commandAllocator->Reset());
     ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
     // Depth only pass.
-    DepthOnlyPass();
+    RenderDepthOnlyPass();
     // Render Object.
     RenderOpaqueObject();
     // Render Depth viewport
@@ -418,9 +420,10 @@ void AppBase::GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdap
     SAFE_RELEASE(factory6);
 }
 
-void AppBase::BuildGlobalConsts()
+void AppBase::InitGlobalConsts()
 {
     m_globalConstsBuffer.Initialize(m_device, 1);
+    m_shadowConstBuffers.Initialize(m_device, MAX_LIGHTS);
 }
 
 void AppBase::UpdateGlobalConsts(const float dt)
@@ -429,14 +432,43 @@ void AppBase::UpdateGlobalConsts(const float dt)
     auto viewRow = m_camera->GetViewMatrix();
     auto projRow = m_camera->GetProjectionMatrix();
 
-    m_globalConstData.eyeWorld    = eyePos;
-    m_globalConstData.view        = viewRow.Transpose();
-    m_globalConstData.viewInv     = m_globalConstData.view.Invert();
-    m_globalConstData.proj        = projRow.Transpose();
-    m_globalConstData.projInv     = m_globalConstData.proj.Invert();
-    m_globalConstData.viewProjInv = (viewRow * projRow).Invert().Transpose();
+    // global consts data.
+    m_globalConstsData.eyeWorld    = eyePos;
+    m_globalConstsData.view        = viewRow.Transpose();
+    m_globalConstsData.viewInv     = m_globalConstsData.view.Invert();
+    m_globalConstsData.proj        = projRow.Transpose();
+    m_globalConstsData.projInv     = m_globalConstsData.proj.Invert();
+    m_globalConstsData.viewProjInv = (viewRow * projRow).Invert().Transpose();
 
-    m_globalConstsBuffer.Upload(0, &m_globalConstData);
+    m_globalConstsBuffer.Upload(0, &m_globalConstsData);
+
+    // shadow consts data.
+    m_shadowConstsData[0] = m_globalConstsData;
+
+    eyePos  = m_light[1].position;
+    viewRow = XMMatrixLookToLH(eyePos, Vector3(0.0f, 0.0f, 1.0f), Vector3(0.0f, 1.0f, 0.0f));
+    projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(70.0f), 1.0f, 0.01f, 100.0f);
+
+    m_shadowConstsData[1].eyeWorld = eyePos;
+    m_shadowConstsData[1].view     = viewRow.Transpose();
+    m_shadowConstsData[1].viewInv  = m_shadowConstsData[1].view.Invert();
+    m_shadowConstsData[1].proj     = projRow.Transpose();
+    m_shadowConstsData[1].projInv  = m_shadowConstsData[1].proj.Invert();
+
+    eyePos  = m_light[2].position;
+    viewRow = XMMatrixLookToLH(eyePos, Vector3(0.0f, 0.0f, 1.0f), Vector3(0.0f, 1.0f, 0.0f));
+    projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(70.0f), 1.0f, 0.01f, 100.0f);
+
+    m_shadowConstsData[2].eyeWorld = eyePos;
+    m_shadowConstsData[2].view     = viewRow.Transpose();
+    m_shadowConstsData[2].viewInv  = m_shadowConstsData[2].view.Invert();
+    m_shadowConstsData[2].proj     = projRow.Transpose();
+    m_shadowConstsData[2].projInv  = m_shadowConstsData[2].proj.Invert();
+
+    for (uint32_t i = 0; i < 3; i++)
+    {
+        m_shadowConstBuffers.Upload(i, &m_shadowConstsData[i]);
+    }
 }
 
 void AppBase::UpdateCamera(const float dt)
@@ -471,21 +503,24 @@ void AppBase::UpdateGui(const float frameRate)
 {
 }
 
-void AppBase::DepthOnlyPass()
+void AppBase::RenderDepthOnlyPass()
 {
     m_commandList->RSSetViewports(1, &Graphics::mainViewport);
     m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
-
-    m_commandList->SetGraphicsRootSignature(
-        Graphics::defaultRootSignature); // Root signature 이후에 변경 .... 방법 찾기
-    m_commandList->SetGraphicsRootConstantBufferView(0, m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
-
+    // Root signature 이후에 변경 .... 방법 찾기
+    m_commandList->SetGraphicsRootSignature(Graphics::defaultRootSignature);
     ID3D12DescriptorHeap *descHeaps[] = {Graphics::s_Texture.Get()};
     m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
-    m_commandList->SetGraphicsRootDescriptorTable(3, D3D12_GPU_DESCRIPTOR_HANDLE(m_handle));
+    m_commandList->SetGraphicsRootDescriptorTable(3, Graphics::s_Texture[3]);
 
-    m_commandList->OMSetRenderTargets(0, nullptr, false, &m_depthOnlyBuffer.GetDSV());
-    m_commandList->ClearDepthStencilView(m_depthOnlyBuffer.GetDSV(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    D3D12_GPU_VIRTUAL_ADDRESS address = m_shadowConstBuffers.GetResource()->GetGPUVirtualAddress();
+
+    address += sizeof(GlobalConsts);
+
+    m_commandList->SetGraphicsRootConstantBufferView(0, address);
+    m_commandList->OMSetRenderTargets(0, nullptr, false, &m_shadowMap[1].GetDSV());
+    m_commandList->ClearDepthStencilView(m_shadowMap[1].GetDSV(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
     // render object.
     m_commandList->SetPipelineState(Graphics::depthOnlyPSO);
     for (auto &e : m_opaqueList)
@@ -494,6 +529,10 @@ void AppBase::DepthOnlyPass()
     }
     // render skybox
     m_skybox->Render(m_commandList);
+
+    /*for (uint32_t i = 0; i < MAX_LIGHTS; i++)
+    {
+    }*/
 }
 
 void AppBase::RenderOpaqueObject()
@@ -513,6 +552,9 @@ void AppBase::RenderOpaqueObject()
     m_commandList->ClearRenderTargetView(Graphics::g_DisplayPlane[m_frameIndex].GetRTV(), clearColor, 0, nullptr);
     m_commandList->ClearDepthStencilView(m_depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_STENCIL | D3D12_CLEAR_FLAG_DEPTH,
                                          1.0f, 0, 0, nullptr);
+
+    m_commandList->SetGraphicsRootConstantBufferView(0, m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootDescriptorTable(5, D3D12_GPU_DESCRIPTOR_HANDLE(m_shadowMap[0].GetSRV()));
 
     // render object.
     for (auto &e : m_opaqueList)
@@ -537,10 +579,20 @@ void AppBase::RenderDepthMapViewport()
     m_commandList->RSSetViewports(1, &Graphics::depthMapViewport);
     m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
     m_commandList->SetPipelineState(Graphics::depthViewportPSO);
-    m_commandList->SetGraphicsRootSignature(Graphics::depthOnlyRootSignature);
-    m_commandList->SetGraphicsRootShaderResourceView(0, m_depthBuffer.GetResource()->GetGPUVirtualAddress());
+
+    // Transition the resource from its initial state to be used as a depth buffer.
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[1].GetResource(),
+                                                                            D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                                                                            D3D12_RESOURCE_STATE_GENERIC_READ));
+
+    m_commandList->SetGraphicsRootDescriptorTable(5, D3D12_GPU_DESCRIPTOR_HANDLE(m_shadowMap[0].GetSRV()));
 
     m_postEffects.Render(m_commandList);
+
+    // Transition the resource from its initial state to be used as a depth buffer.
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[1].GetResource(),
+                                                                            D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                                            D3D12_RESOURCE_STATE_DEPTH_WRITE));
 }
 
 void AppBase::DestroyPSO()
@@ -553,6 +605,8 @@ void AppBase::CreateBuffers()
 {
     using namespace Display;
     using namespace Graphics;
+
+    this->BuildSRVDesriptorHeap();
     // Create a RTV for each frame.
     for (UINT n = 0; n < s_frameCount; n++)
     {
@@ -563,9 +617,12 @@ void AppBase::CreateBuffers()
 
     // Create depth stencil buffer.
     m_depthBuffer.Create(g_screenWidth, g_screenHeight, DXGI_FORMAT_R24G8_TYPELESS);
-
-    // Create depth only buffer
-    m_depthOnlyBuffer.Create(g_screenWidth, g_screenHeight, DXGI_FORMAT_R32_TYPELESS, true);
+    for (uint32_t i = 0; i < MAX_LIGHTS; i++)
+    {
+        // 0 : depth only buffer
+        // 1 ~ : shadow map
+        m_shadowMap[i].Create(1024, 1024, DXGI_FORMAT_R24G8_TYPELESS, true);
+    }
 }
 
 void AppBase::OnMouse(const float x, const float y)
@@ -717,7 +774,7 @@ void AppBase::InitLights()
     // point light
     {
         m_light[1].type |= POINT_LIGHT;
-        m_light[1].position = Vector3(0.0f, 1.0f, -5.0f);
+        m_light[1].position = Vector3(0.0f, 1.0f, -2.0f);
 
         MeshData sphere    = GeometryGenerator::MakeSphere(0.025f, 10, 10);
         Model *lightSphere = new Model;
@@ -777,10 +834,6 @@ void AppBase::Resize()
 
     // Create frame resources.
     {
-        // 추상화
-        // Describe and create a render target view (SRV) descriptor heap.
-        // D3DUtils::CreateDscriptor(m_device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-        //                          D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, &m_srvHeap);
         m_frameIndex = 0;
 
         this->CreateBuffers();
@@ -790,9 +843,12 @@ void AppBase::Resize()
                                                                                 D3D12_RESOURCE_STATE_COMMON,
                                                                                 D3D12_RESOURCE_STATE_DEPTH_WRITE));
         // Transition the resource from its initial state to be used as a depth buffer.
-        m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthOnlyBuffer.GetResource(),
-                                                                                D3D12_RESOURCE_STATE_COMMON,
-                                                                                D3D12_RESOURCE_STATE_DEPTH_WRITE));
+        for (uint32_t i = 0; i < MAX_LIGHTS; i++)
+        {
+            m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[i].GetResource(),
+                                                                                    D3D12_RESOURCE_STATE_COMMON,
+                                                                                    D3D12_RESOURCE_STATE_DEPTH_WRITE));
+        }
     }
 
     // For texture loading.

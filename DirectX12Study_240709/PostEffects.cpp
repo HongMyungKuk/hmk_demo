@@ -17,6 +17,10 @@ void PostEffects::Initialize()
     mesh.stride     = sizeof(Vertex);
 }
 
+void PostEffects::Update(const GlobalConsts& data)
+{
+}
+
 void PostEffects::Render(ID3D12GraphicsCommandList *commandList)
 {
     commandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

@@ -91,12 +91,11 @@ void CheckResult(HRESULT hr, ID3DBlob *errorBlob)
         {
             std::cout << "File not found." << std::endl;
         }
-
-        // 에러 메시지가 있으면 출력
-        if (errorBlob)
-        {
-            std::cout << "Shader compile error\n" << (char *)errorBlob->GetBufferPointer() << std::endl;
-        }
+    }
+    // 에러 메시지가 있으면 출력
+    if (errorBlob)
+    {
+        std::cout << "Shader compile error\n" << (char *)errorBlob->GetBufferPointer() << std::endl;
     }
 }
 void D3DUtils::CreateShader(const std::wstring filename, ID3DBlob **vsShader, const std::string mainEntry,

@@ -63,10 +63,10 @@ class AppBase
     virtual bool InitGui();
     void GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdapter,
                             bool requestHighPerformanceAdapter = false);
-    void BuildGlobalConsts();
+    void InitGlobalConsts();
     void BuildSRVDesriptorHeap();
     void UpdateGlobalConsts(const float dt);
-    void DepthOnlyPass();
+    void RenderDepthOnlyPass();
     void RenderOpaqueObject();
     void RenderDepthMapViewport();
     void DestroyPSO();
@@ -91,14 +91,16 @@ class AppBase
     ID3D12CommandQueue *m_commandQueue         = nullptr;
     ID3D12GraphicsCommandList *m_commandList   = nullptr;
 
-    GlobalConsts m_globalConstData    = {};
-    GlobalConsts m_depthOnlyConstData = {};
+    GlobalConsts m_globalConstsData             = {};
+    GlobalConsts m_shadowConstsData[MAX_LIGHTS] = {};
     UploadBuffer<GlobalConsts> m_globalConstsBuffer;
-    UploadBuffer<GlobalConsts> m_depthOnlyConstsBuffer;
+    UploadBuffer<GlobalConsts> m_shadowConstBuffers;
 
     DepthBuffer m_depthBuffer;
     DepthBuffer m_depthOnlyBuffer;
+    DepthBuffer m_shadowMap[MAX_LIGHTS];
     DescriptorHeap m_imguiInitHeap;
+    DescriptorHandle m_handle;
 
     // Synchronization objects.
     uint32_t m_frameIndex = 0;
@@ -130,9 +132,9 @@ class AppBase
     bool m_isKeyDown[256]                      = {};
     ID3D12Resource *m_envTexture               = nullptr;
     D3D12_CPU_DESCRIPTOR_HANDLE m_envCPUHandle = {};
-    DescriptorHandle m_handle;
 
   protected:
+    // Object list.
     Light m_light[3]                    = {};
     std::vector<Model *> m_lightSpheres = {};
     std::vector<Model *> m_opaqueList   = {};

@@ -23,11 +23,11 @@ class Camera
     void MoveDown(const float dt);
     void Rotation(SimpleMath::Quaternion q);
 
-    XMFLOAT3 GetPosition()
+    Vector3 GetPosition()
     {
         return m_eyePosition;
     }
-    void SetPosition(XMFLOAT3 p)
+    void SetPosition(Vector3 p)
     {
         m_eyePosition = p;
     }

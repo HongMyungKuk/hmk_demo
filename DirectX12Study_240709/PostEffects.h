@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ConstantBuffer.h"
 #include "Mesh.h"
 
 class PostEffects
@@ -12,6 +13,7 @@ class PostEffects
     }
 
     void Initialize();
+    void Update(const GlobalConsts &data);
     void Render(ID3D12GraphicsCommandList *commandList);
 
   private:
