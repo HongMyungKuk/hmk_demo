@@ -20,7 +20,7 @@ class ModelViewer : public AppBase
     virtual void Render() override;
     virtual void UpdateGui(const float frameRate) override;
     virtual void InitLights() override;
-    void UpdateLights();
+    virtual void UpdateLights();
 
   private:
     void ChangeModel();

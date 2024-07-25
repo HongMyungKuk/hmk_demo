@@ -26,6 +26,7 @@ ID3D12Device *g_Device = nullptr;
 ColorBuffer g_DisplayPlane[2];
 
 DescriptorHeap s_Texture;
+DescriptorHeap s_Sampler;
 DescriptorAllocator g_DescriptorAllocator[] = {D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
                                                D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
                                                D3D12_DESCRIPTOR_HEAP_TYPE_DSV};
@@ -124,6 +125,8 @@ void AppBase::Update(const float dt)
     m_timer->Update();
 
     GameInput::Update(dt);
+
+    UpdateLights();
 
     UpdateGlobalConsts(dt);
 
@@ -440,31 +443,36 @@ void AppBase::UpdateGlobalConsts(const float dt)
     m_globalConstsData.projInv     = m_globalConstsData.proj.Invert();
     m_globalConstsData.viewProjInv = (viewRow * projRow).Invert().Transpose();
 
-    m_globalConstsBuffer.Upload(0, &m_globalConstsData);
-
     // shadow consts data.
     m_shadowConstsData[0] = m_globalConstsData;
 
     eyePos  = m_light[1].position;
-    viewRow = XMMatrixLookToLH(eyePos, Vector3(0.0f, 0.0f, 1.0f), Vector3(0.0f, 1.0f, 0.0f));
-    projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(70.0f), 1.0f, 0.01f, 100.0f);
+    viewRow = XMMatrixLookAtLH(eyePos, Vector3(0.0f, 1.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f));
+    projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(120.0f), 1.0f, 0.001f, 100.0f);
 
-    m_shadowConstsData[1].eyeWorld = eyePos;
-    m_shadowConstsData[1].view     = viewRow.Transpose();
-    m_shadowConstsData[1].viewInv  = m_shadowConstsData[1].view.Invert();
-    m_shadowConstsData[1].proj     = projRow.Transpose();
-    m_shadowConstsData[1].projInv  = m_shadowConstsData[1].proj.Invert();
+    // m_shadowConstsData[1].eyeWorld = eyePos;
+    m_shadowConstsData[1].view    = viewRow.Transpose();
+    m_shadowConstsData[1].viewInv = m_shadowConstsData[1].view.Invert();
+    m_shadowConstsData[1].proj    = projRow.Transpose();
+    m_shadowConstsData[1].projInv = m_shadowConstsData[1].proj.Invert();
 
     eyePos  = m_light[2].position;
     viewRow = XMMatrixLookToLH(eyePos, Vector3(0.0f, 0.0f, 1.0f), Vector3(0.0f, 1.0f, 0.0f));
     projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(70.0f), 1.0f, 0.01f, 100.0f);
 
-    m_shadowConstsData[2].eyeWorld = eyePos;
-    m_shadowConstsData[2].view     = viewRow.Transpose();
-    m_shadowConstsData[2].viewInv  = m_shadowConstsData[2].view.Invert();
-    m_shadowConstsData[2].proj     = projRow.Transpose();
-    m_shadowConstsData[2].projInv  = m_shadowConstsData[2].proj.Invert();
+    m_shadowConstsData[2].view    = viewRow.Transpose();
+    m_shadowConstsData[2].viewInv = m_shadowConstsData[2].view.Invert();
+    m_shadowConstsData[2].proj    = projRow.Transpose();
+    m_shadowConstsData[2].projInv = m_shadowConstsData[2].proj.Invert();
 
+    // shadow matrix.
+    m_globalConstsData.lights[1].view = m_shadowConstsData[1].view;
+    m_globalConstsData.lights[1].proj = m_shadowConstsData[1].proj;
+    m_globalConstsData.lights[2].view = m_shadowConstsData[2].view;
+    m_globalConstsData.lights[2].proj = m_shadowConstsData[2].proj;
+
+    // update to gpu.
+    m_globalConstsBuffer.Upload(0, &m_globalConstsData);
     for (uint32_t i = 0; i < 3; i++)
     {
         m_shadowConstBuffers.Upload(i, &m_shadowConstsData[i]);
@@ -505,19 +513,16 @@ void AppBase::UpdateGui(const float frameRate)
 
 void AppBase::RenderDepthOnlyPass()
 {
-    m_commandList->RSSetViewports(1, &Graphics::mainViewport);
-    m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
+    m_commandList->RSSetViewports(1, &Graphics::shadowViewport);
+    m_commandList->RSSetScissorRects(1, &Graphics::shadowSissorRect);
     // Root signature 이후에 변경 .... 방법 찾기
     m_commandList->SetGraphicsRootSignature(Graphics::defaultRootSignature);
-    ID3D12DescriptorHeap *descHeaps[] = {Graphics::s_Texture.Get()};
+    ID3D12DescriptorHeap *descHeaps[] = {Graphics::s_Texture.Get(), Graphics::s_Sampler.Get()};
     m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
     m_commandList->SetGraphicsRootDescriptorTable(3, Graphics::s_Texture[3]);
 
-    D3D12_GPU_VIRTUAL_ADDRESS address = m_shadowConstBuffers.GetResource()->GetGPUVirtualAddress();
-
-    address += sizeof(GlobalConsts);
-
-    m_commandList->SetGraphicsRootConstantBufferView(0, address);
+    m_commandList->SetGraphicsRootConstantBufferView(0, m_shadowConstBuffers.GetResource()->GetGPUVirtualAddress() +
+                                                            sizeof(GlobalConsts));
     m_commandList->OMSetRenderTargets(0, nullptr, false, &m_shadowMap[1].GetDSV());
     m_commandList->ClearDepthStencilView(m_shadowMap[1].GetDSV(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
@@ -529,10 +534,6 @@ void AppBase::RenderDepthOnlyPass()
     }
     // render skybox
     m_skybox->Render(m_commandList);
-
-    /*for (uint32_t i = 0; i < MAX_LIGHTS; i++)
-    {
-    }*/
 }
 
 void AppBase::RenderOpaqueObject()
@@ -554,7 +555,9 @@ void AppBase::RenderOpaqueObject()
                                          1.0f, 0, 0, nullptr);
 
     m_commandList->SetGraphicsRootConstantBufferView(0, m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
+    // shadow map srv.
     m_commandList->SetGraphicsRootDescriptorTable(5, D3D12_GPU_DESCRIPTOR_HANDLE(m_shadowMap[0].GetSRV()));
+    m_commandList->SetGraphicsRootDescriptorTable(6, D3D12_GPU_DESCRIPTOR_HANDLE(Graphics::s_Sampler[0]));
 
     // render object.
     for (auto &e : m_opaqueList)
@@ -606,7 +609,7 @@ void AppBase::CreateBuffers()
     using namespace Display;
     using namespace Graphics;
 
-    this->BuildSRVDesriptorHeap();
+    this->InitSRVDesriptorHeap();
     // Create a RTV for each frame.
     for (UINT n = 0; n < s_frameCount; n++)
     {
@@ -621,7 +624,7 @@ void AppBase::CreateBuffers()
     {
         // 0 : depth only buffer
         // 1 ~ : shadow map
-        m_shadowMap[i].Create(1024, 1024, DXGI_FORMAT_R24G8_TYPELESS, true);
+        m_shadowMap[i].Create(1024, 1024, DXGI_FORMAT_R32_TYPELESS, true);
     }
 }
 
@@ -647,9 +650,26 @@ void AppBase::OnMouse(const float x, const float y)
     }
 }
 
-void AppBase::BuildSRVDesriptorHeap()
+void AppBase::InitSRVDesriptorHeap()
 {
     Graphics::s_Texture.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4098);
+    Graphics::s_Sampler.Create(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 256);
+
+    // Create sampler
+
+    DescriptorHandle samplerHandle = Graphics::s_Sampler.Alloc(1);
+
+    D3D12_SAMPLER_DESC samplerDesc = {};
+    samplerDesc.AddressU           = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    samplerDesc.AddressV           = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    samplerDesc.AddressW           = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    samplerDesc.BorderColor[0]     = 100.0f; // 큰 Z값
+    samplerDesc.Filter             = D3D12_FILTER_MIN_MAG_MIP_POINT;
+    samplerDesc.ComparisonFunc     = D3D12_COMPARISON_FUNC_NEVER;
+    samplerDesc.MinLOD             = 0;
+    samplerDesc.MaxLOD             = D3D12_FLOAT32_MAX;
+
+    Graphics::g_Device->CreateSampler(&samplerDesc, samplerHandle);
 }
 
 LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -774,7 +794,8 @@ void AppBase::InitLights()
     // point light
     {
         m_light[1].type |= POINT_LIGHT;
-        m_light[1].position = Vector3(0.0f, 1.0f, -2.0f);
+        m_light[1].type |= SHADOW_MAP;
+        m_light[1].position = Vector3(0.0f, 5.0f, 0.0f);
 
         MeshData sphere    = GeometryGenerator::MakeSphere(0.025f, 10, 10);
         Model *lightSphere = new Model;

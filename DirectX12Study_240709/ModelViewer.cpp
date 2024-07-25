@@ -126,7 +126,7 @@ bool ModelViewer::Initialize()
         {
             MeshData sphere = GeometryGenerator::MakeSphere(1.0f, 25, 25);
             obj->Initialize(m_device, m_commandList, {sphere});
-            obj->GetMaterialConstCPU().ambient  = Vector3(0.2f);
+            obj->GetMaterialConstCPU().ambient  = Vector3(0.5f);
             obj->GetMaterialConstCPU().diffuse  = Vector3(0.5f);
             obj->GetMaterialConstCPU().specular = Vector3(0.5f);
             obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(0.0f, 1.0f, 0.0f)));
@@ -320,7 +320,7 @@ void ModelViewer::Update(const float dt)
     //}
 
     // update light.
-    UpdateLights();
+    // UpdateLights();
 }
 
 void ModelViewer::Render()
@@ -343,8 +343,8 @@ void ModelViewer::Render()
     m_commandList->SetGraphicsRootSignature(Graphics::defaultRootSignature);
     m_commandList->SetGraphicsRootConstantBufferView(0, m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
 
-    ID3D12DescriptorHeap *descHeaps[] = {Graphics::s_Texture.Get()};
-    m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+    //ID3D12DescriptorHeap *descHeaps[] = {Graphics::s_Texture.Get(), Graphics::s_Sampler.Get()};
+    //m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
     m_commandList->SetGraphicsRootDescriptorTable(3, Graphics::s_Texture[1]);
 
     for (uint32_t i = 0; i < 3; i++)
@@ -611,7 +611,10 @@ void ModelViewer::UpdateLights()
         m_light[0].type &= LIGHT_OFF;
 
     if (m_usePL)
+    {
         m_light[1].type |= POINT_LIGHT;
+        m_light[1].type |= SHADOW_MAP;
+    }
     else
         m_light[1].type &= LIGHT_OFF;
 

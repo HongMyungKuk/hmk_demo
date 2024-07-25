@@ -25,6 +25,7 @@ extern ID3D12Device *g_Device;
 extern ColorBuffer g_DisplayPlane[];
 
 extern DescriptorHeap s_Texture;
+extern DescriptorHeap s_Sampler;
 extern DescriptorAllocator g_DescriptorAllocator[];
 inline D3D12_CPU_DESCRIPTOR_HANDLE AllocateDesciptor(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t count = 1)
 {
@@ -55,7 +56,7 @@ class AppBase
     void WaitForPreviousFrame();
     void InitCubemap(std::wstring basePath, std::wstring envFilename);
     virtual void InitLights();
-    void UpdateLights();
+    virtual void UpdateLights();
 
   private:
     bool InitWindow();
@@ -64,7 +65,7 @@ class AppBase
     void GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdapter,
                             bool requestHighPerformanceAdapter = false);
     void InitGlobalConsts();
-    void BuildSRVDesriptorHeap();
+    void InitSRVDesriptorHeap();
     void UpdateGlobalConsts(const float dt);
     void RenderDepthOnlyPass();
     void RenderOpaqueObject();

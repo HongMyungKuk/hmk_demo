@@ -5,10 +5,15 @@
 #define DIRECTIONAL_LIGHT 0x01
 #define POINT_LIGHT       0x02
 #define SPOT_LIGHT        0x04
-#define LIGHT_OFF         0x00;
+#define LIGHT_OFF         0x00
+#define SHADOW_MAP        0x10
 
 SamplerState linearWrapSS : register(s0);
 SamplerState linearClampSS : register(s1);
+SamplerState pointWrapSS : register(s2);
+SamplerState pointClampSS : register(s3);
+SamplerState shadowPointSS : register(s4);
+SamplerState shadowPointDynamicSS : register(s5);
 
 TextureCube envTexture : register(t0);
 Texture2D albedoTexture : register(t1);
@@ -34,6 +39,9 @@ struct Light
     float fallOffEnd;
     uint type;
     float2 dummy;
+    // shadow matrix
+    Matrix view;
+    Matrix proj;
 };
 
 cbuffer GloabalConsts : register(b0)
@@ -82,7 +90,8 @@ struct VSInput
 struct PSInput
 {
     float4 posProj : SV_POSITION;
-    float3 posWorld : POSITION;
+    float3 posModel : POSITION0;
+    float3 posWorld : POSITION1;
     float3 normalWorld : NORMAL;
     float2 texCoord : TEXCOORD;
 };
