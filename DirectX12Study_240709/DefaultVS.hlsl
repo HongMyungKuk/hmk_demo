@@ -38,6 +38,8 @@ PSInput main(VSInput input)
 
     float4 posProj = 0.0;
     
+    output.posModel = input.posModel;
+    
     // position world
     posProj = mul(float4(input.posModel, 1.0), world);
     output.posWorld = posProj.xyz;

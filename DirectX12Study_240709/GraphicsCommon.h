@@ -11,8 +11,11 @@ extern uint32_t g_screenHeight;
 namespace Graphics
 {
 
-extern D3D12_STATIC_SAMPLER_DESC slinearWrapSamplerDesc;
-extern D3D12_STATIC_SAMPLER_DESC slinearClampSamplerDesc;
+extern D3D12_STATIC_SAMPLER_DESC linearWrapSD;
+extern D3D12_STATIC_SAMPLER_DESC linearClampSD;
+extern D3D12_STATIC_SAMPLER_DESC pointWrapSD;
+extern D3D12_STATIC_SAMPLER_DESC pointClampSD;
+extern D3D12_STATIC_SAMPLER_DESC shadowPointSD;
 extern std::vector<D3D12_STATIC_SAMPLER_DESC> vecSamplerDesc;
 
 extern D3D12_RASTERIZER_DESC solidCW;
@@ -44,9 +47,11 @@ extern ID3D12RootSignature *depthOnlyRootSignature;
 extern ID3D12RootSignature *defaultRootSignature;
 
 extern D3D12_VIEWPORT mainViewport;
+extern D3D12_VIEWPORT shadowViewport;
 extern D3D12_VIEWPORT depthMapViewport;
 
 extern D3D12_RECT mainSissorRect;
+extern D3D12_RECT shadowSissorRect;
 
 extern ID3D12PipelineState *defaultSolidPSO;
 extern ID3D12PipelineState *skinnedSolidPSO;

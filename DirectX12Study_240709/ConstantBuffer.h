@@ -16,6 +16,7 @@ __declspec(align(256)) struct MeshConsts
 #define POINT_LIGHT       0x02
 #define SPOT_LIGHT        0x04
 #define LIGHT_OFF         0x00
+#define SHADOW_MAP        0x10
 
 struct Light
 {
@@ -28,6 +29,9 @@ struct Light
     float fallOffEnd   = 1000.0f;
     uint8_t type;
     Vector2 dummy;
+    // shadow matrix
+    Matrix view;
+    Matrix proj;
 };
 
 __declspec(align(256)) struct GlobalConsts
