@@ -308,17 +308,22 @@ void ModelViewer::Update(const float dt)
                     }
                 }
 
+                // TODO!!
+                // 애니메시연 Event handler 통합하기
+               
+
                 if (GameInput::IsPressed(GameInput::kKey_up))
                 {
-                    //state = 1;
+                    state = 1;
                     //m_opaqueList[0]->MoveFront(dt);
                     //m_light[1].position = Vector3::Transform(
                     //    m_light[1].position, Matrix::CreateTranslation(0.0005f * Vector3(0.0f, 0.0f, -1.0f) * dt));
+                    
                     g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::FRONT, dt);
                 }
                 else if (GameInput::IsPressed(GameInput::kKey_right))
                 {
-                    //state = 2;
+                    state = 2;
                     //m_opaqueList[0]->MoveRight(dt);
                     //m_light[1].position = Vector3::Transform(
                     //    m_light[1].position, Matrix::CreateTranslation(0.0005f * Vector3(-1.0f, 0.0f, 0.0f) * dt));
@@ -326,7 +331,7 @@ void ModelViewer::Update(const float dt)
                 }
                 else if (GameInput::IsPressed(GameInput::kKey_left))
                 {
-                    //state = 3;
+                    state = 3;
                     //m_opaqueList[0]->MoveLeft(dt);
                     //m_light[1].position = Vector3::Transform(
                     //    m_light[1].position, Matrix::CreateTranslation(0.0005f * Vector3(1.0f, 0.0f, 0.0f) * dt));
@@ -334,7 +339,7 @@ void ModelViewer::Update(const float dt)
                 }
                 else if (GameInput::IsPressed(GameInput::kKey_down))
                 {
-                    //state = 4;
+                    state = 4;
                     //m_opaqueList[0]->MoveBack(dt);
                     //m_light[1].position = Vector3::Transform(
                     //    m_light[1].position, Matrix::CreateTranslation(0.00025f * Vector3(0.0f, 0.0f, 1.0f) * dt));
