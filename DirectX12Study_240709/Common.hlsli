@@ -17,7 +17,9 @@ SamplerState shadowPointDynamicSS : register(s5);
 
 TextureCube envTexture : register(t0);
 Texture2D albedoTexture : register(t1);
-Texture2D shadowMap[3] : register(t2);
+Texture2D shadowMap0 : register(t2);
+Texture2D shadowMap1 : register(t3);
+Texture2D shadowMap2 : register(t4);
 
 // #define SKINNED 1
 
@@ -65,12 +67,14 @@ cbuffer MeshConsts : register(b1)
 
 cbuffer MaterialConstants : register(b2)
 {
-    float3 ambient;
-    uint texIdx;
+    float3 albedoFactor;
+    uint useAlbedoMap;
     float3 diffuse;
-    uint texFlag;
+    uint dummy1;
     float3 specular;
-    uint texNum;
+    uint dummy2;
+    float3 emissionFactor;
+    uint useEmissiveMap;
 };
 
 struct VSInput
@@ -102,27 +106,27 @@ float CalcAttenuation(float fallOffStart, float fallOffEnd, float d)
 }
 
 // Compute Light.
-float3 BlinnPhong(Light L, float3 lightVec, float3 lightStrength, float3 toEye, float3 normalWorld)
+float3 BlinnPhong(float3 albedo, Light L, float3 lightVec, float3 lightStrength, float3 toEye, float3 normalWorld)
 {
     float3 halfWay = normalize(toEye + lightVec);
     float ndoth = dot(halfWay, normalWorld);
     
     float3 _specular = specular * pow(max(0.0, ndoth), L.shininess);
     
-    return ambient + (diffuse + _specular) * lightStrength;
+    return albedo + (diffuse + _specular) * lightStrength;
 }
 
-float3 ComputeDirectionalLight(Light L, float3 toEye, float3 normalWorld)
+float3 ComputeDirectionalLight(float3 albedo, Light L, float3 toEye, float3 normalWorld)
 {
     float3 lightVec = normalize(-L.direction);
     
     float ndotl = dot(lightVec, normalWorld);
     float3 lightStrength = max(0.0, ndotl) * L.irRadiance;
     
-    return BlinnPhong(L, lightVec, lightStrength, toEye, normalWorld);
+    return BlinnPhong(albedo, L, lightVec, lightStrength, toEye, normalWorld);
 }
 
-float3 ComputePointLights(Light L, float3 posWorld, float3 toEye, float3 normalWorld)
+float3 ComputePointLights(float3 albedo, Light L, float3 posWorld, float3 toEye, float3 normalWorld)
 {
     float3 lightVec = L.position - posWorld;
     
@@ -143,11 +147,11 @@ float3 ComputePointLights(Light L, float3 posWorld, float3 toEye, float3 normalW
         
         lightStrength *= att;
         
-        return BlinnPhong(L, lightVec, lightStrength, toEye, normalWorld);
+        return BlinnPhong(albedo, L, lightVec, lightStrength, toEye, normalWorld);
     }
 }
 
-float3 ComputeSpotLight(Light L, float3 posWorld, float3 toEye, float3 normalWorld)
+float3 ComputeSpotLight(float3 albedo, Light L, float3 posWorld, float3 toEye, float3 normalWorld)
 {
     float3 lightVec = L.position - posWorld;
     
@@ -172,6 +176,6 @@ float3 ComputeSpotLight(Light L, float3 posWorld, float3 toEye, float3 normalWor
         
         lightStrength *= spotPower;
         
-        return BlinnPhong(L, lightVec, lightStrength, toEye, normalWorld);
+        return BlinnPhong(albedo, L, lightVec, lightStrength, toEye, normalWorld);
     }
 }

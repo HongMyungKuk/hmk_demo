@@ -14,9 +14,15 @@ class SkinnedMeshModel : public Model
     {
         return m_anim;
     }
+
     virtual ID3D12PipelineState *GetPSO(bool isWireFrame) override
     {
         return isWireFrame ? Graphics::skinnedWirePSO : Graphics::skinnedSolidPSO;
+    }
+
+    virtual ID3D12PipelineState *GetDepthOnlyPSO() override
+    {
+        return Graphics::depthOnlySkinnedPSO;
     }
 
   private:

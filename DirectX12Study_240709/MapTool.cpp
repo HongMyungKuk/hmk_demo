@@ -43,8 +43,8 @@ bool MapTool::Initialize()
             m_terrain->Initialize(m_device, m_commandList, model, material);
             m_terrain->UpdateWorldMatrix(Matrix::CreateScale(50.0f, 50.0f, 50.0f) *
                                          Matrix::CreateTranslation(0.0f, -2.0f, 0.0f));
-            m_terrain->GetMaterialConstCPU().ambient = Vector3(1.0f);
-            m_terrain->GetMaterialConstCPU().texFlag = false;
+            m_terrain->GetMaterialConstCPU().albedoFactor = Vector3(1.0f);
+            m_terrain->GetMaterialConstCPU().useAlbedoMap = false;
         }
     }
 
@@ -73,7 +73,7 @@ void MapTool::Update(const float dt)
 
     UpdateCamera(dt);
 
-    m_terrain->GetMaterialConstCPU().texFlag = m_useTexture;
+    m_terrain->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
     m_terrain->Update();
     m_skybox->Update();
 

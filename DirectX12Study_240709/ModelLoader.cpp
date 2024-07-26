@@ -284,9 +284,9 @@ MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
         material->Get(AI_MATKEY_COLOR_SPECULAR, specular);
 
         // ¸ðµ¨¿¡ ambient, diffuse, specular ¸¦ ³Ñ°ÜÁÜ.
-        mat.ambient.x = ambient.r;
-        mat.ambient.y = ambient.b;
-        mat.ambient.z = ambient.g;
+        mat.albedoFactor.x = ambient.r;
+        mat.albedoFactor.y = ambient.b;
+        mat.albedoFactor.z = ambient.g;
 
         mat.diffuse.x = diffuse.r;
         mat.diffuse.y = diffuse.b;

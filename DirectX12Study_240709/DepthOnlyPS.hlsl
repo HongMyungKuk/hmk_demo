@@ -2,7 +2,7 @@
 
 struct PixelShaderInput
 {
-    float4 posModel : SV_POSITION;
+    float4 posProj : SV_POSITION;
 };
 
 void main(PixelShaderInput input) 

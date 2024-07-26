@@ -5,11 +5,14 @@
 #include "DepthBuffer.h"
 #include "DescriptorHeap.h"
 #include "PostEffects.h"
+#include "EventHandler.h"
 
 class Model;
 class Camera;
 class Timer;
 class ColorBuffer;
+
+extern EventHandler g_EvnetHandler;
 
 namespace Display
 {

@@ -1,24 +1,24 @@
 #include "Common.hlsli"
 
-float3 CalcLightColor(Light L, float3 posModel, float3 posWorld, float3 toEye, float3 normalWorld)
+float3 CalcLightColor(float3 albedo, Light L, float3 posModel, float3 posWorld, float3 toEye, float3 normalWorld)
 {
     float3 color = 0.0;
 
     if (L.type & DIRECTIONAL_LIGHT)
-        color = ComputeDirectionalLight(L, toEye, normalWorld);
-    else if(L.type & POINT_LIGHT)
-        color = ComputePointLights(L, posWorld, toEye, normalWorld);
-    else if(L.type & SPOT_LIGHT)
-        color = ComputeSpotLight(L, posWorld, toEye, normalWorld);
+        color = ComputeDirectionalLight(albedo, L, toEye, normalWorld);
+    else if (L.type & POINT_LIGHT)
+        color = ComputePointLights(albedo, L, posWorld, toEye, normalWorld);
+    else if (L.type & SPOT_LIGHT)
+        color = ComputeSpotLight(albedo, L, posWorld, toEye, normalWorld);
     else
         color = 0.5;
     
     return color;
 }
 
-float3 CalcIrradiance(Light L, uint idx, float3 posModel, float3 posWorld, float3 toEye, float3 normalWorld, Texture2D shadowMap)
-{ 
-    float3 color = CalcLightColor(L, posModel, posWorld, toEye, normalWorld);
+float3 CalcIrradiance(float3 albedo, Light L, uint idx, float3 posModel, float3 posWorld, float3 toEye, float3 normalWorld, Texture2D shadowMap)
+{
+    float3 color = CalcLightColor(albedo, L, posModel, posWorld, toEye, normalWorld);
     
     float shadowFactor = 1.0;
     
@@ -33,12 +33,11 @@ float3 CalcIrradiance(Light L, uint idx, float3 posModel, float3 posWorld, float
         texCoord *= 0.5;
     
         float depthDest = lightScreen.z;
-        float depthSrc = shadowMap.Sample(shadowPointDynamicSS, texCoord).r;
-        //float a = shadowMap.Sample(shadowPointDynamicSS, texCoord).g;
-        //float b = shadowMap.Sample(shadowPointDynamicSS, texCoord).b;
-        //float c = shadowMap.Sample(shadowPointDynamicSS, texCoord).a;
-    
-        if (depthSrc + 0.0001 < depthDest)
+        float depthSrc = shadowMap.Sample(shadowPointSS, float2(texCoord.x, texCoord.y)).r;
+        
+        float2 ab = texCoord;
+
+        if (depthSrc + 0.0015 < depthDest)
         {
             shadowFactor = 0.0;
         }
@@ -55,14 +54,8 @@ float4 main(PSInput input) : SV_TARGET
     
     float3 normalWorld = input.normalWorld;
     
-    //if (texFlag)
-    //{
-    //    color = albedoTexture.Sample(linearWrapSS, input.texCoord).xyz;
-    //}
-    //else
-    //{
-    //    color = ambient;
-    //}
+    float3 albedo = useAlbedoMap ? albedoTexture.Sample(linearWrapSS, input.texCoord).xyz : albedoFactor;
+    float3 emission = useEmissiveMap ? float3(1.0, 1.0, 1.0) : emissionFactor;
     
     int i = 0;
     
@@ -75,9 +68,14 @@ float4 main(PSInput input) : SV_TARGET
             
             // 이러한 방식은 3개의 조명이 중첩 됐을때 너무 밝아진다.
             // 다른 방식을 강구...
-            color += CalcIrradiance(L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap[i]);
+            if (i == 0)
+                color += CalcIrradiance(albedo, L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap0);
+            if (i == 1)
+                color += CalcIrradiance(albedo, L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap1);
+            if (i == 2)
+                color += CalcIrradiance(albedo, L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap2);
         }
     }
     
-    return float4(color, 1.0);
+    return float4(color + emission, 1.0);
 }
