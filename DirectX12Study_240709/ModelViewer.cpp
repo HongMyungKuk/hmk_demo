@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "Camera.h"
+#include "Command.h"
 #include "GeometryGenerator.h"
 #include "Input.h"
 #include "Model.h"
@@ -14,7 +15,7 @@ ModelViewer::ModelViewer() : AppBase()
 ModelViewer::~ModelViewer()
 {
     SAFE_DELETE(m_coordController);
-    SAFE_DELETE(m_model);
+    // SAFE_DELETE(m_model);
     SAFE_DELETE(m_ground);
     SAFE_DELETE(m_sphere);
     SAFE_DELETE(m_box);
@@ -53,42 +54,42 @@ bool ModelViewer::Initialize()
     //    }
     //}
 
-    //// Create the model.
-    //{
-    //    m_model = new SkinnedMeshModel;
-    //    if (!m_model)
-    //    {
-    //        return false;
-    //    }
-    //    {
-    //        m_basPath   = "../../Asset/Model/";
-    //        m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
-    //                       "Walking Backward.fbx"};
+    // Create the model.
+    {
+        Model *skinnedModel = new SkinnedMeshModel;
+        if (!skinnedModel)
+        {
+            return false;
+        }
+        {
+            m_basPath   = "../../Asset/Model/";
+            m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
+                           "Walking Backward.fbx"};
 
-    //        AnimationData animData = {};
-    //        for (const auto &clip : m_animClips)
-    //        {
-    //            auto [_, anim] = GeometryGenerator::ReadFromAnimationFile(m_basPath.c_str(), clip.c_str());
+            AnimationData animData = {};
+            for (const auto &clip : m_animClips)
+            {
+                auto [_, anim] = GeometryGenerator::ReadFromAnimationFile(m_basPath.c_str(), clip.c_str());
 
-    //            if (animData.clips.empty())
-    //            {
-    //                animData = anim;
-    //            }
-    //            else
-    //            {
-    //                animData.clips.push_back(anim.clips.front());
-    //            }
-    //        }
+                if (animData.clips.empty())
+                {
+                    animData = anim;
+                }
+                else
+                {
+                    animData.clips.push_back(anim.clips.front());
+                }
+            }
 
-    //        auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model.fbx");
+            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model.fbx");
 
-    //        ((SkinnedMeshModel *)m_model)
-    //            ->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model, material, animData);
-    //        m_model->GetMaterialConstCPU().texFlag = m_useTexture;
-    //        m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
-    //        m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-    //    }
-    //}
+            ((SkinnedMeshModel *)skinnedModel)->Initialize(m_device, m_commandList, model, material, animData);
+            skinnedModel->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
+            skinnedModel->GetMaterialConstCPU().albedoFactor = Vector3(0.3f);
+            skinnedModel->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
+        }
+        m_opaqueList.push_back(skinnedModel);
+    }
 
     //// Create the terrain
     //{
@@ -103,8 +104,6 @@ bool ModelViewer::Initialize()
     //    }
     //}
 
-    // WaitForPreviousFrame();
-
     //// Create the box.
     //{
     //    CREATE_MODEL_OBJ(m_box);
@@ -117,22 +116,35 @@ bool ModelViewer::Initialize()
     //    }
     //}
 
-    // WaitForPreviousFrame();
+    //// Create the sphere.
+    //{
+    //    Model *obj = nullptr;
+    //    CREATE_MODEL_OBJ(obj);
+    //    {
+    //        MeshData sphere = GeometryGenerator::MakeSphere(0.6f, 25, 25);
+    //        obj->Initialize(m_device, m_commandList, {sphere});
+    //        obj->GetMaterialConstCPU().albedoFactor = Vector3(0.8f, 0.2f, 0.2f);
+    //        obj->GetMaterialConstCPU().diffuse      = Vector3(0.1f);
+    //        obj->GetMaterialConstCPU().specular     = Vector3(0.3f);
+    //        obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(-0.5f, 1.0f, 0.0f)));
+    //    }
+    //    m_opaqueList.push_back(obj);
+    //}
 
-    // Create the sphere.
-    {
-        Model *obj = nullptr;
-        CREATE_MODEL_OBJ(obj);
-        {
-            MeshData sphere = GeometryGenerator::MakeSphere(1.0f, 25, 25);
-            obj->Initialize(m_device, m_commandList, {sphere});
-            obj->GetMaterialConstCPU().ambient  = Vector3(0.5f);
-            obj->GetMaterialConstCPU().diffuse  = Vector3(0.5f);
-            obj->GetMaterialConstCPU().specular = Vector3(0.5f);
-            obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(0.0f, 1.0f, 0.0f)));
-        }
-        m_opaqueList.push_back(obj);
-    }
+    //// Create the sphere.
+    //{
+    //    Model *obj = nullptr;
+    //    CREATE_MODEL_OBJ(obj);
+    //    {
+    //        MeshData cube = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
+    //        obj->Initialize(m_device, m_commandList, {cube});
+    //        obj->GetMaterialConstCPU().albedoFactor = Vector3(0.2f, 0.2f, 0.8f);
+    //        obj->GetMaterialConstCPU().diffuse      = Vector3(0.1f);
+    //        obj->GetMaterialConstCPU().specular     = Vector3(0.3f);
+    //        obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(1.5f, 0.5f, 0.0f)));
+    //    }
+    //    m_opaqueList.push_back(obj);
+    //}
 
     // Create the ground.
     {
@@ -142,10 +154,10 @@ bool ModelViewer::Initialize()
             MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
             square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
             ground->Initialize(m_device, m_commandList, {square});
-            ground->GetMaterialConstCPU().ambient  = Vector3(0.2f);
-            ground->GetMaterialConstCPU().diffuse  = Vector3(0.0f);
-            ground->GetMaterialConstCPU().specular = Vector3(0.8f);
-            ground->GetMaterialConstCPU().texFlag  = true;
+            ground->GetMaterialConstCPU().albedoFactor = Vector3(0.3f);
+            ground->GetMaterialConstCPU().diffuse      = Vector3(0.1f);
+            ground->GetMaterialConstCPU().specular     = Vector3(0.3f);
+            ground->GetMaterialConstCPU().useAlbedoMap = true;
             ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
         }
         m_opaqueList.push_back(ground);
@@ -157,6 +169,16 @@ bool ModelViewer::Initialize()
     m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     WaitForPreviousFrame();
+
+    // Set event handler.
+    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::FRONT,
+                                           new ObjectMoveFrontCommand(m_opaqueList[0], &m_light[1]));
+    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::BACK,
+                                           new ObjectMoveBackCommand(m_opaqueList[0], &m_light[1]));
+    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::RIGHT,
+                                           new ObjectMoveRightCommand(m_opaqueList[0], &m_light[1]));
+    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::LEFT,
+                                           new ObjectMoveLeftCommand(m_opaqueList[0], &m_light[1]));
 
     return true;
 }
@@ -245,79 +267,91 @@ void ModelViewer::Update(const float dt)
 
     // m_model->Update();
 
-    // SkinnedMeshModel *model = dynamic_cast<SkinnedMeshModel *>(m_model);
+    SkinnedMeshModel *model = dynamic_cast<SkinnedMeshModel *>(m_opaqueList[0]);
 
-    // if (model != nullptr)
-    //{
-    //     if (((SkinnedMeshModel *)m_model)->GetAnim().clips.size() > 0)
-    //     {
-    //         // update animation.
+    if (model != nullptr)
+    {
+        if (((SkinnedMeshModel *)m_opaqueList[0])->GetAnim().clips.size() > 0)
+        {
+            // update animation.
 
-    //        {
-    //            static int frameCount = 0;
-    //            static int state      = 0;
+            {
+                static int frameCount = 0;
+                static int state      = 0;
 
-    //            if (GameInput::IsFirstPressed(GameInput::kKey_up))
-    //            {
-    //                if (state == 0)
-    //                {
-    //                    state = 1;
-    //                }
-    //            }
-    //            if (GameInput::IsFirstPressed(GameInput::kKey_right))
-    //            {
-    //                if (state == 0)
-    //                {
-    //                    state = 2;
-    //                }
-    //            }
-    //            if (GameInput::IsFirstPressed(GameInput::kKey_left))
-    //            {
-    //                if (state == 0)
-    //                {
-    //                    state = 3;
-    //                }
-    //            }
-    //            if (GameInput::IsFirstPressed(GameInput::kKey_down))
-    //            {
-    //                if (state == 0)
-    //                {
-    //                    state = 4;
-    //                }
-    //            }
+                if (GameInput::IsFirstPressed(GameInput::kKey_up))
+                {
+                    if (state == 0)
+                    {
+                        state = 1;
+                    }
+                }
+                if (GameInput::IsFirstPressed(GameInput::kKey_right))
+                {
+                    if (state == 0)
+                    {
+                        state = 2;
+                    }
+                }
+                if (GameInput::IsFirstPressed(GameInput::kKey_left))
+                {
+                    if (state == 0)
+                    {
+                        state = 3;
+                    }
+                }
+                if (GameInput::IsFirstPressed(GameInput::kKey_down))
+                {
+                    if (state == 0)
+                    {
+                        state = 4;
+                    }
+                }
 
-    //            if (GameInput::IsPressed(GameInput::kKey_up))
-    //            {
-    //                state = 1;
-    //                m_model->MoveFront(dt);
-    //            }
-    //            else if (GameInput::IsPressed(GameInput::kKey_right))
-    //            {
-    //                state = 2;
-    //                m_model->MoveRight(dt);
-    //            }
-    //            else if (GameInput::IsPressed(GameInput::kKey_left))
-    //            {
-    //                state = 3;
-    //                m_model->MoveLeft(dt);
-    //            }
-    //            else if (GameInput::IsPressed(GameInput::kKey_down))
-    //            {
-    //                state = 4;
-    //                m_model->MoveBack(dt);
-    //            }
-    //            else
-    //            {
-    //                state = 0;
-    //            }
+                if (GameInput::IsPressed(GameInput::kKey_up))
+                {
+                    //state = 1;
+                    //m_opaqueList[0]->MoveFront(dt);
+                    //m_light[1].position = Vector3::Transform(
+                    //    m_light[1].position, Matrix::CreateTranslation(0.0005f * Vector3(0.0f, 0.0f, -1.0f) * dt));
+                    g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::FRONT, dt);
+                }
+                else if (GameInput::IsPressed(GameInput::kKey_right))
+                {
+                    //state = 2;
+                    //m_opaqueList[0]->MoveRight(dt);
+                    //m_light[1].position = Vector3::Transform(
+                    //    m_light[1].position, Matrix::CreateTranslation(0.0005f * Vector3(-1.0f, 0.0f, 0.0f) * dt));
+                    g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::RIGHT, dt);
+                }
+                else if (GameInput::IsPressed(GameInput::kKey_left))
+                {
+                    //state = 3;
+                    //m_opaqueList[0]->MoveLeft(dt);
+                    //m_light[1].position = Vector3::Transform(
+                    //    m_light[1].position, Matrix::CreateTranslation(0.0005f * Vector3(1.0f, 0.0f, 0.0f) * dt));
+                    g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::LEFT, dt);
+                }
+                else if (GameInput::IsPressed(GameInput::kKey_down))
+                {
+                    //state = 4;
+                    //m_opaqueList[0]->MoveBack(dt);
+                    //m_light[1].position = Vector3::Transform(
+                    //    m_light[1].position, Matrix::CreateTranslation(0.00025f * Vector3(0.0f, 0.0f, 1.0f) * dt));
+                    g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::BACK, dt);
+                }
+                else
+                {
+                    state = 0;
+                }
 
-    //            if (m_aniPlayFlag)
-    //                state = m_selectedAnim;
+                if (m_aniPlayFlag)
+                    state = m_selectedAnim;
 
-    //            ((SkinnedMeshModel *)m_model)->UpdateAnimation(state, frameCount++);
-    //        }
-    //    }
-    //}
+                ((SkinnedMeshModel *)m_opaqueList[0])->UpdateAnimation(state, frameCount++);
+            }
+        }
+    }
 
     // update light.
     // UpdateLights();
@@ -343,18 +377,18 @@ void ModelViewer::Render()
     m_commandList->SetGraphicsRootSignature(Graphics::defaultRootSignature);
     m_commandList->SetGraphicsRootConstantBufferView(0, m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
 
-    //ID3D12DescriptorHeap *descHeaps[] = {Graphics::s_Texture.Get(), Graphics::s_Sampler.Get()};
-    //m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+    // ID3D12DescriptorHeap *descHeaps[] = {Graphics::s_Texture.Get(), Graphics::s_Sampler.Get()};
+    // m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
     m_commandList->SetGraphicsRootDescriptorTable(3, Graphics::s_Texture[1]);
 
     for (uint32_t i = 0; i < 3; i++)
     {
-        if (m_light[i].type == POINT_LIGHT)
+        if (m_light[i].type & POINT_LIGHT)
         {
             m_commandList->SetPipelineState(m_lightSpheres[0]->GetPSO(m_isWireFrame));
             m_lightSpheres[0]->Render(m_commandList);
         }
-        if (m_light[i].type == SPOT_LIGHT)
+        if (m_light[i].type & SPOT_LIGHT)
         {
             m_commandList->SetPipelineState(m_lightSpheres[1]->GetPSO(m_isWireFrame));
             m_lightSpheres[1]->Render(m_commandList);
@@ -397,10 +431,10 @@ void ModelViewer::UpdateGui(const float frameRate)
     }
 
     //// size tuning.
-    //g_imguiWidth  = float(g_screenWidth) / 4.0f;
-    //g_imguiHeight = float(g_screenHeight);
-    //ImGui::SetWindowSize(ImVec2(float(g_imguiWidth), float(g_imguiHeight)));
-    //ImGui::SetWindowPos(ImVec2(float(g_screenWidth - g_imguiWidth), 0.0f));
+    // g_imguiWidth  = float(g_screenWidth) / 4.0f;
+    // g_imguiHeight = float(g_screenHeight);
+    // ImGui::SetWindowSize(ImVec2(float(g_imguiWidth), float(g_imguiHeight)));
+    // ImGui::SetWindowPos(ImVec2(float(g_screenWidth - g_imguiWidth), 0.0f));
 
     Graphics::mainViewport =
         D3DUtils::CreateViewport(0.0f, 0.0f, (float)(g_screenWidth - g_imguiWidth), g_screenHeight);
@@ -606,22 +640,31 @@ void ModelViewer::UpdateLights()
     AppBase::UpdateLights();
 
     if (m_useDL)
+    {
         m_light[0].type |= DIRECTIONAL_LIGHT;
+    }
     else
+    {
         m_light[0].type &= LIGHT_OFF;
-
+    }
     if (m_usePL)
     {
         m_light[1].type |= POINT_LIGHT;
         m_light[1].type |= SHADOW_MAP;
     }
     else
+    {
         m_light[1].type &= LIGHT_OFF;
-
+    }
     if (m_useSL)
+    {
         m_light[2].type |= SPOT_LIGHT;
+        m_light[2].type |= SHADOW_MAP;
+    }
     else
+    {
         m_light[2].type &= LIGHT_OFF;
+    }
 
     m_globalConstsData.lights[0] = m_light[0];
     m_globalConstsData.lights[1] = m_light[1];
@@ -629,11 +672,11 @@ void ModelViewer::UpdateLights()
 
     for (uint32_t i = 0; i < 3; i++)
     {
-        if (m_light[i].type == POINT_LIGHT)
+        if (m_light[i].type & POINT_LIGHT)
         {
             m_lightSpheres[0]->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(m_light[i].position)));
         }
-        if (m_light[i].type == SPOT_LIGHT)
+        if (m_light[i].type & SPOT_LIGHT)
         {
             m_lightSpheres[1]->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(m_light[i].position)));
         }
@@ -649,22 +692,22 @@ void ModelViewer::ChangeModel()
 {
     if (!m_openModelFileName.empty())
     {
-        SAFE_DELETE(m_model);
+        //// SAFE_DELETE(m_model);
 
-        m_model = new Model;
+        // m_model = new Model;
 
-        auto [model, material] =
-            GeometryGenerator::ReadFromModelFile(m_openModelFileBasePath.c_str(), m_openModelFileName.c_str());
+        // auto [model, material] =
+        //     GeometryGenerator::ReadFromModelFile(m_openModelFileBasePath.c_str(), m_openModelFileName.c_str());
 
-        // model을 재사용 할 수 있도록 수정
-        m_model->Initialize(m_device, m_commandList, model, material);
-        m_model->GetMaterialConstCPU().ambient = XMFLOAT3(0.0f, 1.0f, 0.0f);
-        m_model->GetMaterialConstCPU().texFlag = false;
-        m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
+        //// model을 재사용 할 수 있도록 수정
+        // m_model->Initialize(m_device, m_commandList, model, material);
+        // m_model->GetMaterialConstCPU().albedoFactor = XMFLOAT3(0.0f, 1.0f, 0.0f);
+        // m_model->GetMaterialConstCPU().useAlbedoMap = false;
+        // m_model->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
 
-        WaitForPreviousFrame();
+        // WaitForPreviousFrame();
 
-        m_openModelFileName.clear();
+        // m_openModelFileName.clear();
     }
 }
 // 엔진에서 쓰일 모델 정보.

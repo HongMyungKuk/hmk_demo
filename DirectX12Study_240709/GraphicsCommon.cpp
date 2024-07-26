@@ -54,6 +54,7 @@ ID3D12PipelineState *normalPSO;
 ID3D12PipelineState *blendCoverPSO;
 ID3D12PipelineState *skyboxPSO;
 ID3D12PipelineState *depthOnlyPSO;
+ID3D12PipelineState *depthOnlySkinnedPSO;
 ID3D12PipelineState *depthViewportPSO;
 
 void InitGraphicsCommon(ID3D12Device *device)
@@ -202,7 +203,7 @@ void InitRootSignature(ID3D12Device *device)
     {
         // Create root signature.
         CD3DX12_DESCRIPTOR_RANGE rangeObj1[1] = {};
-        rangeObj1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0: envTex, t1 ~ 299 : map texture
+        rangeObj1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0: envTex
         CD3DX12_DESCRIPTOR_RANGE rangeObj2[1] = {};
         rangeObj2[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1
         CD3DX12_DESCRIPTOR_RANGE rangeObj3[1] = {};
@@ -218,7 +219,8 @@ void InitRootSignature(ID3D12Device *device)
         rootParameters[2].InitAsConstantBufferView(2); // b2 : material Consts
         rootParameters[3].InitAsDescriptorTable(_countof(rangeObj1), rangeObj1, D3D12_SHADER_VISIBILITY_ALL); // t0
         rootParameters[4].InitAsDescriptorTable(_countof(rangeObj2), rangeObj2, D3D12_SHADER_VISIBILITY_ALL); // t1
-        rootParameters[5].InitAsDescriptorTable(_countof(rangeObj3), rangeObj3, D3D12_SHADER_VISIBILITY_ALL); // t2 t3 t4
+        rootParameters[5].InitAsDescriptorTable(_countof(rangeObj3), rangeObj3,
+                                                D3D12_SHADER_VISIBILITY_ALL); // t2 t3 t4
         rootParameters[6].InitAsDescriptorTable(_countof(rangeObj4), rangeObj4, D3D12_SHADER_VISIBILITY_ALL); // s5
         rootParameters[7].InitAsConstantBufferView(3); // b3 : material Consts
 
@@ -292,8 +294,8 @@ void InitViewportAndScissorRect()
 
     shadowSissorRect.left   = 0;
     shadowSissorRect.top    = 0;
-    shadowSissorRect.right  = 1028;
-    shadowSissorRect.bottom = 1028;
+    shadowSissorRect.right  = 1024;
+    shadowSissorRect.bottom = 1024;
 }
 
 void InitRasterizerState()
@@ -357,6 +359,13 @@ void InitPipeLineState(ID3D12Device *device)
     psoDesc.DSVFormat       = DXGI_FORMAT_D32_FLOAT;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&depthOnlyPSO)));
 
+    psoDesc.InputLayout     = {skinnedILDesc.data(), UINT(skinnedILDesc.size())};
+    psoDesc.RasterizerState = solidCW;
+    psoDesc.VS              = CD3DX12_SHADER_BYTECODE(skinnedVS);
+    psoDesc.PS              = CD3DX12_SHADER_BYTECODE(depthOnlyPS);
+    psoDesc.DSVFormat       = DXGI_FORMAT_D32_FLOAT;
+    ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&depthOnlySkinnedPSO)));
+
     psoDesc.InputLayout     = {postEffectsILDesc.data(), UINT(postEffectsILDesc.size())};
     psoDesc.RasterizerState = solidCW;
     psoDesc.VS              = CD3DX12_SHADER_BYTECODE(postEffecstVS);
@@ -384,6 +393,7 @@ void InitPipeLineState(ID3D12Device *device)
 void DestroyPipeLineState()
 {
     SAFE_RELEASE(depthViewportPSO);
+    SAFE_RELEASE(depthOnlySkinnedPSO);
     SAFE_RELEASE(depthOnlyPSO);
     SAFE_RELEASE(skyboxPSO);
     SAFE_RELEASE(skinnedWirePSO);

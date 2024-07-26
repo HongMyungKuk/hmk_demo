@@ -10,7 +10,9 @@
 #include "Model.h"
 #include "Timer.h"
 
+
 AppBase *g_appBase = nullptr;
+EventHandler g_EvnetHandler;
 
 namespace Display
 {
@@ -447,8 +449,8 @@ void AppBase::UpdateGlobalConsts(const float dt)
     m_shadowConstsData[0] = m_globalConstsData;
 
     eyePos  = m_light[1].position;
-    viewRow = XMMatrixLookAtLH(eyePos, Vector3(0.0f, 1.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f));
-    projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(120.0f), 1.0f, 0.001f, 100.0f);
+    viewRow = XMMatrixLookAtLH(eyePos, Vector3(0.0f, -1.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f));
+    projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(120.0f), 1.0f, 0.01f, 1000.0f);
 
     // m_shadowConstsData[1].eyeWorld = eyePos;
     m_shadowConstsData[1].view    = viewRow.Transpose();
@@ -457,8 +459,8 @@ void AppBase::UpdateGlobalConsts(const float dt)
     m_shadowConstsData[1].projInv = m_shadowConstsData[1].proj.Invert();
 
     eyePos  = m_light[2].position;
-    viewRow = XMMatrixLookToLH(eyePos, Vector3(0.0f, 0.0f, 1.0f), Vector3(0.0f, 1.0f, 0.0f));
-    projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(70.0f), 1.0f, 0.01f, 100.0f);
+    viewRow = XMMatrixLookAtLH(eyePos, eyePos + m_light[2].direction, Vector3(1.0f, 0.0f, 0.0f));
+    projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(120.0f), 1.0f, 0.01f, 1000.0f);
 
     m_shadowConstsData[2].view    = viewRow.Transpose();
     m_shadowConstsData[2].viewInv = m_shadowConstsData[2].view.Invert();
@@ -521,19 +523,23 @@ void AppBase::RenderDepthOnlyPass()
     m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
     m_commandList->SetGraphicsRootDescriptorTable(3, Graphics::s_Texture[3]);
 
-    m_commandList->SetGraphicsRootConstantBufferView(0, m_shadowConstBuffers.GetResource()->GetGPUVirtualAddress() +
-                                                            sizeof(GlobalConsts));
-    m_commandList->OMSetRenderTargets(0, nullptr, false, &m_shadowMap[1].GetDSV());
-    m_commandList->ClearDepthStencilView(m_shadowMap[1].GetDSV(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-    // render object.
-    m_commandList->SetPipelineState(Graphics::depthOnlyPSO);
-    for (auto &e : m_opaqueList)
+    for (uint32_t i = 0; i < MAX_LIGHTS; i++)
     {
-        e->Render(m_commandList);
+        m_commandList->SetGraphicsRootConstantBufferView(0, m_shadowConstBuffers.GetResource()->GetGPUVirtualAddress() +
+                                                                i * sizeof(GlobalConsts));
+        m_commandList->OMSetRenderTargets(0, nullptr, false, &m_shadowMap[i].GetDSV());
+        m_commandList->ClearDepthStencilView(m_shadowMap[i].GetDSV(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+        // render object.
+        for (auto &e : m_opaqueList)
+        {
+            m_commandList->SetPipelineState(e->GetDepthOnlyPSO());
+            e->Render(m_commandList);
+        }
+        // render skybox
+        m_commandList->SetPipelineState(Graphics::depthOnlyPSO);
+        m_skybox->Render(m_commandList);
     }
-    // render skybox
-    m_skybox->Render(m_commandList);
 }
 
 void AppBase::RenderOpaqueObject()
@@ -584,7 +590,7 @@ void AppBase::RenderDepthMapViewport()
     m_commandList->SetPipelineState(Graphics::depthViewportPSO);
 
     // Transition the resource from its initial state to be used as a depth buffer.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[1].GetResource(),
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[0].GetResource(),
                                                                             D3D12_RESOURCE_STATE_DEPTH_WRITE,
                                                                             D3D12_RESOURCE_STATE_GENERIC_READ));
 
@@ -593,7 +599,7 @@ void AppBase::RenderDepthMapViewport()
     m_postEffects.Render(m_commandList);
 
     // Transition the resource from its initial state to be used as a depth buffer.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[1].GetResource(),
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[0].GetResource(),
                                                                             D3D12_RESOURCE_STATE_GENERIC_READ,
                                                                             D3D12_RESOURCE_STATE_DEPTH_WRITE));
 }
@@ -666,7 +672,7 @@ void AppBase::InitSRVDesriptorHeap()
     samplerDesc.BorderColor[0]     = 100.0f; // Å« Z°ª
     samplerDesc.Filter             = D3D12_FILTER_MIN_MAG_MIP_POINT;
     samplerDesc.ComparisonFunc     = D3D12_COMPARISON_FUNC_NEVER;
-    samplerDesc.MinLOD             = 0;
+    samplerDesc.MinLOD             = 0.0f;
     samplerDesc.MaxLOD             = D3D12_FLOAT32_MAX;
 
     Graphics::g_Device->CreateSampler(&samplerDesc, samplerHandle);
@@ -795,24 +801,28 @@ void AppBase::InitLights()
     {
         m_light[1].type |= POINT_LIGHT;
         m_light[1].type |= SHADOW_MAP;
-        m_light[1].position = Vector3(0.0f, 5.0f, 0.0f);
+        m_light[1].position = Vector3(0.0f, 2.5f, 0.0f);
 
         MeshData sphere    = GeometryGenerator::MakeSphere(0.025f, 10, 10);
         Model *lightSphere = new Model;
         lightSphere->Initialize(m_device, m_commandList, {sphere});
-        lightSphere->GetMaterialConstCPU().ambient = Vector3(1.0f, 0.0f, 0.0f);
+        lightSphere->GetMaterialConstCPU().albedoFactor   = Vector3(0.0f);
+        lightSphere->GetMaterialConstCPU().emissiveFactor = Vector3(1.0f, 1.0f, 0.0f);
         lightSphere->UpdateWorldMatrix(Matrix::CreateTranslation(m_light[1].position));
         m_lightSpheres.push_back(lightSphere);
     }
     // spot light
     {
         m_light[2].type |= SPOT_LIGHT;
-        m_light[2].position = Vector3(1.0f, 2.0f, -3.0f);
+        m_light[2].type |= SHADOW_MAP;
+        m_light[2].position  = Vector3(1.0f, 2.0f, -3.0f);
+        m_light[2].direction = Vector3(0.0f, -1.0f, 0.0f);
 
         MeshData sphere    = GeometryGenerator::MakeSphere(0.025f, 10, 10);
         Model *lightSphere = new Model;
         lightSphere->Initialize(m_device, m_commandList, {sphere});
-        lightSphere->GetMaterialConstCPU().ambient = Vector3(1.0f, 0.0f, 0.0f);
+        lightSphere->GetMaterialConstCPU().albedoFactor   = Vector3(0.0f);
+        lightSphere->GetMaterialConstCPU().emissiveFactor = Vector3(1.0f, 1.0f, 0.0f);
         lightSphere->UpdateWorldMatrix(Matrix::CreateTranslation(m_light[2].position));
         m_lightSpheres.push_back(lightSphere);
     }

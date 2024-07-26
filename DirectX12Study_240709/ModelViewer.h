@@ -27,9 +27,9 @@ class ModelViewer : public AppBase
     void SaveFile(const char *filename);
 
   private:
-    Model *m_ground          = nullptr;
-    Model *m_box             = nullptr;
-    Model *m_model           = nullptr;
+    Model *m_ground = nullptr;
+    Model *m_box    = nullptr;
+    // Model *m_model           = nullptr;
     Model *m_coordController = nullptr;
     Model *m_terrain         = nullptr;
     Model *m_sphere          = nullptr;
@@ -49,6 +49,6 @@ class ModelViewer : public AppBase
 
     // light on/off flag
     bool m_useDL = false; // directional light
-    bool m_usePL = false; // point lihgt
+    bool m_usePL = true;  // point lihgt
     bool m_useSL = false; // spot light
 };

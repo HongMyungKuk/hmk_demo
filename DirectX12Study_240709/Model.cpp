@@ -1,7 +1,7 @@
 #include "pch.h"
 
-#include "AppBase.h"
 #include "Model.h"
+#include "AppBase.h"
 
 Model::Model()
 {
@@ -20,9 +20,8 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
                        std::vector<MaterialConsts> materials)
 {
     m_meshUpload.Initialize(device, 1);
-    m_materialUpload.Initialize(device, uint32_t(meshes.size()));
+    m_materialUpload.Initialize(device, 1);
 
-    int count = 0;
     for (auto &m : meshes)
     {
         Mesh newMesh;
@@ -33,38 +32,38 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
         {
             this->BuildTexture(device, commandList, m.albedoTextureFilename, &newMesh.albedoTexture,
                                &newMesh.albedoUploadTexture, newMesh.albedoDescriptorHandle);
-            count++;
         }
 
         m_meshes.push_back(newMesh);
     }
 
-    for (auto &m : materials)
-    {
-        m.texNum = count;
-        m_material.push_back(m);
-    }
+    //for (auto &m : materials)
+    //{
+    //    m.texNum = count;
+    //    m_material.push_back(m);
+    //}
 }
 
 void Model::Update()
 {
     m_meshUpload.Upload(0, &m_meshConstsData);
+    m_materialUpload.Upload(0, &m_materialConstData);
 
-    if (m_material.size() > 0)
-    {
-        for (int32_t i = 0; i < m_material.size(); i++)
-        {
-            m_materialConstData.texIdx   = i;
-            m_materialConstData.ambient  = m_material[i].ambient;
-            m_materialConstData.diffuse  = m_material[i].diffuse;
-            m_materialConstData.specular = m_material[i].specular;
-            m_materialUpload.Upload(i, &m_materialConstData);
-        }
-    }
-    else
-    {
-        m_materialUpload.Upload(0, &m_materialConstData);
-    }
+    //if (m_material.size() > 0)
+    //{
+    //    for (int32_t i = 0; i < m_material.size(); i++)
+    //    {
+    //        m_materialConstData.texIdx   = i;
+    //        m_materialConstData.ambient  = m_material[i].ambient;
+    //        m_materialConstData.diffuse  = m_material[i].diffuse;
+    //        m_materialConstData.specular = m_material[i].specular;
+    //        m_materialUpload.Upload(i, &m_materialConstData);
+    //    }
+    //}
+    //else
+    //{
+    //    m_materialUpload.Upload(0, &m_materialConstData);
+    //}
 }
 
 void Model::Render(ID3D12GraphicsCommandList *commandList)
@@ -77,7 +76,7 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
 
         commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload.GetResource()->GetGPUVirtualAddress());
         auto address = m_materialUpload.GetResource()->GetGPUVirtualAddress() + idx * sizeof(MaterialConsts);
-        commandList->SetGraphicsRootConstantBufferView(2, address);
+        commandList->SetGraphicsRootConstantBufferView(2, m_materialUpload.GetResource()->GetGPUVirtualAddress());
 
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         commandList->IASetVertexBuffers(0, 1, &m.VertexBufferView());

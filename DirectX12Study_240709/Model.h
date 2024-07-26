@@ -32,6 +32,12 @@ class Model
     {
         return isWireFrame ? Graphics::defaultWirePSO : Graphics::defaultSolidPSO;
     }
+
+    virtual ID3D12PipelineState* GetDepthOnlyPSO()
+    {
+        return Graphics::depthOnlyPSO;
+    }
+
     MeshConsts &GetMeshConstCPU()
     {
         return m_meshConstsData;
@@ -44,10 +50,27 @@ class Model
     {
         return m_world;
     }
+    
+    enum MOVE_TYPE
+    {
+        FRONT = 0,
+        SIDE  = 1,
+        BACK  = 2,
+
+        END,
+    };
+
+    const float GetSpeed(MOVE_TYPE type)
+    {
+        return m_speed[type];
+    }
+
     void MoveFront(const float dt)
     {
         m_world *= Matrix::CreateTranslation(m_speed[FRONT] * Vector3(0.0f, 0.0f, -1.0f) * dt);
         UpdateWorldMatrix(m_world);
+
+        // light의 움직임도 등록.
     }
     void MoveBack(const float dt)
     {
@@ -89,15 +112,6 @@ class Model
     Matrix m_worldIT = Matrix();
 
     Vector3 m_pos = Vector3(0.0f, 0.5f, 0.0f);
-
-    enum MOVE_TYPE
-    {
-        FRONT = 0,
-        SIDE  = 1,
-        BACK  = 2,
-
-        END,
-    };
     float m_speed[END] = {0.0005f, 0.0005f, 0.00025f};
 
     uint32_t m_cbvDescriptorSize = 0;

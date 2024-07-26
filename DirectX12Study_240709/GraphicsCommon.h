@@ -61,7 +61,9 @@ extern ID3D12PipelineState *normalPSO;
 extern ID3D12PipelineState *blendCoverPSO;
 extern ID3D12PipelineState *skyboxPSO;
 extern ID3D12PipelineState *depthOnlyPSO;
+extern ID3D12PipelineState *depthOnlySkinnedPSO;
 extern ID3D12PipelineState *depthViewportPSO;
+
 
 void InitGraphicsCommon(ID3D12Device *device);
 void InitSamplers();

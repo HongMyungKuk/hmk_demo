@@ -49,12 +49,14 @@ __declspec(align(256)) struct GlobalConsts
 
 __declspec(align(256)) struct MaterialConsts
 {
-    Vector3 ambient  = Vector3(0.0f, 0.0f, 0.0f);
-    uint32_t texIdx  = 0;
-    Vector3 diffuse  = Vector3(0.0f, 0.0f, 0.0f);
-    uint32_t texFlag = 0;
-    Vector3 specular = Vector3(0.0f, 0.0f, 0.0f);
-    uint32_t texNum  = 0;
+    Vector3 albedoFactor;
+    uint8_t useAlbedoMap = 1;
+    Vector3 diffuse;
+    uint8_t dummy1;
+    Vector3 specular;
+    uint8_t dummy2;
+    Vector3 emissiveFactor;
+    uint8_t useEmissiveMap;
 };
 
 template <typename T_CONST> class UploadBuffer
