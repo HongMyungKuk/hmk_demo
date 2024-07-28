@@ -100,6 +100,8 @@ class AppBase
     UploadBuffer<GlobalConsts> m_globalConstsBuffer;
     UploadBuffer<GlobalConsts> m_shadowConstBuffers;
 
+    ColorBuffer m_floatBuffer;
+    ColorBuffer m_resolvedBuffer;
     DepthBuffer m_depthBuffer;
     DepthBuffer m_depthOnlyBuffer;
     DepthBuffer m_shadowMap[MAX_LIGHTS];

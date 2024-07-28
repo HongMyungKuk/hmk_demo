@@ -13,7 +13,8 @@ class ColorBuffer
 
     void CreateFromSwapChain(ID3D12Resource *resource);
     
-    void Create();
+    void Create(D3D12_RESOURCE_DESC desc, bool useMSAA = true);
+    void Create(const int w, const int h, const DXGI_FORMAT format);
 
     const D3D12_CPU_DESCRIPTOR_HANDLE &GetRTV()
     {

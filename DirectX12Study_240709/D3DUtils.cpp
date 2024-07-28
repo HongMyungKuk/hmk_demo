@@ -2,10 +2,14 @@
 
 #include "D3DUtils.h"
 #define STB_IMAGE_IMPLEMENTATION
+#include <DirectXTexEXR.h>
 #include <stb_image.h>
 
+void ReadEXRImage(uint8_t **image, const std::string filename, int &w, int &h, int &c, DXGI_FORMAT &format);
 void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int &c);
 void ReadImage(uint8_t **image, int &w, int &h, int &c, XMFLOAT3 color);
+void ToLower(uint8_t **str);
+size_t GetPixelSize(const DXGI_FORMAT pixelFormat);
 
 ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                                         const std::string &filename, ID3D12Resource **texture,
@@ -15,9 +19,17 @@ ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsComm
 
     uint8_t *image = nullptr;
 
+    DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+    uint8_t *ext = Utils::get_extension(filename.c_str());
+    ToLower(&ext);
+
     if (!filename.empty())
     {
-        ReadImage(&image, filename, width, height, channels);
+        if (!strcmp((const char *)ext, "exr"))
+            ReadEXRImage(&image, filename, width, height, channels, format);
+        else
+            ReadImage(&image, filename, width, height, channels);
     }
     else
     {
@@ -29,7 +41,7 @@ ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsComm
     // Describe and create a Texture2D.
     D3D12_RESOURCE_DESC textureDesc = {};
     textureDesc.MipLevels           = 1;
-    textureDesc.Format              = DXGI_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.Format              = format;
     textureDesc.Width               = UINT64(width);
     textureDesc.Height              = UINT64(height);
     textureDesc.Flags               = D3D12_RESOURCE_FLAG_NONE;
@@ -52,7 +64,7 @@ ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsComm
                                         D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&textureUploadHeap)));
     D3D12_SUBRESOURCE_DATA textureData = {};
     textureData.pData                  = (void *)image;
-    textureData.RowPitch               = width * channels;
+    textureData.RowPitch               = width * GetPixelSize(format);
     textureData.SlicePitch             = textureData.RowPitch * height;
 
     // 이후 컨텍스트로 관리
@@ -143,6 +155,29 @@ D3D12_RECT D3DUtils::CreateScissorRect(const long left, const long top, const lo
     return ret;
 }
 
+void ReadEXRImage(uint8_t **image, const std::string filename, int &w, int &h, int &c, DXGI_FORMAT &format)
+{
+    std::wstring wFilename = std::wstring(filename.begin(), filename.end());
+
+    TexMetadata metaData;
+    ThrowIfFailed(GetMetadataFromEXRFile(wFilename.c_str(), metaData));
+    ScratchImage scratchImage;
+    ThrowIfFailed(LoadFromEXRFile(wFilename.c_str(), &metaData, scratchImage));
+
+    w      = metaData.width;
+    h      = metaData.height;
+    format = metaData.format;
+
+    std::cout << filename << " " << w << " " << h << " " << format << std::endl;
+
+    *image = new uint8_t[scratchImage.GetPixelsSize()];
+    if (!(*image))
+    {
+        return;
+    }
+    memcpy(*image, scratchImage.GetPixels(), scratchImage.GetPixelsSize());
+}
+
 void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int &c)
 {
     uint8_t *img = stbi_load(filename.c_str(), &w, &h, &c, 0);
@@ -219,4 +254,37 @@ void ReadImage(uint8_t **image, int &w, int &h, int &c, XMFLOAT3 color)
             (*image)[4 * (w * j + i) + 0] = 255;
         }
     }
+}
+
+void ToLower(uint8_t **str)
+{
+    size_t len = strlen((const char *)str);
+
+    for (size_t i = 0; i < len; i++)
+    {
+        std::tolower((*str)[i]);
+    }
+}
+
+size_t GetPixelSize(const DXGI_FORMAT pixelFormat)
+{
+    switch (pixelFormat)
+    {
+    case DXGI_FORMAT_R16G16B16A16_FLOAT:
+        return sizeof(uint16_t) * 4;
+    case DXGI_FORMAT_R32G32B32A32_FLOAT:
+        return sizeof(uint32_t) * 4;
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+        return sizeof(uint8_t) * 4;
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+        return sizeof(uint8_t) * 4;
+    case DXGI_FORMAT_R32_SINT:
+        return sizeof(int32_t) * 1;
+    case DXGI_FORMAT_R16_FLOAT:
+        return sizeof(uint16_t) * 1;
+    }
+
+    std::cout << "PixelFormat not implemented " << pixelFormat << std::endl;
+
+    return sizeof(uint8_t) * 4;
 }

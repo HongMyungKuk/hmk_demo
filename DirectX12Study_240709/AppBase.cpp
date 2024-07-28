@@ -10,8 +10,8 @@
 #include "Model.h"
 #include "Timer.h"
 
-
-AppBase *g_appBase = nullptr;
+AppBase *g_appBase             = nullptr;
+DXGI_FORMAT g_BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 EventHandler g_EvnetHandler;
 
 namespace Display
@@ -262,15 +262,15 @@ bool AppBase::InitD3D()
     IDXGIFactory6 *factory = nullptr;
     ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
-    if (m_useWarpDevice)
+     if (m_useWarpDevice)
     {
-        IDXGIAdapter *warpAdapter = nullptr;
-        ThrowIfFailed(factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
+         IDXGIAdapter *warpAdapter = nullptr;
+         ThrowIfFailed(factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
 
         ThrowIfFailed(D3D12CreateDevice(warpAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
         SAFE_RELEASE(warpAdapter);
     }
-    else
+     else
     {
         IDXGIAdapter1 *hardwareAdapter = nullptr;
         GetHardwareAdapter(factory, &hardwareAdapter);
@@ -292,7 +292,7 @@ bool AppBase::InitD3D()
     swapChainDesc.BufferCount           = s_frameCount;
     swapChainDesc.Width                 = Display::g_screenWidth;
     swapChainDesc.Height                = Display::g_screenHeight;
-    swapChainDesc.Format                = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swapChainDesc.Format                = g_BackBufferFormat;
     swapChainDesc.BufferUsage           = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.SwapEffect            = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     swapChainDesc.SampleDesc.Count      = 1;
@@ -617,12 +617,27 @@ void AppBase::CreateBuffers()
 
     this->InitSRVDesriptorHeap();
     // Create a RTV for each frame.
+    D3D12_RESOURCE_DESC rtvDesc = {};
+
     for (UINT n = 0; n < s_frameCount; n++)
     {
         ID3D12Resource *backBuffer = nullptr;
         ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&backBuffer)));
         g_DisplayPlane[n].CreateFromSwapChain(backBuffer);
+
+        rtvDesc = backBuffer->GetDesc();
     }
+
+    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS info;
+    info.Flags            = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
+    info.Format           = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    info.SampleCount      = 4;
+    info.NumQualityLevels = 0;
+    ThrowIfFailed(g_Device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &info, sizeof(info)));
+
+    // Float rtv
+    m_floatBuffer.Create(rtvDesc);
+    m_resolvedBuffer.Create(rtvDesc, false);
 
     // Create depth stencil buffer.
     m_depthBuffer.Create(g_screenWidth, g_screenHeight, DXGI_FORMAT_R24G8_TYPELESS);
@@ -859,8 +874,8 @@ void AppBase::Resize()
     // swap chain resize.
     if (m_swapChain)
     {
-        ThrowIfFailed(m_swapChain->ResizeBuffers(s_frameCount, g_screenWidth, g_screenHeight,
-                                                 DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+        ThrowIfFailed(m_swapChain->ResizeBuffers(s_frameCount, g_screenWidth, g_screenHeight, g_BackBufferFormat,
+                                                 DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
     }
 
     // Create frame resources.

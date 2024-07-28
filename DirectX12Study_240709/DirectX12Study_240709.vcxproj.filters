@@ -234,5 +234,8 @@
     <FxCompile Include="DummyPS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="PostProcess.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
