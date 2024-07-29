@@ -13,7 +13,7 @@ class DepthBuffer
     DepthBuffer();
     ~DepthBuffer();
 
-    void Create(uint32_t w, uint32_t h, DXGI_FORMAT format, bool depthOnly = false);
+    void Create(uint32_t w, uint32_t h, DXGI_FORMAT format, bool depthOnly = false, bool useMSAA = true);
 
     const D3D12_CPU_DESCRIPTOR_HANDLE &GetDSV()
     {

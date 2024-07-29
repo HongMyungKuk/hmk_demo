@@ -34,6 +34,8 @@ inline void ThrowIfFailed(HRESULT hr)
     }
 }
 
+class DescriptorHandle;
+
 class D3DUtils
 {
   public:
@@ -77,7 +79,10 @@ class D3DUtils
 
     static ID3D12Resource *CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                                          const std::string &filename, ID3D12Resource **texture,
-                                         D3D12_CPU_DESCRIPTOR_HANDLE &descHandle, XMFLOAT3 color = {});
+                                         D3D12_CPU_DESCRIPTOR_HANDLE &descHandle, XMFLOAT3 color = {},
+                                         bool isSRGB = false);
+    static void CreateDDSTexture(ID3D12Device *device, ID3D12CommandQueue *cmdQueue, std::wstring filename,
+                                 ID3D12Resource **res, DescriptorHandle &handle);
     static void CreateDscriptor(ID3D12Device *device, uint32_t numDesc, D3D12_DESCRIPTOR_HEAP_TYPE type,
                                 D3D12_DESCRIPTOR_HEAP_FLAGS flag, ID3D12DescriptorHeap **descHeap);
     static void CreateShader(const std::wstring filename, ID3DBlob **vsShader, const std::string mainEntry,

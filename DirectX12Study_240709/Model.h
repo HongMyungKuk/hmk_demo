@@ -23,7 +23,8 @@ class Model
   private:
     virtual void BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshData);
     void BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, const std::string &filename,
-                      ID3D12Resource **texture, ID3D12Resource **uploadTexture, DescriptorHandle &handle);
+                      ID3D12Resource **texture, ID3D12Resource **uploadTexture, DescriptorHandle &handle,
+                      bool isSRGB = false);
     void DestroyMeshBuffers();
     void DestroyTextureResource();
 
@@ -33,7 +34,7 @@ class Model
         return isWireFrame ? Graphics::defaultWirePSO : Graphics::defaultSolidPSO;
     }
 
-    virtual ID3D12PipelineState* GetDepthOnlyPSO()
+    virtual ID3D12PipelineState *GetDepthOnlyPSO()
     {
         return Graphics::depthOnlyPSO;
     }
@@ -50,7 +51,7 @@ class Model
     {
         return m_world;
     }
-    
+
     enum MOVE_TYPE
     {
         FRONT = 0,
@@ -111,8 +112,10 @@ class Model
     Matrix m_world   = Matrix();
     Matrix m_worldIT = Matrix();
 
-    Vector3 m_pos = Vector3(0.0f, 0.5f, 0.0f);
+    Vector3 m_pos      = Vector3(0.0f, 0.5f, 0.0f);
     float m_speed[END] = {0.0005f, 0.0005f, 0.00025f};
 
     uint32_t m_cbvDescriptorSize = 0;
+
+    DescriptorHandle m_handle;
 };

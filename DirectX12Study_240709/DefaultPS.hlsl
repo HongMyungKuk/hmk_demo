@@ -1,25 +1,41 @@
 #include "Common.hlsli"
 
-float3 CalcLightColor(float3 albedo, Light L, float3 posModel, float3 posWorld, float3 toEye, float3 normalWorld)
-{
-    float3 color = 0.0;
+Texture2D albedoTexture : register(t10);
+Texture2D metalnessTexture : register(t11);
+Texture2D roughnessTexture : register(t12);
 
-    if (L.type & DIRECTIONAL_LIGHT)
-        color = ComputeDirectionalLight(albedo, L, toEye, normalWorld);
-    else if (L.type & POINT_LIGHT)
-        color = ComputePointLights(albedo, L, posWorld, toEye, normalWorld);
-    else if (L.type & SPOT_LIGHT)
-        color = ComputeSpotLight(albedo, L, posWorld, toEye, normalWorld);
-    else
-        color = 0.5;
+#define PI 3.141592
+
+static const float3 Fdielectric = 0.04;
+
+float NdfGGX(float hdotn, float roughness)
+{
+    float alphaSrq = roughness * roughness;
+    float denom = ((hdotn * hdotn) * (alphaSrq - 1) + 1);
     
-    return color;
+    return alphaSrq / (PI * denom * denom);
 }
 
-float3 CalcIrradiance(float3 albedo, Light L, uint idx, float3 posModel, float3 posWorld, float3 toEye, float3 normalWorld, Texture2D shadowMap)
+float SchlickG1(float k, float c)
 {
-    float3 color = CalcLightColor(albedo, L, posModel, posWorld, toEye, normalWorld);
+    return c / (c * (1 - k) + k);
+}
+
+float SchlickGGX(float ndotl, float ndotv, float roughness)
+{
+    float alpha = (roughness + 1) * (roughness + 1);
+    float k = alpha * alpha / 8.0;
     
+    return SchlickG1(k, ndotl) * SchlickG1(k, ndotv);
+}
+
+float3 SchlickFresnel(float3 F0, float vdoth)
+{
+    return F0 + (1 - F0) * pow(2.0, (-5.55473 * (vdoth) - 6.98316) * vdoth);
+}
+
+float3 CalcIrradiance(Light L, float3 posWorld, float3 toEye, float3 normalWorld, Texture2D shadowMap)
+{
     float shadowFactor = 1.0;
     
     if (L.type & SHADOW_MAP)
@@ -43,7 +59,7 @@ float3 CalcIrradiance(float3 albedo, Light L, uint idx, float3 posModel, float3 
         }
     }
         
-    return color * shadowFactor;
+    return L.irRadiance * shadowFactor;
 }
 
 float4 main(PSInput input) : SV_TARGET
@@ -55,28 +71,72 @@ float4 main(PSInput input) : SV_TARGET
     float3 normalWorld = input.normalWorld;
     
     float3 albedo = useAlbedoMap ? albedoTexture.Sample(linearWrapSS, input.texCoord).xyz : albedoFactor;
-    float3 emission = useEmissiveMap ? float3(1.0, 1.0, 1.0) : emissionFactor;
+    //float metalness = useMetalnessMap ? metalnessTexture.Sample(linearWrapSS, input.texCoord).r : metalnessFactor;
+    //float roughness = useRoughnessMap ? roughnessTexture.Sample(linearWrapSS, input.texCoord).r : roughnessFactor;
+    //float3 emission = useEmissiveMap ? float3(1.0, 1.0, 1.0) : emissionFactor;
     
-    int i = 0;
+    // Image Based Lighting.
+    
+    // float albedo = 0.0f;
+    
+    float metalness = 0.0f;
+          
+    float roughness = 0.0f;
+                 
+    float3 emission = 0.0f;
+    
+    // Shading Model
+    float3 directLighting = 0.0;
     
     [unroll]
-    for (i = 0; i < MAX_LIGHTS; i++)
+    for (int i = 0; i < MAX_LIGHTS; i++)
     {
         if (light[i].type)
         {
             Light L = light[i];
             
-            // ÀÌ·¯ÇÑ ¹æ½ÄÀº 3°³ÀÇ Á¶¸íÀÌ ÁßÃ¸ µÆÀ»¶§ ³Ê¹« ¹à¾ÆÁø´Ù.
-            // ´Ù¸¥ ¹æ½ÄÀ» °­±¸...
+            float3 lightVec = 0.0;
+            if (L.type & DIRECTIONAL_LIGHT)
+                lightVec = normalize(-L.direction);
+            if(L.type & POINT_LIGHT || L.type & SPOT_LIGHT)
+                lightVec = normalize(L.position - input.posWorld);
+            
+            float3 halfWay = normalize(toEye + lightVec);
+            float hdotn = max(0.0, dot(halfWay, normalWorld));
+            float ndotl = max(0.0, dot(normalWorld, lightVec));
+            float vdoth = max(0.0, dot(toEye, halfWay));
+            float ndotv = max(0.0, dot(normalWorld, toEye));
+            
+            // metal ê°’ì´ ì˜¬ë¼ê°€ë©´ albedoì— ê°€ê¹Œì›Œì§
+            float3 F0 = lerp(Fdielectric, albedo, metalness);
+            float3 F = SchlickFresnel(F0, vdoth);
+            float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), metalness);
+            
+            float3 diffuseBRDF = kd * albedo;
+            
+            float D = NdfGGX(hdotn, roughness);
+            float G = SchlickGGX(ndotl, ndotv, roughness);
+            
+            float3 specularBRDF = (F * D * G) / max(1e-7, 4.0 * ndotl * ndotv);
+            
+            float3 irRadiance = 0.0;
             if (i == 0)
-                color += CalcIrradiance(albedo, L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap0);
+                irRadiance = CalcIrradiance(L, input.posWorld, toEye, normalWorld, shadowMap0);
             if (i == 1)
-                color += CalcIrradiance(albedo, L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap1);
+                irRadiance = CalcIrradiance(L, input.posWorld, toEye, normalWorld, shadowMap1);
             if (i == 2)
-                color += CalcIrradiance(albedo, L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap2);
+                irRadiance = CalcIrradiance(L, input.posWorld, toEye, normalWorld, shadowMap2);
+            
+            directLighting += (diffuseBRDF + specularBRDF) * irRadiance * ndotl;
+            
+            //if (i == 0)
+            //    color += CalcIrradiance(albedo, L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap0);
+            //if (i == 1)
+            //    color += CalcIrradiance(albedo, L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap1);
+            //if (i == 2)
+            //    color += CalcIrradiance(albedo, L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap2);
         }
     }
     
-    //return float4(color + emission, 1.0);
-    return albedoTexture.Sample(linearWrapSS, input.texCoord);
+    return float4(directLighting + emission, 1.0);
 }

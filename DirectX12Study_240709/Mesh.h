@@ -42,7 +42,9 @@ struct MeshData
     std::vector<SkinnedVertex> skinnedVertices;
     std::vector<index_t> indices;
 
-    std::string albedoTextureFilename = "";
+    std::string albedoTextureFilename    = "";
+    std::string metallicTextureFilename  = "";
+    std::string roughnessTextureFilename = "";
 };
 
 struct Mesh
@@ -56,9 +58,12 @@ struct Mesh
     ID3D12Resource *albedoTexture       = nullptr;
     ID3D12Resource *albedoUploadTexture = nullptr;
     DescriptorHandle albedoDescriptorHandle;
-    // Material
-    ID3D12Resource *diffuseUploadTexture  = nullptr;
-    ID3D12Resource *specularUploadTexture = nullptr;
+    ID3D12Resource *metallicTexture       = nullptr;
+    ID3D12Resource *metallicUploadTexture = nullptr;
+    DescriptorHandle metallicDescriptorHandle;
+    ID3D12Resource *roughnessTexture     = nullptr;
+    ID3D12Resource *roughnessloadTexture = nullptr;
+    DescriptorHandle roughnessDescriptorHandle;
 
     D3D12_VERTEX_BUFFER_VIEW VertexBufferView()
     {

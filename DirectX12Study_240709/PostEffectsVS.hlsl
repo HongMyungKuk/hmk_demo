@@ -1,5 +1,3 @@
-#include "Common.hlsli"
-
 struct VertexShaderInput
 {
     float3 posModel : POSITION;

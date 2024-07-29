@@ -16,10 +16,13 @@ SamplerState shadowPointSS : register(s4);
 SamplerState shadowPointDynamicSS : register(s5);
 
 TextureCube envTexture : register(t0);
-Texture2D albedoTexture : register(t1);
-Texture2D shadowMap0 : register(t2);
-Texture2D shadowMap1 : register(t3);
-Texture2D shadowMap2 : register(t4);
+TextureCube diffuseTexture : register(t1);
+TextureCube specularTexture : register(t2);
+Texture2D brdfTexture : register(t3);
+
+Texture2D shadowMap0 : register(t15);
+Texture2D shadowMap1 : register(t16);
+Texture2D shadowMap2 : register(t17);
 
 // #define SKINNED 1
 
@@ -57,6 +60,8 @@ cbuffer GloabalConsts : register(b0)
     float dt;
 
     Light light[MAX_LIGHTS];
+    
+    uint envType;
 }
 
 cbuffer MeshConsts : register(b1)
@@ -68,12 +73,15 @@ cbuffer MeshConsts : register(b1)
 cbuffer MaterialConstants : register(b2)
 {
     float3 albedoFactor;
-    uint useAlbedoMap;
-    float3 diffuse;
-    uint dummy1;
-    float3 specular;
-    uint dummy2;
+    float metalnessFactor;
     float3 emissionFactor;
+    float roughnessFactor;
+    uint useAlbedoMap;
+    float3 dummy1;
+    uint useMetalnessMap;
+    float3 dummy2;
+    uint useRoughnessMap;
+    float3 dummy3;
     uint useEmissiveMap;
 };
 
@@ -103,79 +111,4 @@ struct PSInput
 float CalcAttenuation(float fallOffStart, float fallOffEnd, float d)
 {
     return saturate((fallOffEnd - d) / (fallOffEnd - fallOffStart));
-}
-
-// Compute Light.
-float3 BlinnPhong(float3 albedo, Light L, float3 lightVec, float3 lightStrength, float3 toEye, float3 normalWorld)
-{
-    float3 halfWay = normalize(toEye + lightVec);
-    float ndoth = dot(halfWay, normalWorld);
-    
-    float3 _specular = specular * pow(max(0.0, ndoth), L.shininess);
-    
-    return albedo + (diffuse + _specular) * lightStrength;
-}
-
-float3 ComputeDirectionalLight(float3 albedo, Light L, float3 toEye, float3 normalWorld)
-{
-    float3 lightVec = normalize(-L.direction);
-    
-    float ndotl = dot(lightVec, normalWorld);
-    float3 lightStrength = max(0.0, ndotl) * L.irRadiance;
-    
-    return BlinnPhong(albedo, L, lightVec, lightStrength, toEye, normalWorld);
-}
-
-float3 ComputePointLights(float3 albedo, Light L, float3 posWorld, float3 toEye, float3 normalWorld)
-{
-    float3 lightVec = L.position - posWorld;
-    
-    float d = length(lightVec);
-    
-    if (d > L.fallOffEnd)
-    {
-        return float3(0.0, 0.0, 0.0);
-    }
-    else
-    {
-        lightVec /= d;
-        
-        float ndotl = max(0.0, dot(lightVec, normalWorld));
-        float3 lightStrength = ndotl * L.irRadiance;
-        
-        float att = CalcAttenuation(L.fallOffStart, L.fallOffEnd, d);
-        
-        lightStrength *= att;
-        
-        return BlinnPhong(albedo, L, lightVec, lightStrength, toEye, normalWorld);
-    }
-}
-
-float3 ComputeSpotLight(float3 albedo, Light L, float3 posWorld, float3 toEye, float3 normalWorld)
-{
-    float3 lightVec = L.position - posWorld;
-    
-    float d = length(lightVec);
-    
-    if (d > L.fallOffEnd)
-    {
-        return float3(0.0, 0.0, 0.0);
-    }
-    else
-    {
-        lightVec /= d;
-        
-        float ndotl = max(0.0, dot(lightVec, normalWorld));
-        float3 lightStrength = ndotl * L.irRadiance;
-        
-        float att = CalcAttenuation(L.fallOffStart, L.fallOffEnd, d);
-        
-        lightStrength *= att;
-        
-        float spotPower = pow(max(0.0, dot(lightVec, normalize(-L.direction))), L.spotPower);
-        
-        lightStrength *= spotPower;
-        
-        return BlinnPhong(albedo, L, lightVec, lightStrength, toEye, normalWorld);
-    }
 }

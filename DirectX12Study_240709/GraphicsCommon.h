@@ -19,6 +19,8 @@ extern D3D12_STATIC_SAMPLER_DESC shadowPointSD;
 extern std::vector<D3D12_STATIC_SAMPLER_DESC> vecSamplerDesc;
 
 extern D3D12_RASTERIZER_DESC solidCW;
+extern D3D12_RASTERIZER_DESC solidMSSACW;
+extern D3D12_RASTERIZER_DESC solidDepthOffCW;
 extern D3D12_RASTERIZER_DESC wireCW;
 
 extern std::vector<D3D12_INPUT_ELEMENT_DESC> basicILDesc;
@@ -39,11 +41,11 @@ extern ID3DBlob *normalPS;
 extern ID3DBlob *skyboxPS;
 extern ID3DBlob *depthOnlyPS;
 extern ID3DBlob *dummyPS;
-extern ID3DBlob *postEffectsPS;
+extern ID3DBlob *postProcessPS;
 
 extern D3D12_BLEND_DESC coverBS;
 
-extern ID3D12RootSignature *depthOnlyRootSignature;
+extern ID3D12RootSignature *postProcessRootSignature;
 extern ID3D12RootSignature *defaultRootSignature;
 
 extern D3D12_VIEWPORT mainViewport;
@@ -63,6 +65,7 @@ extern ID3D12PipelineState *skyboxPSO;
 extern ID3D12PipelineState *depthOnlyPSO;
 extern ID3D12PipelineState *depthOnlySkinnedPSO;
 extern ID3D12PipelineState *depthViewportPSO;
+extern ID3D12PipelineState *postProcessPSO;
 
 
 void InitGraphicsCommon(ID3D12Device *device);

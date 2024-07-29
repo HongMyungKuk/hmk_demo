@@ -105,6 +105,9 @@
     <ClCompile Include="Command.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PostProcess.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AppBase.h">
@@ -197,6 +200,9 @@
     <ClInclude Include="Command.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PostProcess.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".clang-format" />
@@ -228,7 +234,7 @@
     <FxCompile Include="DepthOnlyPS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="PostEffectsPS.hlsl">
+    <FxCompile Include="PostProcessPS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="DummyPS.hlsl">

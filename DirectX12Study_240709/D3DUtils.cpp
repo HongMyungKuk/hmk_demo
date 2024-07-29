@@ -1,5 +1,6 @@
 #include "pch.h"
 
+#include "AppBase.h"
 #include "D3DUtils.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include <DirectXTexEXR.h>
@@ -13,13 +14,13 @@ size_t GetPixelSize(const DXGI_FORMAT pixelFormat);
 
 ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                                         const std::string &filename, ID3D12Resource **texture,
-                                        D3D12_CPU_DESCRIPTOR_HANDLE &descHandle, XMFLOAT3 color)
+                                        D3D12_CPU_DESCRIPTOR_HANDLE &descHandle, XMFLOAT3 color, bool isSRGB)
 {
     int32_t width = 0, height = 0, channels = 0;
 
     uint8_t *image = nullptr;
 
-    DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    DXGI_FORMAT format = isSRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
 
     uint8_t *ext = Utils::get_extension(filename.c_str());
     ToLower(&ext);
@@ -82,6 +83,35 @@ ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsComm
     SAFE_ARR_DELETE(image);
 
     return textureUploadHeap;
+}
+
+void D3DUtils::CreateDDSTexture(ID3D12Device *device, ID3D12CommandQueue *cmdQueue, std::wstring filename,
+                                ID3D12Resource **res, DescriptorHandle &handle)
+{
+    ResourceUploadBatch resourceUpload(device);
+
+    resourceUpload.Begin();
+
+    bool isCubemap = false;
+    ThrowIfFailed(
+        CreateDDSTextureFromFile(device, resourceUpload, filename.c_str(), res, false, 0, nullptr, &isCubemap));
+
+    // Upload the resources to the GPU.
+    auto uploadResourcesFinished = resourceUpload.End(cmdQueue);
+
+    // Wait for the upload thread to terminate
+    uploadResourcesFinished.wait();
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURECUBE;
+    srvDesc.TextureCube.MostDetailedMip     = 0;
+    srvDesc.TextureCube.MipLevels           = (*res)->GetDesc().MipLevels;
+    srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+    srvDesc.Format                          = (*res)->GetDesc().Format;
+
+    handle = Graphics::s_Texture.Alloc(1);
+    device->CreateShaderResourceView((*res), &srvDesc, D3D12_CPU_DESCRIPTOR_HANDLE(handle));
 }
 
 void D3DUtils::CreateDscriptor(ID3D12Device *device, uint32_t numDesc, D3D12_DESCRIPTOR_HEAP_TYPE type,

@@ -35,7 +35,8 @@ bool ModelViewer::Initialize()
         CREATE_OBJ(m_camera, Camera);
     }
 
-    AppBase::InitCubemap(L"../../Asset/Skybox/", L"DGarden_specularIBL.dds");
+    AppBase::InitCubemap(L"../../Asset/Skybox/", L"SkyboxEnvHDR.dds", L"SkyboxDiffuseHDR.dds",
+                         L"SkyboxSpecularHDR.dds");
 
     //// Create the coordinate controller.
     //{
@@ -116,68 +117,64 @@ bool ModelViewer::Initialize()
     //    }
     //}
 
-    //// Create the sphere.
-    //{
-    //    Model *obj = nullptr;
-    //    CREATE_MODEL_OBJ(obj);
-    //    {
-    //        MeshData sphere = GeometryGenerator::MakeSphere(0.6f, 25, 25);
-    //        obj->Initialize(m_device, m_commandList, {sphere});
-    //        obj->GetMaterialConstCPU().albedoFactor = Vector3(0.8f, 0.2f, 0.2f);
-    //        obj->GetMaterialConstCPU().diffuse      = Vector3(0.1f);
-    //        obj->GetMaterialConstCPU().specular     = Vector3(0.3f);
-    //        obj->GetMaterialConstCPU().useAlbedoMap = false;
-    //        obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(-0.5f, 1.0f, 0.0f)));
-    //    }
-    //    m_opaqueList.push_back(obj);
-    //}
-
-    //// Create the sphere.
-    //{
-    //    Model *obj = nullptr;
-    //    CREATE_MODEL_OBJ(obj);
-    //    {
-    //        MeshData cube = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
-    //        obj->Initialize(m_device, m_commandList, {cube});
-    //        obj->GetMaterialConstCPU().albedoFactor = Vector3(0.2f, 0.2f, 0.8f);
-    //        obj->GetMaterialConstCPU().diffuse      = Vector3(0.1f);
-    //        obj->GetMaterialConstCPU().specular     = Vector3(0.3f);
-    //        obj->GetMaterialConstCPU().useAlbedoMap = false;
-    //        obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(1.5f, 0.5f, 0.0f)));
-    //    }
-    //    m_opaqueList.push_back(obj);
-    //}
-
-    // Create the square.
+    // Create the sphere.
     {
-        Model *squareObj = nullptr;
-        CREATE_MODEL_OBJ(squareObj);
+        Model *obj = nullptr;
+        CREATE_MODEL_OBJ(obj);
         {
-            MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
-            square.albedoTextureFilename = "../../Asset/HDRI/rosendal_plains_1_4k.exr";
-            squareObj->Initialize(m_device, m_commandList, {square});
-            squareObj->GetMaterialConstCPU().useAlbedoMap = true;
+            MeshData sphere = GeometryGenerator::MakeSphere(0.6f, 25, 25);
+            obj->Initialize(m_device, m_commandList, {sphere});
+            obj->GetMaterialConstCPU().albedoFactor = Vector3(0.8f, 0.2f, 0.2f);
+            obj->GetMaterialConstCPU().useAlbedoMap = false;
+            obj->GetMaterialConstCPU().useMetalnessMap = true;
+            obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(-0.5f, 1.0f, 0.0f)));
         }
-        m_opaqueList.push_back(squareObj);
+        m_opaqueList.push_back(obj);
     }
 
-    // Create the ground.
-    //// Create the ground.
+    // Create the sphere.
+    {
+        Model *obj = nullptr;
+        CREATE_MODEL_OBJ(obj);
+        {
+            MeshData cube = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
+            obj->Initialize(m_device, m_commandList, {cube});
+            obj->GetMaterialConstCPU().albedoFactor = Vector3(0.2f, 0.2f, 0.8f);
+            obj->GetMaterialConstCPU().useAlbedoMap = false;
+            obj->GetMaterialConstCPU().useMetalnessMap = false;
+            obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(1.5f, 0.5f, 0.0f)));
+        }
+        m_opaqueList.push_back(obj);
+    }
+
+    //// Create the square.
     //{
-    //    Model *ground = nullptr;
-    //    CREATE_MODEL_OBJ(ground);
+    //    Model *squareObj = nullptr;
+    //    CREATE_MODEL_OBJ(squareObj);
     //    {
     //        MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
-    //        square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
-    //        ground->Initialize(m_device, m_commandList, {square});
-    //        ground->GetMaterialConstCPU().albedoFactor = Vector3(0.3f);
-    //        ground->GetMaterialConstCPU().diffuse      = Vector3(0.1f);
-    //        ground->GetMaterialConstCPU().specular     = Vector3(0.3f);
-    //        ground->GetMaterialConstCPU().useAlbedoMap = true;
-    //        ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
+    //        square.albedoTextureFilename = "../../Asset/HDRI/DaySkyHDRI015A_4K-HDR.exr";
+    //        squareObj->Initialize(m_device, m_commandList, {square});
+    //        squareObj->GetMaterialConstCPU().useAlbedoMap = true;
     //    }
-    //    m_opaqueList.push_back(ground);
+    //    m_opaqueList.push_back(squareObj);
     //}
+
+    // Create the ground.
+    {
+        Model *ground = nullptr;
+        CREATE_MODEL_OBJ(ground);
+        {
+            MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
+            //square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
+            ground->Initialize(m_device, m_commandList, {square});
+            ground->GetMaterialConstCPU().albedoFactor = Vector3(0.3f);
+            ground->GetMaterialConstCPU().useAlbedoMap = false;
+            ground->GetMaterialConstCPU().useMetalnessMap = false;
+            ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
+        }
+        m_opaqueList.push_back(ground);
+    }
 
     ThrowIfFailed(m_commandList->Close());
     // Execute the command list.
@@ -372,6 +369,10 @@ void ModelViewer::Update(const float dt)
             }
         }
     }
+
+    m_postProcess.GetConstCPU().exposure     = m_exposureFactor;
+    m_postProcess.GetConstCPU().gammeaFactor = m_gammaFactor;
+    m_postProcess.Update();
 }
 
 void ModelViewer::Render()
@@ -406,53 +407,12 @@ void ModelViewer::UpdateGui(const float frameRate)
 {
     using namespace Display;
 
-    ImGuiWindowFlags window_flags = 0;
-    if (false)
-        window_flags |= ImGuiWindowFlags_NoTitleBar;
-    if (false)
-        window_flags |= ImGuiWindowFlags_NoScrollbar;
-    if (true)
-        window_flags |= ImGuiWindowFlags_MenuBar;
-    if (false)
-        window_flags |= ImGuiWindowFlags_NoMove;
-    if (false)
-        window_flags |= ImGuiWindowFlags_NoResize;
-    if (false)
-        window_flags |= ImGuiWindowFlags_NoCollapse;
-    if (false)
-        window_flags |= ImGuiWindowFlags_NoNav;
-    if (false)
-        window_flags |= ImGuiWindowFlags_NoBackground;
-    if (false)
-        window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
-    if (false)
-        window_flags |= ImGuiWindowFlags_UnsavedDocument;
-
-    // Main body of the Demo window starts here.
-    if (!ImGui::Begin("Gui Demo", nullptr, window_flags))
-    {
-        // Early out if the window is collapsed, as an optimization.
-        ImGui::End();
-        return;
-    }
-
+    AppBase::UpdateGui(frameRate);
     //// size tuning.
     // g_imguiWidth  = float(g_screenWidth) / 4.0f;
     // g_imguiHeight = float(g_screenHeight);
     // ImGui::SetWindowSize(ImVec2(float(g_imguiWidth), float(g_imguiHeight)));
     // ImGui::SetWindowPos(ImVec2(float(g_screenWidth - g_imguiWidth), 0.0f));
-
-    Graphics::mainViewport =
-        D3DUtils::CreateViewport(0.0f, 0.0f, (float)(g_screenWidth - g_imguiWidth), g_screenHeight);
-    Graphics::mainSissorRect = D3DUtils::CreateScissorRect(0, 0, g_screenWidth - g_imguiWidth, g_screenHeight);
-
-    ImGui::Text("App average %.3f ms/frame (%.1f FPS)", 1000.0f / frameRate, frameRate);
-    auto cameraSpeed = m_camera->GetCameraSpeed();
-    ImGui::SliderFloat("Camera speed", &cameraSpeed, 0.001f, 0.01f);
-    if (cameraSpeed != m_camera->GetCameraSpeed())
-    {
-        m_camera->SetCameraSpeed(cameraSpeed);
-    }
 
     // Menu Bar
     if (ImGui::BeginMenuBar())

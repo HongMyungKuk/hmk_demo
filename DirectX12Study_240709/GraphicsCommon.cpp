@@ -12,6 +12,8 @@ D3D12_STATIC_SAMPLER_DESC shadowPointSD;
 std::vector<D3D12_STATIC_SAMPLER_DESC> vecSamplerDesc;
 
 D3D12_RASTERIZER_DESC solidCW;
+D3D12_RASTERIZER_DESC solidMSSACW;
+D3D12_RASTERIZER_DESC solidDepthOffCW;
 D3D12_RASTERIZER_DESC wireCW;
 
 std::vector<D3D12_INPUT_ELEMENT_DESC> basicILDesc;
@@ -32,12 +34,12 @@ ID3DBlob *normalPS;
 ID3DBlob *skyboxPS;
 ID3DBlob *depthOnlyPS;
 ID3DBlob *dummyPS;
-ID3DBlob *postEffectsPS;
+ID3DBlob *postProcessPS;
 
 D3D12_BLEND_DESC coverBS;
 
-ID3D12RootSignature *depthOnlyRootSignature = nullptr;
-ID3D12RootSignature *defaultRootSignature   = nullptr;
+ID3D12RootSignature *postProcessRootSignature = nullptr;
+ID3D12RootSignature *defaultRootSignature     = nullptr;
 
 D3D12_VIEWPORT mainViewport;
 D3D12_VIEWPORT shadowViewport;
@@ -56,6 +58,7 @@ ID3D12PipelineState *skyboxPSO;
 ID3D12PipelineState *depthOnlyPSO;
 ID3D12PipelineState *depthOnlySkinnedPSO;
 ID3D12PipelineState *depthViewportPSO;
+ID3D12PipelineState *postProcessPSO;
 
 void InitGraphicsCommon(ID3D12Device *device)
 {
@@ -156,7 +159,7 @@ void InitShader()
 
     D3DUtils::CreateShader(L"DummyPS.hlsl", &dummyPS, "main", "ps_5_1");
 
-    D3DUtils::CreateShader(L"PostEffectsPS.hlsl", &postEffectsPS, "main", "ps_5_1");
+    D3DUtils::CreateShader(L"PostProcessPS.hlsl", &postProcessPS, "main", "ps_5_1");
 
     basicILDesc = {{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
                    {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -203,11 +206,11 @@ void InitRootSignature(ID3D12Device *device)
     {
         // Create root signature.
         CD3DX12_DESCRIPTOR_RANGE rangeObj1[1] = {};
-        rangeObj1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0: envTex
+        rangeObj1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0); // t0 ~ t3 Common Texture.
         CD3DX12_DESCRIPTOR_RANGE rangeObj2[1] = {};
-        rangeObj2[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1); // t1
+        rangeObj2[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 10); // t1
         CD3DX12_DESCRIPTOR_RANGE rangeObj3[1] = {};
-        rangeObj3[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 2); // t2 t3 t4
+        rangeObj3[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 15); // t2 t3 t4
         CD3DX12_DESCRIPTOR_RANGE rangeObj4[1] = {};
         rangeObj4[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 5);
 
@@ -239,18 +242,19 @@ void InitRootSignature(ID3D12Device *device)
                                                   IID_PPV_ARGS(&defaultRootSignature)));
     }
     {
+        // Create root signature.
         CD3DX12_DESCRIPTOR_RANGE rangeObj1[1] = {};
-        rangeObj1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0: envTex
+        rangeObj1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
         D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
         CD3DX12_ROOT_PARAMETER rootParameters[2] = {};
-        rootParameters[0].InitAsDescriptorTable(_countof(rangeObj1), rangeObj1);
+        rootParameters[0].InitAsDescriptorTable(1, rangeObj1);
         rootParameters[1].InitAsConstantBufferView(0);
 
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init(_countof(rootParameters), rootParameters, UINT(vecSamplerDesc.size()),
-                               vecSamplerDesc.data(), rootSignatureFlags);
+        rootSignatureDesc.Init(_countof(rootParameters), rootParameters, 1, &Graphics::linearWrapSD,
+                               rootSignatureFlags);
 
         ID3DBlob *signature = nullptr;
         ID3DBlob *error     = nullptr;
@@ -260,7 +264,7 @@ void InitRootSignature(ID3D12Device *device)
         ThrowIfFailed(hr);
 
         ThrowIfFailed(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(),
-                                                  IID_PPV_ARGS(&depthOnlyRootSignature)));
+                                                  IID_PPV_ARGS(&postProcessRootSignature)));
     }
 }
 
@@ -314,6 +318,14 @@ void InitRasterizerState()
 
     wireCW          = solidCW;
     wireCW.FillMode = D3D12_FILL_MODE_WIREFRAME;
+
+    solidMSSACW                   = solidCW;
+    solidMSSACW.DepthClipEnable   = TRUE;
+    solidMSSACW.MultisampleEnable = TRUE;
+
+    solidDepthOffCW                   = solidCW;
+    solidDepthOffCW.DepthClipEnable   = FALSE;
+    solidDepthOffCW.MultisampleEnable = TRUE;
 }
 
 void InitPipeLineState(ID3D12Device *device)
@@ -324,15 +336,16 @@ void InitPipeLineState(ID3D12Device *device)
     psoDesc.pRootSignature                     = defaultRootSignature;
     psoDesc.VS                                 = CD3DX12_SHADER_BYTECODE(basicVS);
     psoDesc.PS                                 = CD3DX12_SHADER_BYTECODE(basicPS);
-    psoDesc.RasterizerState                    = solidCW;
+    psoDesc.RasterizerState                    = solidMSSACW;
     psoDesc.BlendState                         = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     psoDesc.DepthStencilState                  = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     psoDesc.SampleMask                         = UINT_MAX;
     psoDesc.PrimitiveTopologyType              = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     psoDesc.NumRenderTargets                   = 1;
-    psoDesc.RTVFormats[0]                      = DXGI_FORMAT_R8G8B8A8_UNORM;
+    psoDesc.RTVFormats[0]                      = DXGI_FORMAT_R16G16B16A16_FLOAT;
     psoDesc.DSVFormat                          = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    psoDesc.SampleDesc.Count                   = 1;
+    psoDesc.SampleDesc.Count                   = 4;
+    psoDesc.SampleDesc.Quality                 = 0;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&defaultSolidPSO)));
 
     psoDesc.RasterizerState = wireCW;
@@ -340,23 +353,25 @@ void InitPipeLineState(ID3D12Device *device)
 
     psoDesc.InputLayout     = {skinnedILDesc.data(), UINT(skinnedILDesc.size())};
     psoDesc.VS              = CD3DX12_SHADER_BYTECODE(skinnedVS);
-    psoDesc.RasterizerState = solidCW;
+    psoDesc.RasterizerState = solidMSSACW;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&skinnedSolidPSO)));
 
     psoDesc.RasterizerState = wireCW;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&skinnedWirePSO)));
 
     psoDesc.InputLayout     = {skyboxILDesc.data(), UINT(skyboxILDesc.size())};
-    psoDesc.RasterizerState = solidCW;
+    psoDesc.RasterizerState = solidMSSACW;
     psoDesc.VS              = CD3DX12_SHADER_BYTECODE(skyboxVS);
     psoDesc.PS              = CD3DX12_SHADER_BYTECODE(skyboxPS);
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&skyboxPSO)));
 
-    psoDesc.InputLayout     = {basicILDesc.data(), UINT(basicILDesc.size())};
-    psoDesc.RasterizerState = solidCW;
-    psoDesc.VS              = CD3DX12_SHADER_BYTECODE(basicVS);
-    psoDesc.PS              = CD3DX12_SHADER_BYTECODE(depthOnlyPS);
-    psoDesc.DSVFormat       = DXGI_FORMAT_D32_FLOAT;
+    psoDesc.InputLayout        = {basicILDesc.data(), UINT(basicILDesc.size())};
+    psoDesc.RasterizerState    = solidCW;
+    psoDesc.VS                 = CD3DX12_SHADER_BYTECODE(basicVS);
+    psoDesc.PS                 = CD3DX12_SHADER_BYTECODE(depthOnlyPS);
+    psoDesc.DSVFormat          = DXGI_FORMAT_D32_FLOAT;
+    psoDesc.SampleDesc.Count   = 1;
+    psoDesc.SampleDesc.Quality = 0;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&depthOnlyPSO)));
 
     psoDesc.InputLayout     = {skinnedILDesc.data(), UINT(skinnedILDesc.size())};
@@ -366,11 +381,13 @@ void InitPipeLineState(ID3D12Device *device)
     psoDesc.DSVFormat       = DXGI_FORMAT_D32_FLOAT;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&depthOnlySkinnedPSO)));
 
-    psoDesc.InputLayout     = {postEffectsILDesc.data(), UINT(postEffectsILDesc.size())};
-    psoDesc.RasterizerState = solidCW;
-    psoDesc.VS              = CD3DX12_SHADER_BYTECODE(postEffecstVS);
-    psoDesc.PS              = CD3DX12_SHADER_BYTECODE(dummyPS);
-    psoDesc.DSVFormat       = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    psoDesc.InputLayout        = {postEffectsILDesc.data(), UINT(postEffectsILDesc.size())};
+    psoDesc.RasterizerState    = solidMSSACW;
+    psoDesc.VS                 = CD3DX12_SHADER_BYTECODE(postEffecstVS);
+    psoDesc.PS                 = CD3DX12_SHADER_BYTECODE(dummyPS);
+    psoDesc.DSVFormat          = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    psoDesc.SampleDesc.Count   = 4;
+    psoDesc.SampleDesc.Quality = 0;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&depthViewportPSO)));
 
     psoDesc.InputLayout = {basicILDesc.data(), UINT(basicILDesc.size())};
@@ -388,10 +405,24 @@ void InitPipeLineState(ID3D12Device *device)
     psoDesc.SampleMask            = UINT_MAX;
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&normalPSO)));
+
+    psoDesc.pRootSignature        = Graphics::postProcessRootSignature;
+    psoDesc.InputLayout           = {postEffectsILDesc.data(), UINT(postEffectsILDesc.size())};
+    psoDesc.RasterizerState       = solidDepthOffCW;
+    psoDesc.VS                    = CD3DX12_SHADER_BYTECODE(postEffecstVS);
+    psoDesc.GS                    = {};
+    psoDesc.PS                    = CD3DX12_SHADER_BYTECODE(postProcessPS);
+    psoDesc.DSVFormat             = {};
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    psoDesc.RTVFormats[0]         = DXGI_FORMAT_R8G8B8A8_UNORM;
+    psoDesc.SampleDesc.Count      = 1;
+    psoDesc.SampleDesc.Quality    = 0;
+    ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&postProcessPSO)));
 }
 
 void DestroyPipeLineState()
 {
+    SAFE_RELEASE(postProcessPSO);
     SAFE_RELEASE(depthViewportPSO);
     SAFE_RELEASE(depthOnlySkinnedPSO);
     SAFE_RELEASE(depthOnlyPSO);
@@ -406,7 +437,7 @@ void DestroyPipeLineState()
 
 void DestroyShader()
 {
-    SAFE_RELEASE(postEffectsPS);
+    SAFE_RELEASE(postProcessPS);
     SAFE_RELEASE(depthOnlyPS);
     SAFE_RELEASE(dummyPS);
     SAFE_RELEASE(skyboxPS);
@@ -425,7 +456,7 @@ void DestroyGraphicsCommon()
 {
     DestroyPipeLineState();
     SAFE_RELEASE(defaultRootSignature);
-    SAFE_RELEASE(depthOnlyRootSignature);
+    SAFE_RELEASE(postProcessRootSignature);
     DestroyShader();
 }
 } // namespace Graphics

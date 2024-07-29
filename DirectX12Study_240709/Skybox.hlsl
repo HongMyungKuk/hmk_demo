@@ -25,5 +25,19 @@ PixelShaderInput vsmain(VertexShaderInput input)
 
 float4 psmain(PixelShaderInput input) : SV_TARGET
 {
-    return envTexture.Sample(linearWrapSS, input.posModel);
+    float3 color = 0.0;
+    
+    if(envType == 0)
+    {
+        color = envTexture.Sample(linearWrapSS, input.posModel).xyz;
+    }
+    else if(envType == 1)
+    {
+        color = specularTexture.Sample(linearWrapSS, input.posModel).xyz;
+    }
+    else
+    {
+        color = diffuseTexture.Sample(linearWrapSS, input.posModel).xyz;
+    }
+    return float4(color, 1.0);
 }

@@ -45,18 +45,22 @@ __declspec(align(256)) struct GlobalConsts
     float dt;
 
     Light lights[MAX_LIGHTS];
+    uint8_t envType;
 };
 
 __declspec(align(256)) struct MaterialConsts
 {
     Vector3 albedoFactor;
-    uint8_t useAlbedoMap = 1;
-    Vector3 diffuse;
-    uint8_t dummy1;
-    Vector3 specular;
-    uint8_t dummy2;
-    Vector3 emissiveFactor;
-    uint8_t useEmissiveMap;
+    float metalnessFactor;
+    Vector3 emissionFactor;
+    float roughnessFactor;
+    uint8_t useAlbedoMap    = 1;
+    Vector3 dummy1;
+    uint8_t useMetalnessMap = 0;
+    Vector3 dummy2;
+    uint8_t useRoughnessMap = 0;
+    Vector3 dummy3;
+    uint8_t useEmissiveMap  = 0;
 };
 
 template <typename T_CONST> class UploadBuffer

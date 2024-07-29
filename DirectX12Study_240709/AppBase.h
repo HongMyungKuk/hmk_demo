@@ -4,8 +4,9 @@
 #include "ConstantBuffer.h"
 #include "DepthBuffer.h"
 #include "DescriptorHeap.h"
-#include "PostEffects.h"
 #include "EventHandler.h"
+#include "PostEffects.h"
+#include "PostProcess.h"
 
 class Model;
 class Camera;
@@ -57,7 +58,8 @@ class AppBase
   protected:
     void UpdateCamera(const float dt);
     void WaitForPreviousFrame();
-    void InitCubemap(std::wstring basePath, std::wstring envFilename);
+    void InitCubemap(std::wstring basePath, std::wstring envFilename, std::wstring diffuseFilename,
+                     std::wstring specularFilename);
     virtual void InitLights();
     virtual void UpdateLights();
 
@@ -73,6 +75,7 @@ class AppBase
     void RenderDepthOnlyPass();
     void RenderOpaqueObject();
     void RenderDepthMapViewport();
+    void RenderPostProcess();
     void DestroyPSO();
     void CreateBuffers();
     void Resize();
@@ -100,13 +103,15 @@ class AppBase
     UploadBuffer<GlobalConsts> m_globalConstsBuffer;
     UploadBuffer<GlobalConsts> m_shadowConstBuffers;
 
-    ColorBuffer m_floatBuffer;
-    ColorBuffer m_resolvedBuffer;
+    ColorBuffer m_floatBuffer[2];
+    ColorBuffer m_resolvedBuffer[2];
     DepthBuffer m_depthBuffer;
     DepthBuffer m_depthOnlyBuffer;
     DepthBuffer m_shadowMap[MAX_LIGHTS];
     DescriptorHeap m_imguiInitHeap;
-    DescriptorHandle m_handle;
+    DescriptorHandle m_cubeMapHandle[3];
+    ID3D12Resource* m_cubeMapResource[3];
+    int m_cubeMapType;
 
     // Synchronization objects.
     uint32_t m_frameIndex = 0;
@@ -136,8 +141,6 @@ class AppBase
     Timer *m_timer = nullptr;
     // Key control
     bool m_isKeyDown[256]                      = {};
-    ID3D12Resource *m_envTexture               = nullptr;
-    D3D12_CPU_DESCRIPTOR_HANDLE m_envCPUHandle = {};
 
   protected:
     // Object list.
@@ -148,4 +151,10 @@ class AppBase
     Model *m_depthMap                   = nullptr;
 
     PostEffects m_postEffects;
+    PostProcess m_postProcess;
+    float m_gammaFactor    = 2.2f;
+    float m_exposureFactor = 1.0f;
+
+    float m_metalness = 0.0f;
+    float m_roughness = 0.0f;
 };

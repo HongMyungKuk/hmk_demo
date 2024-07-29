@@ -5,6 +5,8 @@ namespace Graphics
 extern ID3D12Device *g_Device;
 }
 
+#include "DescriptorHeap.h"
+
 class ColorBuffer
 {
   public:
@@ -21,7 +23,7 @@ class ColorBuffer
         return m_rtv;
     }
 
-    const D3D12_CPU_DESCRIPTOR_HANDLE &GetSRV()
+    const DescriptorHandle &GetSRV()
     {
         return m_srv;
     }
@@ -34,5 +36,5 @@ class ColorBuffer
   private:
     ID3D12Resource *m_resource        = nullptr;
     D3D12_CPU_DESCRIPTOR_HANDLE m_rtv = {};
-    D3D12_CPU_DESCRIPTOR_HANDLE m_srv = {};
+    DescriptorHandle m_srv            = {};
 };

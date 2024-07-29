@@ -1,7 +1,7 @@
 #include "pch.h"
 
-#include "Model.h"
 #include "AppBase.h"
+#include "Model.h"
 
 Model::Model()
 {
@@ -22,26 +22,32 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
     m_meshUpload.Initialize(device, 1);
     m_materialUpload.Initialize(device, 1);
 
+    m_handle = Graphics::s_Texture.Alloc(3);
+
     for (auto &m : meshes)
     {
         Mesh newMesh;
         BuildMeshBuffers(device, newMesh, m);
 
         // Set Texture
-        if (!m.albedoTextureFilename.empty())
-        {
-            this->BuildTexture(device, commandList, m.albedoTextureFilename, &newMesh.albedoTexture,
-                               &newMesh.albedoUploadTexture, newMesh.albedoDescriptorHandle);
-        }
+
+        this->BuildTexture(device, commandList, m.albedoTextureFilename, &newMesh.albedoTexture,
+                           &newMesh.albedoUploadTexture, newMesh.albedoDescriptorHandle, true);
+
+        this->BuildTexture(device, commandList, m.metallicTextureFilename, &newMesh.metallicTexture,
+                           &newMesh.metallicUploadTexture, newMesh.metallicDescriptorHandle, true);
+
+        this->BuildTexture(device, commandList, m.roughnessTextureFilename, &newMesh.roughnessTexture,
+                           &newMesh.roughnessloadTexture, newMesh.roughnessDescriptorHandle, true);
 
         m_meshes.push_back(newMesh);
     }
 
-    //for (auto &m : materials)
+    // for (auto &m : materials)
     //{
-    //    m.texNum = count;
-    //    m_material.push_back(m);
-    //}
+    //     m.texNum = count;
+    //     m_material.push_back(m);
+    // }
 }
 
 void Model::Update()
@@ -49,21 +55,21 @@ void Model::Update()
     m_meshUpload.Upload(0, &m_meshConstsData);
     m_materialUpload.Upload(0, &m_materialConstData);
 
-    //if (m_material.size() > 0)
+    // if (m_material.size() > 0)
     //{
-    //    for (int32_t i = 0; i < m_material.size(); i++)
-    //    {
-    //        m_materialConstData.texIdx   = i;
-    //        m_materialConstData.ambient  = m_material[i].ambient;
-    //        m_materialConstData.diffuse  = m_material[i].diffuse;
-    //        m_materialConstData.specular = m_material[i].specular;
-    //        m_materialUpload.Upload(i, &m_materialConstData);
-    //    }
-    //}
-    //else
+    //     for (int32_t i = 0; i < m_material.size(); i++)
+    //     {
+    //         m_materialConstData.texIdx   = i;
+    //         m_materialConstData.ambient  = m_material[i].ambient;
+    //         m_materialConstData.diffuse  = m_material[i].diffuse;
+    //         m_materialConstData.specular = m_material[i].specular;
+    //         m_materialUpload.Upload(i, &m_materialConstData);
+    //     }
+    // }
+    // else
     //{
-    //    m_materialUpload.Upload(0, &m_materialConstData);
-    //}
+    //     m_materialUpload.Upload(0, &m_materialConstData);
+    // }
 }
 
 void Model::Render(ID3D12GraphicsCommandList *commandList)
@@ -71,8 +77,7 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
     int idx = 0;
     for (auto &m : m_meshes)
     {
-        if (m.albedoDescriptorHandle.IsShaderVisible())
-            commandList->SetGraphicsRootDescriptorTable(4, D3D12_GPU_DESCRIPTOR_HANDLE(m.albedoDescriptorHandle));
+        commandList->SetGraphicsRootDescriptorTable(4, m_handle);
 
         commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload.GetResource()->GetGPUVirtualAddress());
         auto address = m_materialUpload.GetResource()->GetGPUVirtualAddress() + idx * sizeof(MaterialConsts);
@@ -122,11 +127,16 @@ void Model::BuildMeshBuffers(ID3D12Device *device, Mesh &mesh, MeshData &meshDat
 }
 
 void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, const std::string &filename,
-                         ID3D12Resource **texture, ID3D12Resource **uploadTexture, DescriptorHandle &handle)
+                         ID3D12Resource **texture, ID3D12Resource **uploadTexture, DescriptorHandle &handle,
+                         bool isSRGB)
 {
-    handle = Graphics::s_Texture.Alloc(1);
+    static int i = 0;
+
+    m_cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     *uploadTexture =
-        D3DUtils::CreateTexture(device, commandList, filename, texture, D3D12_CPU_DESCRIPTOR_HANDLE(handle));
+        D3DUtils::CreateTexture(device, commandList, filename, texture,
+                                D3D12_CPU_DESCRIPTOR_HANDLE(m_handle + i * m_cbvDescriptorSize), {}, isSRGB);
+    i++;
 }
 
 void Model::DestroyMeshBuffers()
@@ -144,7 +154,9 @@ void Model::DestroyTextureResource()
     {
         SAFE_RELEASE(m.albedoTexture);
         SAFE_RELEASE(m.albedoUploadTexture);
-        SAFE_RELEASE(m.specularUploadTexture);
-        SAFE_RELEASE(m.diffuseUploadTexture);
+        SAFE_RELEASE(m.metallicTexture);
+        SAFE_RELEASE(m.metallicUploadTexture);
+        SAFE_RELEASE(m.roughnessTexture);
+        SAFE_RELEASE(m.roughnessloadTexture);
     }
 }

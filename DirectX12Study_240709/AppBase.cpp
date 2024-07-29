@@ -61,9 +61,11 @@ AppBase::~AppBase()
     SAFE_DELETE(m_depthMap);
     SAFE_DELETE(m_skybox);
 
-    SAFE_RELEASE(m_envTexture);
     SAFE_DELETE(m_camera);
-    // SAFE_RELEASE(m_rootSignature)
+    for (uint32_t i = 0; i < 3; i++)
+    {
+        SAFE_RELEASE(m_cubeMapResource[i]);
+    }
     SAFE_DELETE(m_timer);
     SAFE_RELEASE(m_fence);
     SAFE_RELEASE(m_commandList);
@@ -119,6 +121,7 @@ bool AppBase::Initialize()
     }
 
     m_postEffects.Initialize();
+    m_postProcess.Initialize();
 
     return true;
 }
@@ -134,6 +137,8 @@ void AppBase::Update(const float dt)
 
     for (auto &e : m_opaqueList)
     {
+        e->GetMaterialConstCPU().metalnessFactor = m_metalness;
+        e->GetMaterialConstCPU().roughnessFactor = m_roughness;
         e->Update();
     }
 
@@ -186,6 +191,7 @@ int32_t AppBase::Run()
             this->Update(io.Framerate);
 
             this->Render();
+            this->RenderPostProcess();
 
             ID3D12DescriptorHeap *descHeaps[] = {m_imguiInitHeap.Get()};
             m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
@@ -262,15 +268,15 @@ bool AppBase::InitD3D()
     IDXGIFactory6 *factory = nullptr;
     ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 
-     if (m_useWarpDevice)
+    if (m_useWarpDevice)
     {
-         IDXGIAdapter *warpAdapter = nullptr;
-         ThrowIfFailed(factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
+        IDXGIAdapter *warpAdapter = nullptr;
+        ThrowIfFailed(factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
 
         ThrowIfFailed(D3D12CreateDevice(warpAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
         SAFE_RELEASE(warpAdapter);
     }
-     else
+    else
     {
         IDXGIAdapter1 *hardwareAdapter = nullptr;
         GetHardwareAdapter(factory, &hardwareAdapter);
@@ -444,6 +450,7 @@ void AppBase::UpdateGlobalConsts(const float dt)
     m_globalConstsData.proj        = projRow.Transpose();
     m_globalConstsData.projInv     = m_globalConstsData.proj.Invert();
     m_globalConstsData.viewProjInv = (viewRow * projRow).Invert().Transpose();
+    m_globalConstsData.envType     = (uint8_t)m_cubeMapType;
 
     // shadow consts data.
     m_shadowConstsData[0] = m_globalConstsData;
@@ -511,6 +518,76 @@ void AppBase::UpdateCamera(const float dt)
 
 void AppBase::UpdateGui(const float frameRate)
 {
+    using namespace Display;
+
+    ImGuiWindowFlags window_flags = 0;
+    if (false)
+        window_flags |= ImGuiWindowFlags_NoTitleBar;
+    if (false)
+        window_flags |= ImGuiWindowFlags_NoScrollbar;
+    if (true)
+        window_flags |= ImGuiWindowFlags_MenuBar;
+    if (false)
+        window_flags |= ImGuiWindowFlags_NoMove;
+    if (false)
+        window_flags |= ImGuiWindowFlags_NoResize;
+    if (false)
+        window_flags |= ImGuiWindowFlags_NoCollapse;
+    if (false)
+        window_flags |= ImGuiWindowFlags_NoNav;
+    if (false)
+        window_flags |= ImGuiWindowFlags_NoBackground;
+    if (false)
+        window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
+    if (false)
+        window_flags |= ImGuiWindowFlags_UnsavedDocument;
+
+    // Main body of the Demo window starts here.
+    if (!ImGui::Begin("Gui Demo", nullptr, window_flags))
+    {
+        // Early out if the window is collapsed, as an optimization.
+        ImGui::End();
+        return;
+    }
+
+    Graphics::mainViewport =
+        D3DUtils::CreateViewport(0.0f, 0.0f, (float)(g_screenWidth - g_imguiWidth), g_screenHeight);
+    Graphics::mainSissorRect = D3DUtils::CreateScissorRect(0, 0, g_screenWidth - g_imguiWidth, g_screenHeight);
+
+    ImGui::Text("App average %.3f ms/frame (%.1f FPS)", 1000.0f / frameRate, frameRate);
+    auto cameraSpeed = m_camera->GetCameraSpeed();
+    ImGui::SliderFloat("Camera speed", &cameraSpeed, 0.001f, 0.01f);
+    if (cameraSpeed != m_camera->GetCameraSpeed())
+    {
+        m_camera->SetCameraSpeed(cameraSpeed);
+    }
+
+    if (ImGui::RadioButton("env", m_cubeMapType == 0))
+    {
+        m_cubeMapType = 0;
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("specular", m_cubeMapType == 1))
+    {
+        m_cubeMapType = 1;
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("diffuse", m_cubeMapType == 2))
+    {
+        m_cubeMapType = 2;
+    }
+
+    if (ImGui::CollapsingHeader("Image Processiong"))
+    {
+        ImGui::SliderFloat("Exposure", &m_exposureFactor, 0.0f, 10.0f);
+        ImGui::SliderFloat("Gamma collection", &m_gammaFactor, 0.01f, 5.0f);
+    }
+
+    if (ImGui::CollapsingHeader("Material"))
+    {
+        ImGui::SliderFloat("Metalness", &m_metalness, 0.0f, 2.0f);
+        ImGui::SliderFloat("Roughness", &m_roughness, 0.0f, 2.0f);
+    }
 }
 
 void AppBase::RenderDepthOnlyPass()
@@ -521,7 +598,7 @@ void AppBase::RenderDepthOnlyPass()
     m_commandList->SetGraphicsRootSignature(Graphics::defaultRootSignature);
     ID3D12DescriptorHeap *descHeaps[] = {Graphics::s_Texture.Get(), Graphics::s_Sampler.Get()};
     m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
-    m_commandList->SetGraphicsRootDescriptorTable(3, Graphics::s_Texture[3]);
+    m_commandList->SetGraphicsRootDescriptorTable(3, m_cubeMapHandle[0]);
 
     for (uint32_t i = 0; i < MAX_LIGHTS; i++)
     {
@@ -547,16 +624,10 @@ void AppBase::RenderOpaqueObject()
     m_commandList->RSSetViewports(1, &Graphics::mainViewport);
     m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
 
-    // Indicate that the back buffer will be used as a render target.
-    m_commandList->ResourceBarrier(
-        1, &CD3DX12_RESOURCE_BARRIER::Transition(Graphics::g_DisplayPlane[m_frameIndex].GetResource(),
-                                                 D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-    m_commandList->OMSetRenderTargets(1, &Graphics::g_DisplayPlane[m_frameIndex].GetRTV(), false,
-                                      &m_depthBuffer.GetDSV());
+    m_commandList->OMSetRenderTargets(1, &m_floatBuffer[m_frameIndex].GetRTV(), false, &m_depthBuffer.GetDSV());
     // Record commands.
     const float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
-    m_commandList->ClearRenderTargetView(Graphics::g_DisplayPlane[m_frameIndex].GetRTV(), clearColor, 0, nullptr);
+    m_commandList->ClearRenderTargetView(m_floatBuffer[m_frameIndex].GetRTV(), clearColor, 0, nullptr);
     m_commandList->ClearDepthStencilView(m_depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_STENCIL | D3D12_CLEAR_FLAG_DEPTH,
                                          1.0f, 0, 0, nullptr);
 
@@ -604,6 +675,53 @@ void AppBase::RenderDepthMapViewport()
                                                                             D3D12_RESOURCE_STATE_DEPTH_WRITE));
 }
 
+void AppBase::RenderPostProcess()
+{
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_floatBuffer[m_frameIndex].GetResource(),
+                                                                            D3D12_RESOURCE_STATE_RENDER_TARGET,
+                                                                            D3D12_RESOURCE_STATE_RESOLVE_SOURCE));
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+                                          m_resolvedBuffer[m_frameIndex].GetResource(),
+                                          D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_DEST));
+
+    m_commandList->ResolveSubresource(m_resolvedBuffer[m_frameIndex].GetResource(), 0,
+                                      m_floatBuffer[m_frameIndex].GetResource(), 0, DXGI_FORMAT_R16G16B16A16_FLOAT);
+
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+                                          m_resolvedBuffer[m_frameIndex].GetResource(),
+                                          D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_floatBuffer[m_frameIndex].GetResource(),
+                                                                            D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
+                                                                            D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+    // back buffer 에 출력
+    {
+        m_commandList->ResourceBarrier(
+            1, &CD3DX12_RESOURCE_BARRIER::Transition(m_resolvedBuffer[m_frameIndex].GetResource(),
+                                                     D3D12_RESOURCE_STATE_RENDER_TARGET,
+                                                     D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+        // 사각형 하나 그리기
+        m_commandList->SetGraphicsRootSignature(Graphics::postProcessRootSignature);
+        // set srv
+        m_commandList->SetGraphicsRootDescriptorTable(0, m_resolvedBuffer[m_frameIndex].GetSRV());
+
+        m_commandList->ResourceBarrier(
+            1, &CD3DX12_RESOURCE_BARRIER::Transition(Graphics::g_DisplayPlane[m_frameIndex].GetResource(),
+                                                     D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+        m_commandList->OMSetRenderTargets(1, &Graphics::g_DisplayPlane[m_frameIndex].GetRTV(), false, nullptr);
+
+        m_commandList->SetPipelineState(Graphics::postProcessPSO);
+
+        m_postProcess.Render(m_commandList);
+
+        m_commandList->ResourceBarrier(
+            1, &CD3DX12_RESOURCE_BARRIER::Transition(m_resolvedBuffer[m_frameIndex].GetResource(),
+                                                     D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                                                     D3D12_RESOURCE_STATE_RENDER_TARGET));
+    }
+}
+
 void AppBase::DestroyPSO()
 {
     SAFE_RELEASE(Graphics::defaultWirePSO);
@@ -626,18 +744,18 @@ void AppBase::CreateBuffers()
         g_DisplayPlane[n].CreateFromSwapChain(backBuffer);
 
         rtvDesc = backBuffer->GetDesc();
+
+        m_floatBuffer[n].Create(rtvDesc);           // Multi sampling on.
+        m_resolvedBuffer[n].Create(rtvDesc, false); // Multi sampling off.
     }
 
+    // refactorying
     D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS info;
     info.Flags            = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
     info.Format           = DXGI_FORMAT_R16G16B16A16_FLOAT;
     info.SampleCount      = 4;
     info.NumQualityLevels = 0;
     ThrowIfFailed(g_Device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &info, sizeof(info)));
-
-    // Float rtv
-    m_floatBuffer.Create(rtvDesc);
-    m_resolvedBuffer.Create(rtvDesc, false);
 
     // Create depth stencil buffer.
     m_depthBuffer.Create(g_screenWidth, g_screenHeight, DXGI_FORMAT_R24G8_TYPELESS);
@@ -778,32 +896,15 @@ void AppBase::WaitForPreviousFrame()
     }
 }
 
-void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename)
+void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename, std::wstring diffuseFilename,
+                          std::wstring specularFilename)
 {
-    ResourceUploadBatch resourceUpload(m_device);
-
-    resourceUpload.Begin();
-
-    bool isCubemap = false;
-    ThrowIfFailed(CreateDDSTextureFromFile(m_device, resourceUpload, (basePath + envFilename).c_str(), &m_envTexture,
-                                           false, 0, nullptr, &isCubemap));
-
-    // Upload the resources to the GPU.
-    auto uploadResourcesFinished = resourceUpload.End(m_commandQueue);
-
-    // Wait for the upload thread to terminate
-    uploadResourcesFinished.wait();
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURECUBE;
-    srvDesc.TextureCube.MostDetailedMip     = 0;
-    srvDesc.TextureCube.MipLevels           = m_envTexture->GetDesc().MipLevels;
-    srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
-    srvDesc.Format                          = m_envTexture->GetDesc().Format;
-
-    m_handle = Graphics::s_Texture.Alloc(1);
-    m_device->CreateShaderResourceView(m_envTexture, &srvDesc, D3D12_CPU_DESCRIPTOR_HANDLE(m_handle));
+    D3DUtils::CreateDDSTexture(m_device, m_commandQueue, (basePath + envFilename).c_str(), &m_cubeMapResource[0],
+                               m_cubeMapHandle[0]);
+    D3DUtils::CreateDDSTexture(m_device, m_commandQueue, (basePath + diffuseFilename).c_str(), &m_cubeMapResource[1],
+                               m_cubeMapHandle[1]);
+    D3DUtils::CreateDDSTexture(m_device, m_commandQueue, (basePath + specularFilename).c_str(), &m_cubeMapResource[2],
+                               m_cubeMapHandle[2]);
 }
 
 void AppBase::InitLights()
@@ -822,7 +923,7 @@ void AppBase::InitLights()
         Model *lightSphere = new Model;
         lightSphere->Initialize(m_device, m_commandList, {sphere});
         lightSphere->GetMaterialConstCPU().albedoFactor   = Vector3(0.0f);
-        lightSphere->GetMaterialConstCPU().emissiveFactor = Vector3(1.0f, 1.0f, 0.0f);
+        lightSphere->GetMaterialConstCPU().emissionFactor = Vector3(1.0f, 1.0f, 0.0f);
         lightSphere->UpdateWorldMatrix(Matrix::CreateTranslation(m_light[1].position));
         m_lightSpheres.push_back(lightSphere);
     }
@@ -837,7 +938,7 @@ void AppBase::InitLights()
         Model *lightSphere = new Model;
         lightSphere->Initialize(m_device, m_commandList, {sphere});
         lightSphere->GetMaterialConstCPU().albedoFactor   = Vector3(0.0f);
-        lightSphere->GetMaterialConstCPU().emissiveFactor = Vector3(1.0f, 1.0f, 0.0f);
+        lightSphere->GetMaterialConstCPU().emissionFactor = Vector3(1.0f, 1.0f, 0.0f);
         lightSphere->UpdateWorldMatrix(Matrix::CreateTranslation(m_light[2].position));
         m_lightSpheres.push_back(lightSphere);
     }

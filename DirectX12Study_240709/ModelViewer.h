@@ -50,5 +50,5 @@ class ModelViewer : public AppBase
     // light on/off flag
     bool m_useDL = false; // directional light
     bool m_usePL = true;  // point lihgt
-    bool m_useSL = false; // spot light
+    bool m_useSL = true; // spot light
 };

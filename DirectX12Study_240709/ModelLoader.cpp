@@ -288,13 +288,13 @@ MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
         mat.albedoFactor.y = ambient.b;
         mat.albedoFactor.z = ambient.g;
 
-        mat.diffuse.x = diffuse.r;
-        mat.diffuse.y = diffuse.b;
-        mat.diffuse.z = diffuse.g;
+        //mat.diffuse.x = diffuse.r;
+        //mat.diffuse.y = diffuse.b;
+        //mat.diffuse.z = diffuse.g;
 
-        mat.specular.x = specular.r;
-        mat.specular.y = specular.b;
-        mat.specular.z = specular.g;
+        //mat.specular.x = specular.r;
+        //mat.specular.y = specular.b;
+        //mat.specular.z = specular.g;
 
         m_materials.push_back(mat);
 

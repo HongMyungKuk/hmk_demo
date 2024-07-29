@@ -32,7 +32,8 @@ bool MapTool::Initialize()
         CREATE_OBJ(m_camera, Camera);
     }
 
-    AppBase::InitCubemap(L"../../Asset/Skybox/", L"DGarden_diffuseIBL.dds");
+    AppBase::InitCubemap(L"../../Asset/Skybox/", L"SkyboxEnvHDR.dds", L"SkyboxDiffuseHDR.dds",
+                         L"SkyboxSpecularHDR.dds");
 
     m_basePath = "../../Asset/City/";
     // Create the terrain
@@ -133,7 +134,6 @@ void MapTool::UpdateGui(const float frameRate)
     Graphics::mainViewport =
         D3DUtils::CreateViewport(0.0f, 0.0f, (float)(g_screenWidth - g_imguiWidth), (float)g_screenHeight);
     Graphics::mainSissorRect = D3DUtils::CreateScissorRect(0, 0, long(g_screenWidth - g_imguiWidth), g_screenHeight);
-    
 
     ImGui::Text("App average %.3f ms/frame (%.1f FPS)", 1000.0f / frameRate, frameRate);
     auto cameraSpeed = m_camera->GetCameraSpeed();
