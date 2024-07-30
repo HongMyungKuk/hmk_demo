@@ -28,15 +28,13 @@ bool ModelViewer::Initialize()
         return false;
     }
 
-    ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
-
     // Init cameara
     {
         CREATE_OBJ(m_camera, Camera);
     }
 
-    AppBase::InitCubemap(L"../../Asset/Skybox/", L"SkyboxEnvHDR.dds", L"SkyboxDiffuseHDR.dds",
-                         L"SkyboxSpecularHDR.dds");
+    AppBase::InitCubemap(L"../../Asset/Skybox/HDRI/", L"SkyboxEnvHDR.dds", L"SkyboxDiffuseHDR.dds",
+                         L"SkyboxSpecularHDR.dds", L"SkyboxBrdf.dds");
 
     //// Create the coordinate controller.
     //{
@@ -64,7 +62,7 @@ bool ModelViewer::Initialize()
     //    }
     //    {
     //        m_basPath   = "../../Asset/Model/";
-    //        m_animClips = {"idle2.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
+    //        m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
     //                       "Walking Backward.fbx"};
 
     //        AnimationData animData = {};
@@ -82,7 +80,7 @@ bool ModelViewer::Initialize()
     //            }
     //        }
 
-    //        auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model2.fbx");
+    //        auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model.fbx");
 
     //        ((SkinnedMeshModel *)skinnedModel)->Initialize(m_device, m_commandList, model, material, animData);
     //        skinnedModel->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
@@ -92,31 +90,6 @@ bool ModelViewer::Initialize()
     //    m_opaqueList.push_back(skinnedModel);
     //}
 
-    //// Create the terrain
-    //{
-    //    CREATE_MODEL_OBJ(m_terrain);
-    //    {
-    //        auto [model, _] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "3.fbx");
-    //        m_terrain->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, model);
-    //        m_terrain->UpdateWorldMatrix(Matrix::CreateScale(10.0f, 10.0f, 10.0f) * Matrix::CreateTranslation(0.0f,
-    //        -2.0f, 0.0f)); m_terrain->GetMaterialConstCPU().diffuse = Vector3(1.0f);
-    //        m_terrain->GetMaterialConstCPU().specular = Vector3(1.0f);
-    //        m_terrain->GetMaterialConstCPU().texFlag = false;
-    //    }
-    //}
-
-    //// Create the box.
-    //{
-    //    CREATE_MODEL_OBJ(m_box);
-    //    {
-    //        MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
-    //        cube.albedoTextureFilename = "boxTex.jpeg";
-    //        m_box->Initialize(m_device, m_commandList, m_commandAllocator, m_commandQueue, {cube});
-    //        m_box->GetMaterialConstCPU().diffuse = XMFLOAT3(0.0f, 1.0f, 0.0f);
-    //        m_box->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-    //    }
-    //}
-
     // Create the sphere.
     {
         Model *obj = nullptr;
@@ -124,9 +97,11 @@ bool ModelViewer::Initialize()
         {
             MeshData sphere = GeometryGenerator::MakeSphere(0.6f, 25, 25);
             obj->Initialize(m_device, m_commandList, {sphere});
-            obj->GetMaterialConstCPU().albedoFactor = Vector3(0.8f, 0.2f, 0.2f);
-            obj->GetMaterialConstCPU().useAlbedoMap = false;
+            obj->GetMaterialConstCPU().albedoFactor    = Vector3(1.0f, 1.0f, 1.0f);
+            obj->GetMaterialConstCPU().useAlbedoMap    = false;
             obj->GetMaterialConstCPU().useMetalnessMap = false;
+            obj->GetMaterialConstCPU().useNormalMap    = false;
+
             obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(-0.5f, 1.0f, 0.0f)));
         }
         m_opaqueList.push_back(obj);
@@ -138,10 +113,13 @@ bool ModelViewer::Initialize()
         CREATE_MODEL_OBJ(obj);
         {
             MeshData cube = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
+            cube.albedoTextureFilename = "../../Asset/brick-wall-ue/brick-wall_albedo.png";
+            cube.normalTextureFilename   = "../../Asset/brick-wall-ue/brick-wall_normal-dx.png";
             obj->Initialize(m_device, m_commandList, {cube});
-            obj->GetMaterialConstCPU().albedoFactor = Vector3(0.2f, 0.2f, 0.8f);
-            obj->GetMaterialConstCPU().useAlbedoMap = false;
+            obj->GetMaterialConstCPU().albedoFactor    = Vector3(0.8f);
+            obj->GetMaterialConstCPU().useAlbedoMap    = false;
             obj->GetMaterialConstCPU().useMetalnessMap = false;
+            obj->GetMaterialConstCPU().useNormalMap    = true;
             obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(1.5f, 0.5f, 0.0f)));
         }
         m_opaqueList.push_back(obj);
@@ -165,11 +143,11 @@ bool ModelViewer::Initialize()
         Model *ground = nullptr;
         CREATE_MODEL_OBJ(ground);
         {
-            MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
-            //square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
+            MeshData square = GeometryGenerator::MakeSquare(10.0f, 10.0f);
+            // square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
             ground->Initialize(m_device, m_commandList, {square});
-            ground->GetMaterialConstCPU().albedoFactor = Vector3(0.3f);
-            ground->GetMaterialConstCPU().useAlbedoMap = false;
+            ground->GetMaterialConstCPU().albedoFactor    = Vector3(0.3f);
+            ground->GetMaterialConstCPU().useAlbedoMap    = false;
             ground->GetMaterialConstCPU().useMetalnessMap = false;
             ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
         }
@@ -185,13 +163,13 @@ bool ModelViewer::Initialize()
 
     // Set event handler.
     g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::FRONT,
-                                           new ObjectMoveFrontCommand(m_opaqueList[0], &m_light[1]));
+                                           new ObjectMoveFrontCommand(m_opaqueList[0], m_light));
     g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::BACK,
-                                           new ObjectMoveBackCommand(m_opaqueList[0], &m_light[1]));
+                                           new ObjectMoveBackCommand(m_opaqueList[0], m_light));
     g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::RIGHT,
-                                           new ObjectMoveRightCommand(m_opaqueList[0], &m_light[1]));
+                                           new ObjectMoveRightCommand(m_opaqueList[0], m_light));
     g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::LEFT,
-                                           new ObjectMoveLeftCommand(m_opaqueList[0], &m_light[1]));
+                                           new ObjectMoveLeftCommand(m_opaqueList[0], m_light));
 
     return true;
 }
@@ -327,34 +305,21 @@ void ModelViewer::Update(const float dt)
                 if (GameInput::IsPressed(GameInput::kKey_up))
                 {
                     state = 1;
-                    // m_opaqueList[0]->MoveFront(dt);
-                    // m_light[1].position = Vector3::Transform(
-                    //     m_light[1].position, Matrix::CreateTranslation(0.0005f * Vector3(0.0f, 0.0f, -1.0f) * dt));
-
                     g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::FRONT, dt);
                 }
                 else if (GameInput::IsPressed(GameInput::kKey_right))
                 {
                     state = 2;
-                    // m_opaqueList[0]->MoveRight(dt);
-                    // m_light[1].position = Vector3::Transform(
-                    //     m_light[1].position, Matrix::CreateTranslation(0.0005f * Vector3(-1.0f, 0.0f, 0.0f) * dt));
                     g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::RIGHT, dt);
                 }
                 else if (GameInput::IsPressed(GameInput::kKey_left))
                 {
                     state = 3;
-                    // m_opaqueList[0]->MoveLeft(dt);
-                    // m_light[1].position = Vector3::Transform(
-                    //     m_light[1].position, Matrix::CreateTranslation(0.0005f * Vector3(1.0f, 0.0f, 0.0f) * dt));
                     g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::LEFT, dt);
                 }
                 else if (GameInput::IsPressed(GameInput::kKey_down))
                 {
                     state = 4;
-                    // m_opaqueList[0]->MoveBack(dt);
-                    // m_light[1].position = Vector3::Transform(
-                    //     m_light[1].position, Matrix::CreateTranslation(0.00025f * Vector3(0.0f, 0.0f, 1.0f) * dt));
                     g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::BACK, dt);
                 }
                 else
@@ -408,6 +373,7 @@ void ModelViewer::UpdateGui(const float frameRate)
     using namespace Display;
 
     AppBase::UpdateGui(frameRate);
+
     //// size tuning.
     // g_imguiWidth  = float(g_screenWidth) / 4.0f;
     // g_imguiHeight = float(g_screenHeight);
@@ -578,16 +544,9 @@ void ModelViewer::UpdateGui(const float frameRate)
         if (ImGui::TreeNode("Spot Light"))
         {
             ImGui::Checkbox("Use spot light", &m_useSL);
+            ImGui::SliderFloat("Spot power", &m_light[2].spotPower, 1.0f, 32.0f);
             ImGui::SliderFloat3("light direction", &m_light[2].direction.x, -5.0f, 5.0f);
             ImGui::SliderFloat3("light position", &m_light[2].position.x, -5.0f, 5.0f);
-            ImGui::TreePop();
-            ImGui::Spacing();
-        }
-
-        if (ImGui::TreeNode("Common"))
-        {
-            ImGui::SliderFloat("Spot power", &m_light[2].spotPower, 1.0f, 512.0f);
-            ImGui::SliderFloat("light Shininess", &m_light[1].shininess, 1.0f, 256.0f);
             ImGui::TreePop();
             ImGui::Spacing();
         }

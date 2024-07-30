@@ -9,15 +9,15 @@ void PostEffects::Initialize()
     MeshData square = GeometryGenerator::MakeSquare(2.0f, 2.0f);
 
     D3DUtils::CreateDefaultBuffer(Graphics::g_Device, &mesh.vertexBuffer, square.vertices.data(),
-                                  square.vertices.size() * sizeof(Vertex));
+                                  uint32_t(square.vertices.size() * sizeof(Vertex)));
     D3DUtils::CreateDefaultBuffer(Graphics::g_Device, &mesh.indexBuffer, square.indices.data(),
-                                  square.indices.size() * sizeof(MeshData::index_t));
+                                  uint32_t(square.indices.size() * sizeof(MeshData::index_t)));
     mesh.vertexCount = uint32_t(square.vertices.size());
-    mesh.indexCount = uint32_t(square.indices.size());
-    mesh.stride     = sizeof(Vertex);
+    mesh.indexCount  = uint32_t(square.indices.size());
+    mesh.stride      = sizeof(Vertex);
 }
 
-void PostEffects::Update(const GlobalConsts& data)
+void PostEffects::Update(const GlobalConsts &data)
 {
 }
 

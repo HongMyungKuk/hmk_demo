@@ -5,6 +5,7 @@
 #define LIGHT_OFF         0x00
 #define SHADOW_MAP        0x10
 
+
 SamplerState linearWrapSS : register(s0);
 SamplerState linearClampSS : register(s1);
 SamplerState pointWrapSS : register(s2);
@@ -33,17 +34,19 @@ cbuffer SkinnedMeshConsts : register(b3)
 struct Light
 {
     float3 direction;
-    float shininess;
-    float3 position;
-    float spotPower;
-    float3 irRadiance;
     float fallOffStart;
+    float3 position;
     float fallOffEnd;
-    uint type;
-    float2 dummy;
+    float3 irRadiance;
+    float spotPower;
     // shadow matrix
     Matrix view;
     Matrix proj;
+    
+    uint type;
+    float radius;
+    float haloRadius;
+    float haloStrength;
 };
 
 cbuffer GloabalConsts : register(b0)
@@ -59,6 +62,8 @@ cbuffer GloabalConsts : register(b0)
     Light light[MAX_LIGHTS];
     
     uint envType;
+    float envStrength;
+    float mipmap;
 }
 
 cbuffer MeshConsts : register(b1)
@@ -73,13 +78,7 @@ cbuffer MaterialConstants : register(b2)
     float metalnessFactor;
     float3 emissionFactor;
     float roughnessFactor;
-    uint useAlbedoMap;
-    float3 dummy1;
-    uint useMetalnessMap;
-    float3 dummy2;
-    uint useRoughnessMap;
-    float3 dummy3;
-    uint useEmissiveMap;
+    uint mapFlags;
 };
 
 struct VSInput
@@ -87,6 +86,7 @@ struct VSInput
     float3 posModel : POSITION;
     float3 normalModel : NORMAL;
     float2 texCoord : TEXCOORD;
+    float3 tangentModel : TANGENT;
     
 #ifdef SKINNED
     float4 boneWeights0 : BLENDWEIGHT0;
@@ -102,7 +102,13 @@ struct PSInput
     float3 posModel : POSITION0;
     float3 posWorld : POSITION1;
     float3 normalWorld : NORMAL;
+    float3 tangentWorld : TANGENT;
     float2 texCoord : TEXCOORD;
+};
+
+struct PSOutput
+{
+    float4 pixelColor : SV_Target0;
 };
 
 float CalcAttenuation(float fallOffStart, float fallOffEnd, float d)

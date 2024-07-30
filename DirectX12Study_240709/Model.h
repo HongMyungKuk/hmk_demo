@@ -69,6 +69,7 @@ class Model
     void MoveFront(const float dt)
     {
         m_world *= Matrix::CreateTranslation(m_speed[FRONT] * Vector3(0.0f, 0.0f, -1.0f) * dt);
+        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed[FRONT] * Vector3(0.0f, 0.0f, -1.0f) * dt));
         UpdateWorldMatrix(m_world);
 
         // light의 움직임도 등록.
@@ -76,22 +77,30 @@ class Model
     void MoveBack(const float dt)
     {
         m_world *= Matrix::CreateTranslation(m_speed[BACK] * Vector3(0.0f, 0.0f, -1.0f) * -dt);
+        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed[BACK] * Vector3(0.0f, 0.0f, -1.0f) * -dt));
         UpdateWorldMatrix(m_world);
     }
     void MoveRight(const float dt)
     {
         m_world *= Matrix::CreateTranslation(m_speed[SIDE] * Vector3(-1.0f, 0.0f, 0.0f) * dt);
+        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed[SIDE] * Vector3(-1.0f, 0.0f, 0.0f) * dt));
         UpdateWorldMatrix(m_world);
     }
     void MoveLeft(const float dt)
     {
         m_world *= Matrix::CreateTranslation(m_speed[SIDE] * Vector3(1.0f, 0.0f, 0.0f) * dt);
+        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed[SIDE] * Vector3(1.0f, 0.0f, 0.0f) * dt));
         UpdateWorldMatrix(m_world);
     }
 
     void SetSpeed(float s, int type)
     {
         m_speed[type] = s;
+    }
+
+    const Vector3& GetPos()
+    {
+        return m_pos;
     }
 
   private:

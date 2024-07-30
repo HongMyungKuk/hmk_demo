@@ -15,7 +15,7 @@ void SkinnedMeshModel::Initialize(ID3D12Device *device, ID3D12GraphicsCommandLis
         Matrix m = Matrix();
         for (size_t i = 0; i < m_anim.clips.front().keys.size(); i++)
         {
-            m_boneTransform.Upload(i, (void *)&m);
+            m_boneTransform.Upload(int(i), (void *)&m);
         }
     }
 
@@ -28,8 +28,8 @@ void SkinnedMeshModel::UpdateAnimation(int clipID, int frameCount)
 
     for (size_t i = 0; i < m_anim.clips.front().keys.size(); i++)
     {
-        Matrix m = m_anim.Get(clipID, i, frameCount).Transpose();
-        m_boneTransform.Upload(i, &m);
+        Matrix m = m_anim.Get(clipID, int(i), frameCount).Transpose();
+        m_boneTransform.Upload(int(i), &m);
     }
 }
 

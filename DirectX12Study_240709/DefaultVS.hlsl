@@ -51,6 +51,8 @@ PSInput main(VSInput input)
 
     // normal world
     output.normalWorld = normalize(mul(float4(input.normalModel, 0.0), worldIT)).xyz;
+    // tangent world
+    output.tangentWorld = normalize(mul(float4(input.tangentModel, 0.0), world)).xyz;
     
     // texture coordinate.
     output.texCoord = input.texCoord;

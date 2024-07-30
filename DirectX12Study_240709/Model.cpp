@@ -22,8 +22,6 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
     m_meshUpload.Initialize(device, 1);
     m_materialUpload.Initialize(device, 1);
 
-    m_handle = Graphics::s_Texture.Alloc(3);
-
     for (auto &m : meshes)
     {
         Mesh newMesh;
@@ -35,10 +33,13 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
                            &newMesh.albedoUploadTexture, newMesh.albedoDescriptorHandle, true);
 
         this->BuildTexture(device, commandList, m.metallicTextureFilename, &newMesh.metallicTexture,
-                           &newMesh.metallicUploadTexture, newMesh.metallicDescriptorHandle, true);
+                           &newMesh.metallicUploadTexture, newMesh.metallicDescriptorHandle, false);
 
         this->BuildTexture(device, commandList, m.roughnessTextureFilename, &newMesh.roughnessTexture,
-                           &newMesh.roughnessloadTexture, newMesh.roughnessDescriptorHandle, true);
+                           &newMesh.roughnessloadTexture, newMesh.roughnessDescriptorHandle, false);
+
+        this->BuildTexture(device, commandList, m.normalTextureFilename, &newMesh.normalTexture,
+                           &newMesh.normalLoadTexture, newMesh.normalDescriptorHandle, false);
 
         m_meshes.push_back(newMesh);
     }
@@ -77,7 +78,7 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
     int idx = 0;
     for (auto &m : m_meshes)
     {
-        commandList->SetGraphicsRootDescriptorTable(4, m_handle);
+        commandList->SetGraphicsRootDescriptorTable(4, m.albedoDescriptorHandle);
 
         commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload.GetResource()->GetGPUVirtualAddress());
         auto address = m_materialUpload.GetResource()->GetGPUVirtualAddress() + idx * sizeof(MaterialConsts);
@@ -130,12 +131,9 @@ void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *comman
                          ID3D12Resource **texture, ID3D12Resource **uploadTexture, DescriptorHandle &handle,
                          bool isSRGB)
 {
-    m_cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-    *uploadTexture      = D3DUtils::CreateTexture(
-        device, commandList, filename, texture,
-        D3D12_CPU_DESCRIPTOR_HANDLE(m_handle + m_texHandleIdx * m_cbvDescriptorSize), {}, isSRGB);
-    m_texHandleIdx++;
+    handle         = Graphics::s_Texture.Alloc(1);
+    *uploadTexture = D3DUtils::CreateTexture(device, commandList, filename, texture,
+                                             D3D12_CPU_DESCRIPTOR_HANDLE(handle), {}, isSRGB);
 }
 
 void Model::DestroyMeshBuffers()
@@ -157,5 +155,7 @@ void Model::DestroyTextureResource()
         SAFE_RELEASE(m.metallicUploadTexture);
         SAFE_RELEASE(m.roughnessTexture);
         SAFE_RELEASE(m.roughnessloadTexture);
+        SAFE_RELEASE(m.normalTexture);
+        SAFE_RELEASE(m.normalLoadTexture);
     }
 }

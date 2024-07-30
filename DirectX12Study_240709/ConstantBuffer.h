@@ -10,7 +10,7 @@ __declspec(align(256)) struct MeshConsts
     Matrix world;
     Matrix worldIT;
 };
-
+// Light
 #define MAX_LIGHTS        3
 #define DIRECTIONAL_LIGHT 0x01
 #define POINT_LIGHT       0x02
@@ -21,17 +21,19 @@ __declspec(align(256)) struct MeshConsts
 struct Light
 {
     Vector3 direction  = Vector3(0.0f, 0.0f, 1.0f);
-    float shininess    = 250.0f;
-    Vector3 position   = Vector3(0.0f, 0.0f, -5.0f);
-    float spotPower    = 1.0f;
-    Vector3 irRadiance = Vector3(1.0f);
     float fallOffStart = 0.0f;
+    Vector3 position   = Vector3(0.0f, 0.0f, -5.0f);
     float fallOffEnd   = 1000.0f;
-    uint8_t type;
-    Vector2 dummy;
+    Vector3 irRadiance = Vector3(1.0f);
+    float spotPower    = 1.0f;
     // shadow matrix
     Matrix view;
     Matrix proj;
+
+    uint32_t type      = LIGHT_OFF;
+    float radius       = 1.0f;
+    float haloRadius   = 1.0f;
+    float haloStrength = 0.0f;
 };
 
 __declspec(align(256)) struct GlobalConsts
@@ -42,10 +44,13 @@ __declspec(align(256)) struct GlobalConsts
     Matrix projInv;
     Matrix viewProjInv;
     Vector3 eyeWorld;
-    float dt;
+    float dt = 0.0f;
 
     Light lights[MAX_LIGHTS];
-    uint8_t envType;
+
+    uint32_t envType = 0;
+    float envStrength = 0.0f;
+    float mipmap      = 1.0f;
 };
 
 __declspec(align(256)) struct MaterialConsts
@@ -54,13 +59,21 @@ __declspec(align(256)) struct MaterialConsts
     float metalnessFactor;
     Vector3 emissionFactor;
     float roughnessFactor;
-    uint8_t useAlbedoMap    = 1;
-    Vector3 dummy1;
-    uint8_t useMetalnessMap = 0;
-    Vector3 dummy2;
-    uint8_t useRoughnessMap = 0;
-    Vector3 dummy3;
-    uint8_t useEmissiveMap  = 0;
+    union {
+        uint32_t mapFlags;
+        struct
+        {
+            uint32_t useAlbedoMap : 1;
+            uint32_t useMetalnessMap : 1;
+            uint32_t useRoughnessMap : 1;
+            uint32_t useEmissiveMap : 1;
+            uint32_t useNormalMap : 1;
+
+            uint32_t pas : 11;
+
+            uint32_t alphaRef : 16;
+        };
+    };
 };
 
 template <typename T_CONST> class UploadBuffer

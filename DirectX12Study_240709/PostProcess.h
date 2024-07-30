@@ -11,7 +11,6 @@ class PostProcess
         float gammeaFactor;
     };
 
-
   public:
     ~PostProcess()
     {
@@ -32,6 +31,6 @@ class PostProcess
     Mesh mesh             = {};
     uint32_t m_indexCount = 0;
 
-    Consts m_constsData;
+    Consts m_constsData = {};
     UploadBuffer<Consts> m_constsBuffer;
 };

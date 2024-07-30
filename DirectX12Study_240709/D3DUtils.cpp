@@ -15,6 +15,8 @@ size_t GetPixelSize(const DXGI_FORMAT pixelFormat);
 ID3D12Resource *D3DUtils::CreateTexture(ID3D12Device *device, ID3D12GraphicsCommandList *commandList,
                                         const std::string &filename, ID3D12Resource **texture,
                                         D3D12_CPU_DESCRIPTOR_HANDLE &descHandle, XMFLOAT3 color, bool isSRGB)
+
+// ¹Ó¸Ê Àû¿ëµÇÁö ¾ÊÀ½...
 {
     int32_t width = 0, height = 0, channels = 0;
 
@@ -104,9 +106,9 @@ void D3DUtils::CreateDDSTexture(ID3D12Device *device, ID3D12CommandQueue *cmdQue
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping         = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.ViewDimension                   = D3D12_SRV_DIMENSION_TEXTURECUBE;
-    srvDesc.TextureCube.MostDetailedMip     = 0;
-    srvDesc.TextureCube.MipLevels           = (*res)->GetDesc().MipLevels;
+    srvDesc.ViewDimension               = isCubemap ? D3D12_SRV_DIMENSION_TEXTURECUBE : D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.TextureCube.MostDetailedMip = 0;
+    srvDesc.TextureCube.MipLevels       = (*res)->GetDesc().MipLevels;
     srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
     srvDesc.Format                          = (*res)->GetDesc().Format;
 
@@ -194,8 +196,8 @@ void ReadEXRImage(uint8_t **image, const std::string filename, int &w, int &h, i
     ScratchImage scratchImage;
     ThrowIfFailed(LoadFromEXRFile(wFilename.c_str(), &metaData, scratchImage));
 
-    w      = metaData.width;
-    h      = metaData.height;
+    w      = int(metaData.width);
+    h      = int(metaData.height);
     format = metaData.format;
 
     std::cout << filename << " " << w << " " << h << " " << format << std::endl;
@@ -220,10 +222,8 @@ void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int
     uint64_t size = uint64_t(w * h * 4);
 
     *image = new uint8_t[size];
-    if (!image)
-    {
-        return;
-    }
+
+    assert(*image);
 
     if (c == 3)
     {
@@ -279,9 +279,9 @@ void ReadImage(uint8_t **image, int &w, int &h, int &c, XMFLOAT3 color)
         for (int32_t i = 0; i < w; i++)
         {
             (*image)[4 * (w * j + i) + 0] = uint8_t(color.x * 255);
-            (*image)[4 * (w * j + i) + 0] = uint8_t(color.y * 255);
-            (*image)[4 * (w * j + i) + 0] = uint8_t(color.z * 255);
-            (*image)[4 * (w * j + i) + 0] = 255;
+            (*image)[4 * (w * j + i) + 1] = uint8_t(color.y * 255);
+            (*image)[4 * (w * j + i) + 2] = uint8_t(color.z * 255);
+            (*image)[4 * (w * j + i) + 3] = 255;
         }
     }
 }
@@ -292,7 +292,7 @@ void ToLower(uint8_t **str)
 
     for (size_t i = 0; i < len; i++)
     {
-        std::tolower((*str)[i]);
+        (*str)[i] = std::tolower((*str)[i]);
     }
 }
 

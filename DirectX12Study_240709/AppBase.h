@@ -59,7 +59,7 @@ class AppBase
     void UpdateCamera(const float dt);
     void WaitForPreviousFrame();
     void InitCubemap(std::wstring basePath, std::wstring envFilename, std::wstring diffuseFilename,
-                     std::wstring specularFilename);
+                     std::wstring specularFilename, std::wstring brdfFilename);
     virtual void InitLights();
     virtual void UpdateLights();
 
@@ -109,8 +109,8 @@ class AppBase
     DepthBuffer m_depthOnlyBuffer;
     DepthBuffer m_shadowMap[MAX_LIGHTS];
     DescriptorHeap m_imguiInitHeap;
-    DescriptorHandle m_cubeMapHandle[3];
-    ID3D12Resource* m_cubeMapResource[3];
+    DescriptorHandle m_cubeMapHandle[4];
+    ID3D12Resource *m_cubeMapResource[4] = {};
     int m_cubeMapType = 2;
 
     // Synchronization objects.

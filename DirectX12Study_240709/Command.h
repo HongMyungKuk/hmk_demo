@@ -33,9 +33,9 @@ class ObjectMoveBackCommand : public ObjectCommand
     virtual void Excute(const float dt)
     {
         m_model->MoveBack(dt);
-        m_light->position =
-            Vector3::Transform(m_light->position, Matrix::CreateTranslation(Vector3(0.0f, 0.0f, 1.0f) * dt *
-                                                                            m_model->GetSpeed(Model::MOVE_TYPE::BACK)));
+        m_light[1].position = Vector3::Transform(
+            m_light[1].position,
+            Matrix::CreateTranslation(Vector3(0.0f, 0.0f, 1.0f) * dt * m_model->GetSpeed(Model::MOVE_TYPE::BACK)));
     }
 };
 
@@ -49,8 +49,9 @@ class ObjectMoveFrontCommand : public ObjectCommand
     virtual void Excute(const float dt)
     {
         m_model->MoveFront(dt);
-        m_light->position = Vector3::Transform(
-            m_light->position,
+
+        m_light[1].position = Vector3::Transform(
+            m_light[1].position,
             Matrix::CreateTranslation(Vector3(0.0f, 0.0f, -1.0f) * dt * m_model->GetSpeed(Model::MOVE_TYPE::FRONT)));
     }
 };
@@ -65,9 +66,9 @@ class ObjectMoveLeftCommand : public ObjectCommand
     virtual void Excute(const float dt)
     {
         m_model->MoveLeft(dt);
-        m_light->position =
-            Vector3::Transform(m_light->position, Matrix::CreateTranslation(Vector3(1.0f, 0.0f, 0.0f) * dt *
-                                                                            m_model->GetSpeed(Model::MOVE_TYPE::SIDE)));
+        m_light[1].position = Vector3::Transform(
+            m_light[1].position,
+            Matrix::CreateTranslation(Vector3(1.0f, 0.0f, 0.0f) * dt * m_model->GetSpeed(Model::MOVE_TYPE::SIDE)));
     }
 };
 
@@ -81,9 +82,9 @@ class ObjectMoveRightCommand : public ObjectCommand
     virtual void Excute(const float dt)
     {
         m_model->MoveRight(dt);
-        m_light->position =
-            Vector3::Transform(m_light->position, Matrix::CreateTranslation(Vector3(-1.0f, 0.0f, 0.0f) * dt *
-                                                                            m_model->GetSpeed(Model::MOVE_TYPE::SIDE)));
+        m_light[1].position = Vector3::Transform(
+            m_light[1].position,
+            Matrix::CreateTranslation(Vector3(-1.0f, 0.0f, 0.0f) * dt * m_model->GetSpeed(Model::MOVE_TYPE::SIDE)));
     }
 };
 

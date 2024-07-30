@@ -3,10 +3,43 @@
 Texture2D albedoTexture : register(t10);
 Texture2D metalnessTexture : register(t11);
 Texture2D roughnessTexture : register(t12);
+Texture2D normalTexture : register(t13);
 
 #define PI 3.141592
 
 static const float3 Fdielectric = 0.04;
+
+float3 SchlickFresnel(float3 F0, float vdoth)
+{
+    return F0 + (1 - F0) * pow(2.0, (-5.55473 * (vdoth) - 6.98316) * vdoth);
+}
+
+float3 DiffuseIBL(float3 albedo, float3 toEye, float3 normalWorld, float metalness)
+{
+    float3 F0 = lerp(Fdielectric, albedo, metalness);
+    float3 F = SchlickFresnel(F0, max(0.0, dot(toEye, normalWorld)));
+    float3 kd = lerp(float3(1, 1, 1) - F, float3(0, 0, 0), metalness);
+    float3 irradiance = diffuseTexture.Sample(linearWrapSS, normalWorld).rgb;
+    
+    return kd * albedo * irradiance;
+}
+
+float3 SpecularIBL(float3 albedo, float3 toEye, float3 normalWorld, float metalness, float roughness)
+{
+    float2 BRDF = brdfTexture.SampleLevel(pointClampSS, float2(max(0.0, dot(toEye, normalWorld)), 1 - roughness), 0.0).rg;
+    float3 irradiance = specularTexture.SampleLevel(linearWrapSS, -reflect(toEye, normalWorld), 2 * roughness + 3).rgb;
+    float3 F0 = lerp(Fdielectric, albedo, metalness);
+
+    return (F0 * BRDF.x + BRDF.y) * irradiance;
+}
+
+float3 AmbientLightingByIBL(float3 albedo, float3 toEye, float3 normalWorld, float roughness, float metalness)
+{
+    float3 diffuseIBL = DiffuseIBL(albedo, toEye, normalWorld, metalness);
+    float3 specularIBL = SpecularIBL(albedo, toEye, normalWorld, metalness, roughness);
+    
+    return diffuseIBL + specularIBL;
+}
 
 float NdfGGX(float hdotn, float roughness)
 {
@@ -27,11 +60,6 @@ float SchlickGGX(float ndotl, float ndotv, float roughness)
     float k = alpha * alpha / 8.0;
     
     return SchlickG1(k, ndotl) * SchlickG1(k, ndotv);
-}
-
-float3 SchlickFresnel(float3 F0, float vdoth)
-{
-    return F0 + (1 - F0) * pow(2.0, (-5.55473 * (vdoth) - 6.98316) * vdoth);
 }
 
 float3 CalcIrradiance(Light L, float3 posWorld, float3 toEye, float3 normalWorld, Texture2D shadowMap)
@@ -77,24 +105,45 @@ float3 CalcIrradiance(Light L, float3 posWorld, float3 toEye, float3 normalWorld
     return L.irRadiance * shadowFactor * att * spotPower;
 }
 
-float4 main(PSInput input) : SV_TARGET
+float3 GetNoramlWorld(float3 normalWorld, float3 tangentWorld, float2 texCoord)
 {
-    float3 color = 0.0;
+    float3 normal = normalWorld;
+    
+    if (mapFlags & 0x10)
+    {
+        normal = normalTexture.Sample(linearClampSS, texCoord).xyz;
+        normal *= 2.0; // [0.0 ~ 2.0]
+        normal -= 1.0; // [-1.0 ~ 1.0]
+        
+        float3 N = normalWorld;
+        float3 T = normalize(tangentWorld - dot(T, N) * N);
+        float3 B = cross(N, B);
+        
+        float3x3 TBN = float3x3(T, B, N);
+        
+        float3 normal = mul(normal, TBN);
+    }
+    
+    return normal;
+}
 
+PSOutput main(PSInput input)
+{
+    PSOutput output;
+    
     float3 toEye = normalize(eyeWorld - input.posWorld);
     
-    float3 normalWorld = input.normalWorld;
+    float3 normalWorld = GetNoramlWorld(input.normalWorld, input.tangentWorld, input.texCoord);
     
-    float3 albedo = useAlbedoMap ? albedoTexture.Sample(linearWrapSS, input.texCoord).xyz : albedoFactor;
-    float metalness = useMetalnessMap ? metalnessTexture.Sample(linearWrapSS, input.texCoord).r : metalnessFactor;
-    float roughness = useRoughnessMap ? roughnessTexture.Sample(linearWrapSS, input.texCoord).r : roughnessFactor;
-    float3 emission = useEmissiveMap ? float3(1.0, 1.0, 1.0) : emissionFactor;
+    float3 albedo = (mapFlags & 0x01) ? albedoTexture.Sample(linearWrapSS, input.texCoord).xyz : albedoFactor;
+    float metalness = (mapFlags & 0x02) ? metalnessTexture.Sample(linearWrapSS, input.texCoord).r : metalnessFactor;
+    float roughness = (mapFlags & 0x04) ? roughnessTexture.Sample(linearWrapSS, input.texCoord).r : roughnessFactor;
+    float3 emission = (mapFlags & 0x08) ? float3(1.0, 1.0, 1.0) : emissionFactor;
     
     // Image Based Lighting.
+    float3 ambientLighting = 0.0;
     
-    
-    
-    
+    ambientLighting = AmbientLightingByIBL(albedo, toEye, normalWorld, roughness, metalness) * envStrength;
     
     // Shading Model
     float3 directLighting = 0.0;
@@ -142,5 +191,8 @@ float4 main(PSInput input) : SV_TARGET
         }
     }
     
-    return float4(directLighting + emission, 1.0);
+    output.pixelColor = float4(ambientLighting + directLighting + emission, 1.0);
+    output.pixelColor = clamp(output.pixelColor, 0.0, 1000.0);
+    
+    return output;
 }

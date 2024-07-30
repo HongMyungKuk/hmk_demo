@@ -2,6 +2,7 @@
 
 #include "GeometryGenerator.h"
 #include "ModelLoader.h"
+#include <DirectXMesh.h>
 
 MeshData GeometryGenerator::MakeSquare(const float w, const float h)
 {
@@ -135,13 +136,6 @@ MeshData GeometryGenerator::MakeSphere(float radius, uint32_t sliceCount, uint32
 {
     MeshData meshData;
 
-    //
-    // Compute the vertices stating at the top pole and moving down the stacks.
-    //
-
-    // Poles: note that there will be texture coordinate distortion as there is
-    // not a unique point on the texture map to assign to the pole when mapping
-    // a rectangular texture onto a sphere.
     Vertex topVertex(0.0f, +radius, 0.0f, 0.0f, +1.0f, 0.0f, 0.0f, 0.0f);
     Vertex bottomVertex(0.0f, -radius, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f);
 
@@ -166,14 +160,6 @@ MeshData GeometryGenerator::MakeSphere(float radius, uint32_t sliceCount, uint32
             v.position.x = radius * sinf(phi) * cosf(theta);
             v.position.y = radius * cosf(phi);
             v.position.z = radius * sinf(phi) * sinf(theta);
-
-            //// Partial derivative of P with respect to theta
-            // v.TangentU.x = -radius * sinf(phi) * sinf(theta);
-            // v.TangentU.y = 0.0f;
-            // v.TangentU.z = +radius * sinf(phi) * cosf(theta);
-
-            // XMVECTOR T = XMLoadFloat3(&v.TangentU);
-            // XMStoreFloat3(&v.TangentU, XMVector3Normalize(T));
 
             XMVECTOR p = XMLoadFloat3(&v.position);
             XMStoreFloat3(&v.normal, XMVector3Normalize(p));
@@ -239,10 +225,31 @@ MeshData GeometryGenerator::MakeSphere(float radius, uint32_t sliceCount, uint32
         meshData.indices.push_back(baseIndex + i + 1);
     }
 
+    std::vector<XMFLOAT3> positions(meshData.vertices.size());
+    std::vector<XMFLOAT3> normals(meshData.vertices.size());
+    std::vector<XMFLOAT2> texCoords(meshData.vertices.size());
+    std::vector<XMFLOAT3> tangents(meshData.vertices.size());
+    std::vector<XMFLOAT3> biTangents(meshData.vertices.size());
+
+    for (size_t i = 0; i < meshData.vertices.size(); i++)
+    {
+        positions[i] = meshData.vertices[i].position;
+        normals[i]   = meshData.vertices[i].normal;
+        texCoords[i] = meshData.vertices[i].texCoord;
+    }
+
+    DirectX::ComputeTangentFrame(meshData.indices.data(), meshData.indices.size() / 3, positions.data(), normals.data(),
+                                 texCoords.data(), positions.size(), tangents.data(), biTangents.data());
+
+    for (size_t i = 0; i < tangents.size(); i++)
+    {
+        meshData.vertices[i].tangent = tangents[i];
+    }
+
     return meshData;
 }
 
-void NomalizeModel(std::vector<MeshData> &meshes, const float sacle, AnimationData& aniData)
+void NomalizeModel(std::vector<MeshData> &meshes, const float sacle, AnimationData &aniData)
 {
     Vector3 max = Vector3(-1000.0f, -1000.0f, -1000.0f);
     Vector3 min = Vector3(1000.0f, 1000.0f, 1000.0f);
@@ -274,7 +281,8 @@ void NomalizeModel(std::vector<MeshData> &meshes, const float sacle, AnimationDa
             p.position = (p.position + translation) * scale;
         }
 
-        for (auto& p : m.skinnedVertices) {
+        for (auto &p : m.skinnedVertices)
+        {
             p.position = (p.position + translation) * scale;
         }
     }
@@ -302,7 +310,7 @@ auto GeometryGenerator::ReadFromAnimationFile(const char *filepath, const char *
     ModelLoader modelLoader((const char *)filepath, (const char *)filename);
 
     auto meshes = modelLoader.Meshes();
-    auto& anim   = modelLoader.Animation();
+    auto &anim  = modelLoader.Animation();
 
     NomalizeModel(meshes, 1.0f, anim);
 

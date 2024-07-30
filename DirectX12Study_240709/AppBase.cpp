@@ -62,7 +62,7 @@ AppBase::~AppBase()
     SAFE_DELETE(m_skybox);
 
     SAFE_DELETE(m_camera);
-    for (uint32_t i = 0; i < 3; i++)
+    for (uint32_t i = 0; i < 4; i++)
     {
         SAFE_RELEASE(m_cubeMapResource[i]);
     }
@@ -455,8 +455,10 @@ void AppBase::UpdateGlobalConsts(const float dt)
     // shadow consts data.
     m_shadowConstsData[0] = m_globalConstsData;
 
+    auto lightCenter = m_opaqueList[0]->GetPos();
+
     eyePos  = m_light[1].position;
-    viewRow = XMMatrixLookAtLH(eyePos, Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f)); // 물체의 중심을 향해
+    viewRow = XMMatrixLookAtLH(eyePos, lightCenter, Vector3(0.0f, 0.0f, 1.0f)); // 물체의 중심을 향해
     projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(120.0f), 1.0f, 0.01f, 1000.0f);
 
     // m_shadowConstsData[1].eyeWorld = eyePos;
@@ -466,7 +468,7 @@ void AppBase::UpdateGlobalConsts(const float dt)
     m_shadowConstsData[1].projInv = m_shadowConstsData[1].proj.Invert();
 
     eyePos  = m_light[2].position;
-    viewRow = XMMatrixLookAtLH(eyePos, Vector3(0.0f, 0.0f, 0.0f), Vector3(1.0f, 0.0f, 0.0f)); // 물체의 중심을 향해
+    viewRow = XMMatrixLookAtLH(eyePos, Vector3(0.0f), Vector3(1.0f, 0.0f, 0.0f)); // 물체의 중심을 향해
     projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(120.0f), 1.0f, 0.01f, 1000.0f);
 
     m_shadowConstsData[2].view    = viewRow.Transpose();
@@ -546,13 +548,14 @@ void AppBase::UpdateGui(const float frameRate)
     if (!ImGui::Begin("Gui Demo", nullptr, window_flags))
     {
         // Early out if the window is collapsed, as an optimization.
-        ImGui::End();
+        // ImGui::End(); // => many end warning.
         return;
     }
 
     Graphics::mainViewport =
-        D3DUtils::CreateViewport(0.0f, 0.0f, (float)(g_screenWidth - g_imguiWidth), g_screenHeight);
-    Graphics::mainSissorRect = D3DUtils::CreateScissorRect(0, 0, g_screenWidth - g_imguiWidth, g_screenHeight);
+        D3DUtils::CreateViewport(0.0f, 0.0f, (float)(g_screenWidth - g_imguiWidth), (float)g_screenHeight);
+    Graphics::mainSissorRect =
+        D3DUtils::CreateScissorRect(0, 0, (long)(g_screenWidth - g_imguiWidth), (long)g_screenHeight);
 
     ImGui::Text("App average %.3f ms/frame (%.1f FPS)", 1000.0f / frameRate, frameRate);
     auto cameraSpeed = m_camera->GetCameraSpeed();
@@ -585,8 +588,10 @@ void AppBase::UpdateGui(const float frameRate)
 
     if (ImGui::CollapsingHeader("Material"))
     {
-        ImGui::SliderFloat("Metalness", &m_metalness, 0.0f, 2.0f);
-        ImGui::SliderFloat("Roughness", &m_roughness, 0.0f, 2.0f);
+        ImGui::SliderFloat("MipMap", &m_globalConstsData.mipmap, 0.0f, 5.0f);
+        ImGui::SliderFloat("Env strength", &m_globalConstsData.envStrength, 0.0f, 1.0f);
+        ImGui::SliderFloat("Metalness", &m_metalness, 0.0f, 1.0f);
+        ImGui::SliderFloat("Roughness", &m_roughness, 0.0f, 1.0f);
     }
 }
 
@@ -835,8 +840,9 @@ LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
             {
                 this->Resize();
 
-                Graphics::mainViewport   = D3DUtils::CreateViewport(0.0f, 0.0f, g_screenWidth, g_screenHeight);
-                Graphics::mainSissorRect = D3DUtils::CreateScissorRect(0.0f, 0.0f, g_screenWidth, g_screenHeight);
+                Graphics::mainViewport =
+                    D3DUtils::CreateViewport(0.0f, 0.0f, (float)g_screenWidth, (float)g_screenHeight);
+                Graphics::mainSissorRect = D3DUtils::CreateScissorRect(0, 0, (long)g_screenWidth, (long)g_screenHeight);
             }
         }
     }
@@ -897,7 +903,7 @@ void AppBase::WaitForPreviousFrame()
 }
 
 void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename, std::wstring diffuseFilename,
-                          std::wstring specularFilename)
+                          std::wstring specularFilename, std::wstring brdfFilename)
 {
     D3DUtils::CreateDDSTexture(m_device, m_commandQueue, (basePath + envFilename).c_str(), &m_cubeMapResource[0],
                                m_cubeMapHandle[0]);
@@ -905,10 +911,14 @@ void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename, std::
                                m_cubeMapHandle[1]);
     D3DUtils::CreateDDSTexture(m_device, m_commandQueue, (basePath + specularFilename).c_str(), &m_cubeMapResource[2],
                                m_cubeMapHandle[2]);
+    D3DUtils::CreateDDSTexture(m_device, m_commandQueue, (basePath + brdfFilename).c_str(), &m_cubeMapResource[3],
+                               m_cubeMapHandle[3]);
 }
 
 void AppBase::InitLights()
 {
+    ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
+
     // directional light
     {
         m_light[0].type |= DIRECTIONAL_LIGHT;
@@ -917,7 +927,7 @@ void AppBase::InitLights()
     {
         m_light[1].type |= POINT_LIGHT;
         m_light[1].type |= SHADOW_MAP;
-        m_light[1].position = Vector3(0.0f, 2.5f, 0.0f);
+        m_light[1].position = Vector3(0.0f, 2.5f, -1.0f);
 
         MeshData sphere    = GeometryGenerator::MakeSphere(0.025f, 10, 10);
         Model *lightSphere = new Model;
@@ -931,7 +941,7 @@ void AppBase::InitLights()
     {
         m_light[2].type |= SPOT_LIGHT;
         m_light[2].type |= SHADOW_MAP;
-        m_light[2].position  = Vector3(1.0f, 2.0f, -3.0f);
+        m_light[2].position  = Vector3(0.0f, 3.0f, 0.0f);
         m_light[2].direction = Vector3(0.0f, -1.0f, 0.0f);
 
         MeshData sphere    = GeometryGenerator::MakeSphere(0.025f, 10, 10);

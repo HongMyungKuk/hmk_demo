@@ -12,6 +12,7 @@ PSInput vsmain(VSInput input)
     output.posProj = mul(float4(output.posProj.xyz, 1.0), proj);
 
     output.normalWorld = input.normalModel;
+    output.tangentWorld = input.tangentModel;
     output.texCoord = input.texCoord;
     
     return output;

@@ -32,8 +32,8 @@ bool MapTool::Initialize()
         CREATE_OBJ(m_camera, Camera);
     }
 
-    AppBase::InitCubemap(L"../../Asset/Skybox/", L"SkyboxEnvHDR.dds", L"SkyboxDiffuseHDR.dds",
-                         L"SkyboxSpecularHDR.dds");
+    AppBase::InitCubemap(L"../../Asset/Skybox/", L"SkyboxEnvHDR.dds", L"SkyboxDiffuseHDR.dds", L"SkyboxSpecularHDR.dds",
+                         L"SkyboxBrdf.dds");
 
     m_basePath = "../../Asset/City/";
     // Create the terrain

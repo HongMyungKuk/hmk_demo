@@ -29,15 +29,15 @@ float4 psmain(PixelShaderInput input) : SV_TARGET
     
     if(envType == 0)
     {
-        color = envTexture.Sample(linearWrapSS, input.posModel).xyz;
+        color = envTexture.SampleLevel(linearWrapSS, input.posModel, mipmap).xyz;
     }
     else if(envType == 1)
     {
-        color = specularTexture.Sample(linearWrapSS, input.posModel).xyz;
+        color = specularTexture.SampleLevel(linearWrapSS, input.posModel, mipmap).xyz;
     }
     else
     {
-        color = diffuseTexture.Sample(linearWrapSS, input.posModel).xyz;
+        color = diffuseTexture.SampleLevel(linearWrapSS, input.posModel, mipmap).xyz;
     }
-    return float4(color, 1.0);
+    return float4(color * envStrength, 1.0);
 }
