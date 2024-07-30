@@ -30,7 +30,7 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
         BuildMeshBuffers(device, newMesh, m);
 
         // Set Texture
-
+        // 만약 이름이 없다면 더미 텍스쳐를 생성한다. (root desciptor table 설정을 위해 필요)
         this->BuildTexture(device, commandList, m.albedoTextureFilename, &newMesh.albedoTexture,
                            &newMesh.albedoUploadTexture, newMesh.albedoDescriptorHandle, true);
 
@@ -130,13 +130,12 @@ void Model::BuildTexture(ID3D12Device *device, ID3D12GraphicsCommandList *comman
                          ID3D12Resource **texture, ID3D12Resource **uploadTexture, DescriptorHandle &handle,
                          bool isSRGB)
 {
-    static int i = 0;
-
     m_cbvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    *uploadTexture =
-        D3DUtils::CreateTexture(device, commandList, filename, texture,
-                                D3D12_CPU_DESCRIPTOR_HANDLE(m_handle + i * m_cbvDescriptorSize), {}, isSRGB);
-    i++;
+
+    *uploadTexture      = D3DUtils::CreateTexture(
+        device, commandList, filename, texture,
+        D3D12_CPU_DESCRIPTOR_HANDLE(m_handle + m_texHandleIdx * m_cbvDescriptorSize), {}, isSRGB);
+    m_texHandleIdx++;
 }
 
 void Model::DestroyMeshBuffers()

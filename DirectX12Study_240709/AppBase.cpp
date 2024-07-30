@@ -456,7 +456,7 @@ void AppBase::UpdateGlobalConsts(const float dt)
     m_shadowConstsData[0] = m_globalConstsData;
 
     eyePos  = m_light[1].position;
-    viewRow = XMMatrixLookAtLH(eyePos, Vector3(0.0f, -1.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f));
+    viewRow = XMMatrixLookAtLH(eyePos, Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f)); // 물체의 중심을 향해
     projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(120.0f), 1.0f, 0.01f, 1000.0f);
 
     // m_shadowConstsData[1].eyeWorld = eyePos;
@@ -466,7 +466,7 @@ void AppBase::UpdateGlobalConsts(const float dt)
     m_shadowConstsData[1].projInv = m_shadowConstsData[1].proj.Invert();
 
     eyePos  = m_light[2].position;
-    viewRow = XMMatrixLookAtLH(eyePos, eyePos + m_light[2].direction, Vector3(1.0f, 0.0f, 0.0f));
+    viewRow = XMMatrixLookAtLH(eyePos, Vector3(0.0f, 0.0f, 0.0f), Vector3(1.0f, 0.0f, 0.0f)); // 물체의 중심을 향해
     projRow = XMMatrixPerspectiveFovLH(XMConvertToRadians(120.0f), 1.0f, 0.01f, 1000.0f);
 
     m_shadowConstsData[2].view    = viewRow.Transpose();
@@ -802,7 +802,7 @@ void AppBase::InitSRVDesriptorHeap()
     samplerDesc.AddressU           = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
     samplerDesc.AddressV           = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
     samplerDesc.AddressW           = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-    samplerDesc.BorderColor[0]     = 100.0f; // 큰 Z값
+    samplerDesc.BorderColor[0]     = 100.0f; // 큰 Z값 => 현재 동작하지 않음.
     samplerDesc.Filter             = D3D12_FILTER_MIN_MAG_MIP_POINT;
     samplerDesc.ComparisonFunc     = D3D12_COMPARISON_FUNC_NEVER;
     samplerDesc.MinLOD             = 0.0f;

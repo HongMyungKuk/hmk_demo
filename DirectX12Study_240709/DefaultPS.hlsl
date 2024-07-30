@@ -36,8 +36,18 @@ float3 SchlickFresnel(float3 F0, float vdoth)
 
 float3 CalcIrradiance(Light L, float3 posWorld, float3 toEye, float3 normalWorld, Texture2D shadowMap)
 {
-    float shadowFactor = 1.0;
+    float3 lightVec = L.position - posWorld;
+    float distance = length(lightVec);
     
+    lightVec /= distance;
+    
+    float att = CalcAttenuation(L.fallOffStart, L.fallOffEnd, distance);
+    
+    float spotPower = 1.0;
+    spotPower = (L.type & SPOT_LIGHT) ? pow(max(0.0, dot(normalize(L.direction), -lightVec)), L.spotPower) : 1.0;
+    
+    
+    float shadowFactor = 1.0;
     if (L.type & SHADOW_MAP)
     {
         float4 lightScreen = mul(float4(posWorld, 1.0), L.view);
@@ -49,17 +59,22 @@ float3 CalcIrradiance(Light L, float3 posWorld, float3 toEye, float3 normalWorld
         texCoord *= 0.5;
     
         float depthDest = lightScreen.z;
-        float depthSrc = shadowMap.Sample(shadowPointSS, float2(texCoord.x, texCoord.y)).r;
+        
+        float depthSrc = shadowMap.Sample(shadowPointDynamicSS, float2(texCoord.x, texCoord.y)).r;
+        
+        // set border value.
+        if (texCoord.x < 0.0f || texCoord.x > 1.0f || texCoord.y < 0.0f || texCoord.y > 1.0f)
+            depthSrc = 100.0f;
         
         float2 ab = texCoord;
 
-        if (depthSrc + 0.0015 < depthDest)
+        if (depthSrc + 0.001 < depthDest)
         {
             shadowFactor = 0.0;
         }
     }
         
-    return L.irRadiance * shadowFactor;
+    return L.irRadiance * shadowFactor * att * spotPower;
 }
 
 float4 main(PSInput input) : SV_TARGET
@@ -71,19 +86,15 @@ float4 main(PSInput input) : SV_TARGET
     float3 normalWorld = input.normalWorld;
     
     float3 albedo = useAlbedoMap ? albedoTexture.Sample(linearWrapSS, input.texCoord).xyz : albedoFactor;
-    //float metalness = useMetalnessMap ? metalnessTexture.Sample(linearWrapSS, input.texCoord).r : metalnessFactor;
-    //float roughness = useRoughnessMap ? roughnessTexture.Sample(linearWrapSS, input.texCoord).r : roughnessFactor;
-    //float3 emission = useEmissiveMap ? float3(1.0, 1.0, 1.0) : emissionFactor;
+    float metalness = useMetalnessMap ? metalnessTexture.Sample(linearWrapSS, input.texCoord).r : metalnessFactor;
+    float roughness = useRoughnessMap ? roughnessTexture.Sample(linearWrapSS, input.texCoord).r : roughnessFactor;
+    float3 emission = useEmissiveMap ? float3(1.0, 1.0, 1.0) : emissionFactor;
     
     // Image Based Lighting.
     
-    // float albedo = 0.0f;
     
-    float metalness = 0.0f;
-          
-    float roughness = 0.0f;
-                 
-    float3 emission = 0.0f;
+    
+    
     
     // Shading Model
     float3 directLighting = 0.0;
@@ -98,7 +109,7 @@ float4 main(PSInput input) : SV_TARGET
             float3 lightVec = 0.0;
             if (L.type & DIRECTIONAL_LIGHT)
                 lightVec = normalize(-L.direction);
-            if(L.type & POINT_LIGHT || L.type & SPOT_LIGHT)
+            if (L.type & POINT_LIGHT || L.type & SPOT_LIGHT)
                 lightVec = normalize(L.position - input.posWorld);
             
             float3 halfWay = normalize(toEye + lightVec);
@@ -128,13 +139,6 @@ float4 main(PSInput input) : SV_TARGET
                 irRadiance = CalcIrradiance(L, input.posWorld, toEye, normalWorld, shadowMap2);
             
             directLighting += (diffuseBRDF + specularBRDF) * irRadiance * ndotl;
-            
-            //if (i == 0)
-            //    color += CalcIrradiance(albedo, L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap0);
-            //if (i == 1)
-            //    color += CalcIrradiance(albedo, L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap1);
-            //if (i == 2)
-            //    color += CalcIrradiance(albedo, L, i, input.posModel, input.posWorld, toEye, input.normalWorld, shadowMap2);
         }
     }
     

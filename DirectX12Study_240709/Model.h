@@ -118,4 +118,5 @@ class Model
     uint32_t m_cbvDescriptorSize = 0;
 
     DescriptorHandle m_handle;
+    uint32_t m_texHandleIdx = 0;
 };

@@ -1,7 +1,4 @@
 #define MAX_LIGHTS 3
-#define NUM_DIRECTIONAL_LIGHTS 1
-#define NUM_POINT_LIGHTS 1
-#define NUM_SPOT_LIGHTS 1
 #define DIRECTIONAL_LIGHT 0x01
 #define POINT_LIGHT       0x02
 #define SPOT_LIGHT        0x04

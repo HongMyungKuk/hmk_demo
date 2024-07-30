@@ -126,7 +126,7 @@ bool ModelViewer::Initialize()
             obj->Initialize(m_device, m_commandList, {sphere});
             obj->GetMaterialConstCPU().albedoFactor = Vector3(0.8f, 0.2f, 0.2f);
             obj->GetMaterialConstCPU().useAlbedoMap = false;
-            obj->GetMaterialConstCPU().useMetalnessMap = true;
+            obj->GetMaterialConstCPU().useMetalnessMap = false;
             obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(-0.5f, 1.0f, 0.0f)));
         }
         m_opaqueList.push_back(obj);

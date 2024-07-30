@@ -111,7 +111,7 @@ class AppBase
     DescriptorHeap m_imguiInitHeap;
     DescriptorHandle m_cubeMapHandle[3];
     ID3D12Resource* m_cubeMapResource[3];
-    int m_cubeMapType;
+    int m_cubeMapType = 2;
 
     // Synchronization objects.
     uint32_t m_frameIndex = 0;
