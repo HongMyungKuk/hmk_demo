@@ -117,7 +117,7 @@ bool ModelViewer::Initialize()
             cube.normalTextureFilename   = "../../Asset/brick-wall-ue/brick-wall_normal-dx.png";
             obj->Initialize(m_device, m_commandList, {cube});
             obj->GetMaterialConstCPU().albedoFactor    = Vector3(0.8f);
-            obj->GetMaterialConstCPU().useAlbedoMap    = false;
+            obj->GetMaterialConstCPU().useAlbedoMap    = true;
             obj->GetMaterialConstCPU().useMetalnessMap = false;
             obj->GetMaterialConstCPU().useNormalMap    = true;
             obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(1.5f, 0.5f, 0.0f)));
