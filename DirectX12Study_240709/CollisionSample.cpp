@@ -24,23 +24,24 @@ bool CollisionSample::Initialize()
 
     // 备 积己
     {
-        const float radius = 1.0f;
+        const float radius = 0.5f;
         Vector3 center(0.0f);
         MeshData sphere = GeometryGenerator::MakeSphere(radius, 25, 25);
         auto obj        = new Model;
         obj->Initialize(m_device, m_commandList, {sphere});
         obj->SetPos(center);
         obj->GetMaterialConstCPU().albedoFactor = m_obj1Color;
+        obj->UpdateWorldMatrix(Matrix::CreateScale(Vector3(1.0f)));
         m_opaqueList.push_back(obj);
 
-        m_sphereCollider.radius = 1.0f;
+        m_sphereCollider.radius = radius;
         m_sphereCollider.center = center;
     }
 
     // 荤阿屈 积己
     {
         Vector3 normal(0.0f, 0.0f, -1.0f);
-        Vector3 center(0.0f, 0.0f, 3.0f);
+        Vector3 center(0.0f, -3.0f, 3.0f);
         MeshData square = GeometryGenerator::MakeSquare(5.0f, 5.0f);
         auto obj        = new Model;
         obj->Initialize(m_device, m_commandList, {square});
@@ -184,6 +185,40 @@ void CollisionSample::Update(const float dt)
             m_opaqueList[1]->GetMaterialConstCPU().albedoFactor = m_obj2Color;
 
             m_moveFlag[3] = true;
+        }
+
+
+        // ray picking.
+        // sphere intersection.
+        if (m_leftButtonDown)
+        {
+            // std::cout << m_ndcX << " " << m_ndcY << std::endl;
+
+
+            Vector3 mouseNdcNear = Vector3(m_ndcX, m_ndcY, 0.0f);
+            Vector3 mouseNdxFar  = Vector3(m_ndcX, m_ndcY, 1.0f);
+
+            Matrix inverseViewPoj = m_globalConstsData.viewProjInv.Transpose();
+
+            Vector3 mouseWorldNear = Vector3::Transform(mouseNdcNear, inverseViewPoj);
+            Vector3 mouseWorldFar  = Vector3::Transform(mouseNdxFar, inverseViewPoj);
+
+            Vector3 rayDir = mouseWorldFar - mouseWorldNear;
+            rayDir.Normalize();
+
+            Vector3 gcDir = m_sphereCollider.center - mouseWorldNear;
+
+            float b = rayDir.Dot(gcDir);
+            float c = gcDir.Dot(gcDir) - m_sphereCollider.radius * m_sphereCollider.radius;
+
+            float d = b * b - c;
+
+            std::cout << d << std::endl;
+
+            if (d >= 0.0f)
+            {
+                m_opaqueList[0]->GetMaterialConstCPU().albedoFactor = m_collisionColor;
+            }
         }
     }
 
