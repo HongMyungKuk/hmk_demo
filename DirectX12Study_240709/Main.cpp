@@ -2,7 +2,8 @@
 
 #include "ModelViewer.h"
 #include "MapTool.h"
-#include <iostream>
+#include "CollisionSample.h"
+
 
 int main(int argc, char *argv[])
 {
@@ -22,6 +23,9 @@ int main(int argc, char *argv[])
         break;
     case 1:
         app = new MapTool;
+        break;
+    case 2:
+        app = new CollisionSample;
     }
 
     if (!app->Initialize())

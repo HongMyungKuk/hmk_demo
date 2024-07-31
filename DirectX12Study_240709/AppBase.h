@@ -131,7 +131,7 @@ class AppBase
     bool m_drawAsNormal = false;
     bool m_isWireFrame  = false;
     bool m_useMSAA      = false;
-    bool m_useTexture   = true;
+    bool m_useTexture   = false;
     // Mouse control
     bool m_leftButtonDown       = false;
     bool m_rightButtonDown      = false;
@@ -162,5 +162,5 @@ class AppBase
 
     float m_metalness   = 0.0f;
     float m_roughness   = 0.0f;
-    bool m_useNormalMap = true;
+    bool m_useNormalMap = false;
 };

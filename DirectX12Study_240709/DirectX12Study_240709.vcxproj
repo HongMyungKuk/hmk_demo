@@ -144,6 +144,7 @@
     <ClCompile Include="AnimationData.cpp" />
     <ClCompile Include="AppBase.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="CollisionSample.cpp" />
     <ClCompile Include="ColorBuffer.cpp" />
     <ClCompile Include="Command.cpp" />
     <ClCompile Include="ConstantBuffer.cpp" />
@@ -181,6 +182,7 @@
     <ClInclude Include="AnimationData.h" />
     <ClInclude Include="AppBase.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="CollisionSample.h" />
     <ClInclude Include="ColorBuffer.h" />
     <ClInclude Include="Command.h" />
     <ClInclude Include="ConstantBuffer.h" />

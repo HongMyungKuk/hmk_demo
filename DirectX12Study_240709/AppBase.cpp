@@ -121,6 +121,7 @@ bool AppBase::Initialize()
     }
 
     m_postEffects.Initialize();
+
     m_postProcess.Initialize();
 
     return true;
@@ -135,8 +136,11 @@ void AppBase::Update(const float dt)
 
     UpdateGlobalConsts(dt);
 
-    m_opaqueList[0]->GetMaterialConstCPU().useNormalMap = m_useNormalMap;
-    m_opaqueList[0]->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
+    if (!m_opaqueList.empty())
+    {
+        m_opaqueList[0]->GetMaterialConstCPU().useNormalMap = m_useNormalMap;
+        m_opaqueList[0]->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
+    }
 
     for (auto &e : m_opaqueList)
     {
@@ -194,6 +198,7 @@ int32_t AppBase::Run()
             this->Update(io.Framerate);
 
             this->Render();
+
             this->RenderPostProcess();
 
             ID3D12DescriptorHeap *descHeaps[] = {m_imguiInitHeap.Get()};
@@ -458,7 +463,9 @@ void AppBase::UpdateGlobalConsts(const float dt)
     // shadow consts data.
     m_shadowConstsData[0] = m_globalConstsData;
 
-    auto lightCenter = m_opaqueList[0]->GetPos();
+    Vector3 lightCenter(0.0f);
+    if (!m_opaqueList.empty() && m_opaqueList[0] != nullptr)
+        lightCenter = m_opaqueList[0]->GetPos();
 
     eyePos  = m_light[1].position;
     viewRow = XMMatrixLookAtLH(eyePos, lightCenter, Vector3(0.0f, 0.0f, 1.0f)); // 물체의 중심을 향해
@@ -592,8 +599,11 @@ void AppBase::UpdateGui(const float frameRate)
     if (ImGui::CollapsingHeader("Material"))
     {
         ImGui::Checkbox("Normal map", &m_useNormalMap);
-        ImGui::Checkbox("Height map", (bool *)&m_opaqueList[0]->GetMeshConstCPU().useHeightMap);
-        ImGui::SliderFloat("Height scale", &m_opaqueList[0]->GetMeshConstCPU().hegihtScale, 0.0f, 1.0f);
+        if (!m_opaqueList.empty())
+        {
+            ImGui::Checkbox("Height map", (bool *)&m_opaqueList[0]->GetMeshConstCPU().useHeightMap);
+            ImGui::SliderFloat("Height scale", &m_opaqueList[0]->GetMeshConstCPU().heightScale, 0.0f, 1.0f);
+        }
         ImGui::SliderFloat("MipMap", &m_globalConstsData.mipmap, 0.0f, 5.0f);
         ImGui::SliderFloat("Env strength", &m_globalConstsData.envStrength, 0.0f, 1.0f);
         ImGui::SliderFloat("Metalness", &m_metalness, 0.0f, 1.0f);

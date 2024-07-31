@@ -103,6 +103,11 @@ class Model
         return m_pos;
     }
 
+    void SetPos(const Vector3& pos)
+    {
+        m_pos = pos;
+    }
+
   private:
     ID3D12RootSignature *m_rootSignature   = nullptr;
     ID3D12PipelineState *m_pipelineState   = nullptr;
@@ -121,7 +126,7 @@ class Model
     Matrix m_world   = Matrix();
     Matrix m_worldIT = Matrix();
 
-    Vector3 m_pos      = Vector3(0.0f, 0.5f, 0.0f);
+    Vector3 m_pos      = Vector3(0.0f);
     float m_speed[END] = {0.0005f, 0.0005f, 0.00025f};
 
     uint32_t m_cbvDescriptorSize = 0;
