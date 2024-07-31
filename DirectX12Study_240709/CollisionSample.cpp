@@ -190,6 +190,7 @@ void CollisionSample::Update(const float dt)
 
         // ray picking.
         // sphere intersection.
+
         if (m_leftButtonDown)
         {
             // std::cout << m_ndcX << " " << m_ndcY << std::endl;
@@ -220,6 +221,9 @@ void CollisionSample::Update(const float dt)
                 m_opaqueList[0]->GetMaterialConstCPU().albedoFactor = m_collisionColor;
             }
         }
+
+        // https://stackoverflow.com/questions/73866852/ray-cylinder-intersection-formula
+        // ray cylinder collision.
     }
 
     m_postProcess.GetConstCPU().exposure     = m_exposureFactor;
