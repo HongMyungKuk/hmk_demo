@@ -26,6 +26,49 @@ MeshData GeometryGenerator::MakeSquare(const float w, const float h)
     return meshData;
 }
 
+MeshData GeometryGenerator::MakeSquareGrid(const int numSlices, const int numStacks, const float scale,
+                                           const Vector2 texScale)
+{
+    MeshData meshData;
+
+    float dx = 2.0f / numSlices;
+    float dy = 2.0f / numStacks;
+
+    float y = 1.0f;
+    for (int j = 0; j < numStacks + 1; j++)
+    {
+        float x = -1.0f;
+        for (int i = 0; i < numSlices + 1; i++)
+        {
+            Vertex v;
+            v.position     = Vector3(x, y, 0.0f) * scale;
+            v.normal  = Vector3(0.0f, 0.0f, -1.0f);
+            v.texCoord     = Vector2(x + 1.0f, y + 1.0f) * 0.5f * texScale;
+            v.tangent = Vector3(1.0f, 0.0f, 0.0f);
+
+            meshData.vertices.push_back(v);
+
+            x += dx;
+        }
+        y -= dy;
+    }
+
+    for (int j = 0; j < numStacks; j++)
+    {
+        for (int i = 0; i < numSlices; i++)
+        {
+            meshData.indices.push_back((numSlices + 1) * j + i);
+            meshData.indices.push_back((numSlices + 1) * j + i + 1);
+            meshData.indices.push_back((numSlices + 1) * (j + 1) + i);
+            meshData.indices.push_back((numSlices + 1) * (j + 1) + i);
+            meshData.indices.push_back((numSlices + 1) * j + i + 1);
+            meshData.indices.push_back((numSlices + 1) * (j + 1) + i + 1);
+        }
+    }
+
+    return meshData;
+}
+
 MeshData GeometryGenerator::MakeCube(const float w, const float h, const float d)
 {
     MeshData meshData;

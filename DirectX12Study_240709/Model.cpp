@@ -29,17 +29,35 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
 
         // Set Texture
         // 만약 이름이 없다면 더미 텍스쳐를 생성한다. (root desciptor table 설정을 위해 필요)
-        this->BuildTexture(device, commandList, m.albedoTextureFilename, &newMesh.albedoTexture,
-                           &newMesh.albedoUploadTexture, newMesh.albedoDescriptorHandle, true);
+        {
+            this->BuildTexture(device, commandList, m.albedoTextureFilename, &newMesh.albedoTexture,
+                               &newMesh.albedoUploadTexture, newMesh.albedoDescriptorHandle, true);
+            m_materialConstData.useAlbedoMap = !m.albedoTextureFilename.empty();
 
-        this->BuildTexture(device, commandList, m.metallicTextureFilename, &newMesh.metallicTexture,
-                           &newMesh.metallicUploadTexture, newMesh.metallicDescriptorHandle, false);
+            this->BuildTexture(device, commandList, m.metallicTextureFilename, &newMesh.metallicTexture,
+                               &newMesh.metallicUploadTexture, newMesh.metallicDescriptorHandle);
+            m_materialConstData.useMetalnessMap = !m.metallicTextureFilename.empty();
 
-        this->BuildTexture(device, commandList, m.roughnessTextureFilename, &newMesh.roughnessTexture,
-                           &newMesh.roughnessloadTexture, newMesh.roughnessDescriptorHandle, false);
+            this->BuildTexture(device, commandList, m.roughnessTextureFilename, &newMesh.roughnessTexture,
+                               &newMesh.roughnessloadTexture, newMesh.roughnessDescriptorHandle);
+            m_materialConstData.useRoughnessMap = !m.roughnessTextureFilename.empty();
 
-        this->BuildTexture(device, commandList, m.normalTextureFilename, &newMesh.normalTexture,
-                           &newMesh.normalLoadTexture, newMesh.normalDescriptorHandle, false);
+            this->BuildTexture(device, commandList, m.normalTextureFilename, &newMesh.normalTexture,
+                               &newMesh.normalLoadTexture, newMesh.normalDescriptorHandle);
+            m_materialConstData.useNormalMap = !m.normalTextureFilename.empty();
+
+            this->BuildTexture(device, commandList, m.heightTextureFilename, &newMesh.heightTexture,
+                               &newMesh.heightLoadTexture, newMesh.heightDescriptorHandle);
+            m_meshConstsData.useHeightMap = !m.heightTextureFilename.empty();
+
+            this->BuildTexture(device, commandList, m.aoTextureFilename, &newMesh.aoTexture, &newMesh.aoLoadTexture,
+                               newMesh.aoDescriptorHandle);
+            m_materialConstData.useAoMap = !m.aoTextureFilename.empty();
+
+            this->BuildTexture(device, commandList, m.emissionTextureFilename, &newMesh.emissionTexture,
+                               &newMesh.emissionLoadTexture, newMesh.emissionDescriptorHandle);
+            m_materialConstData.useEmissiveMap = !m.emissionTextureFilename.empty();
+        }
 
         m_meshes.push_back(newMesh);
     }
@@ -149,13 +167,25 @@ void Model::DestroyTextureResource()
 {
     for (auto &m : m_meshes)
     {
-        SAFE_RELEASE(m.albedoTexture);
-        SAFE_RELEASE(m.albedoUploadTexture);
-        SAFE_RELEASE(m.metallicTexture);
-        SAFE_RELEASE(m.metallicUploadTexture);
-        SAFE_RELEASE(m.roughnessTexture);
-        SAFE_RELEASE(m.roughnessloadTexture);
+        SAFE_RELEASE(m.emissionTexture);
+        SAFE_RELEASE(m.emissionLoadTexture);
+
+        SAFE_RELEASE(m.aoTexture);
+        SAFE_RELEASE(m.aoLoadTexture);
+
+        SAFE_RELEASE(m.heightTexture);
+        SAFE_RELEASE(m.heightLoadTexture);
+
         SAFE_RELEASE(m.normalTexture);
         SAFE_RELEASE(m.normalLoadTexture);
+
+        SAFE_RELEASE(m.roughnessTexture);
+        SAFE_RELEASE(m.roughnessloadTexture);
+
+        SAFE_RELEASE(m.metallicTexture);
+        SAFE_RELEASE(m.metallicUploadTexture);
+
+        SAFE_RELEASE(m.albedoTexture);
+        SAFE_RELEASE(m.albedoUploadTexture);
     }
 }

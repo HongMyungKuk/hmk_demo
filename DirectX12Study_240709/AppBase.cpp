@@ -135,6 +135,9 @@ void AppBase::Update(const float dt)
 
     UpdateGlobalConsts(dt);
 
+    m_opaqueList[0]->GetMaterialConstCPU().useNormalMap = m_useNormalMap;
+    m_opaqueList[0]->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
+
     for (auto &e : m_opaqueList)
     {
         e->GetMaterialConstCPU().metalnessFactor = m_metalness;
@@ -588,6 +591,9 @@ void AppBase::UpdateGui(const float frameRate)
 
     if (ImGui::CollapsingHeader("Material"))
     {
+        ImGui::Checkbox("Normal map", &m_useNormalMap);
+        ImGui::Checkbox("Height map", (bool *)&m_opaqueList[0]->GetMeshConstCPU().useHeightMap);
+        ImGui::SliderFloat("Height scale", &m_opaqueList[0]->GetMeshConstCPU().hegihtScale, 0.0f, 1.0f);
         ImGui::SliderFloat("MipMap", &m_globalConstsData.mipmap, 0.0f, 5.0f);
         ImGui::SliderFloat("Env strength", &m_globalConstsData.envStrength, 0.0f, 1.0f);
         ImGui::SliderFloat("Metalness", &m_metalness, 0.0f, 1.0f);

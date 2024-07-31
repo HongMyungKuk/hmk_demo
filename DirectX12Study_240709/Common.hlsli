@@ -18,10 +18,9 @@ TextureCube diffuseTexture : register(t1);
 TextureCube specularTexture : register(t2);
 Texture2D brdfTexture : register(t3);
 
-Texture2D shadowMap0 : register(t15);
-Texture2D shadowMap1 : register(t16);
-Texture2D shadowMap2 : register(t17);
-
+Texture2D shadowMap0 : register(t11);
+Texture2D shadowMap1 : register(t12);
+Texture2D shadowMap2 : register(t13);
 // #define SKINNED 1
 
 #ifdef SKINNED
@@ -70,6 +69,9 @@ cbuffer MeshConsts : register(b1)
 {
     Matrix world;
     Matrix worldIT;
+    
+    uint useHeightMap;
+    float heightScale;
 };
 
 cbuffer MaterialConstants : register(b2)

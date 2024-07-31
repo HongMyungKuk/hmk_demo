@@ -9,6 +9,9 @@ __declspec(align(256)) struct MeshConsts
 {
     Matrix world;
     Matrix worldIT;
+
+    uint32_t useHeightMap;
+    float hegihtScale;
 };
 // Light
 #define MAX_LIGHTS        3
@@ -48,7 +51,7 @@ __declspec(align(256)) struct GlobalConsts
 
     Light lights[MAX_LIGHTS];
 
-    uint32_t envType = 0;
+    uint32_t envType  = 0;
     float envStrength = 0.0f;
     float mipmap      = 1.0f;
 };
@@ -68,8 +71,10 @@ __declspec(align(256)) struct MaterialConsts
             uint32_t useRoughnessMap : 1;
             uint32_t useEmissiveMap : 1;
             uint32_t useNormalMap : 1;
+            uint32_t normalRevert : 1;
+            uint32_t useAoMap : 1;
 
-            uint32_t pas : 11;
+            uint32_t pad : 9;
 
             uint32_t alphaRef : 16;
         };

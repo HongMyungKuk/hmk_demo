@@ -56,31 +56,36 @@ class AppBase
     LRESULT CALLBACK MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
   protected:
-    void UpdateCamera(const float dt);
     void WaitForPreviousFrame();
+
     void InitCubemap(std::wstring basePath, std::wstring envFilename, std::wstring diffuseFilename,
                      std::wstring specularFilename, std::wstring brdfFilename);
     virtual void InitLights();
     virtual void UpdateLights();
+    void UpdateCamera(const float dt);
 
   private:
     bool InitWindow();
     bool InitD3D();
     virtual bool InitGui();
-    void GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdapter,
-                            bool requestHighPerformanceAdapter = false);
+
+    void Resize();
+    void CreateBuffers();
     void InitGlobalConsts();
     void InitSRVDesriptorHeap();
+
     void UpdateGlobalConsts(const float dt);
     void RenderDepthOnlyPass();
     void RenderOpaqueObject();
     void RenderDepthMapViewport();
     void RenderPostProcess();
-    void DestroyPSO();
-    void CreateBuffers();
-    void Resize();
 
     void OnMouse(const float x, const float y);
+
+    void GetHardwareAdapter(IDXGIFactory1 *pFactory, IDXGIAdapter1 **ppAdapter,
+                            bool requestHighPerformanceAdapter = false);
+
+    void DestroyPSO();
 
   public:
     static float GetAspect()
@@ -111,7 +116,7 @@ class AppBase
     DescriptorHeap m_imguiInitHeap;
     DescriptorHandle m_cubeMapHandle[4];
     ID3D12Resource *m_cubeMapResource[4] = {};
-    int m_cubeMapType = 2;
+    int m_cubeMapType                    = 2;
 
     // Synchronization objects.
     uint32_t m_frameIndex = 0;
@@ -140,7 +145,7 @@ class AppBase
   private:
     Timer *m_timer = nullptr;
     // Key control
-    bool m_isKeyDown[256]                      = {};
+    bool m_isKeyDown[256] = {};
 
   protected:
     // Object list.
@@ -155,6 +160,7 @@ class AppBase
     float m_gammaFactor    = 2.2f;
     float m_exposureFactor = 1.0f;
 
-    float m_metalness = 0.0f;
-    float m_roughness = 0.0f;
+    float m_metalness   = 0.0f;
+    float m_roughness   = 0.0f;
+    bool m_useNormalMap = true;
 };

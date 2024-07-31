@@ -23,7 +23,7 @@ struct Vertex
     Vector3 position;
     Vector3 normal;
     Vector2 texCoord;
-    Vector3 tangent;
+    Vector3 tangent = Vector3(1.0f, 0.0f, 0.0f);
 };
 
 struct SkinnedVertex
@@ -48,6 +48,9 @@ struct MeshData
     std::string metallicTextureFilename  = "";
     std::string roughnessTextureFilename = "";
     std::string normalTextureFilename    = "";
+    std::string heightTextureFilename    = "";
+    std::string aoTextureFilename        = "";
+    std::string emissionTextureFilename  = "";
 };
 
 struct Mesh
@@ -70,6 +73,15 @@ struct Mesh
     ID3D12Resource *normalTexture     = nullptr;
     ID3D12Resource *normalLoadTexture = nullptr;
     DescriptorHandle normalDescriptorHandle;
+    ID3D12Resource *heightTexture     = nullptr;
+    ID3D12Resource *heightLoadTexture = nullptr;
+    DescriptorHandle heightDescriptorHandle;
+    ID3D12Resource *aoTexture     = nullptr;
+    ID3D12Resource *aoLoadTexture = nullptr;
+    DescriptorHandle aoDescriptorHandle;
+    ID3D12Resource *emissionTexture     = nullptr;
+    ID3D12Resource *emissionLoadTexture = nullptr;
+    DescriptorHandle emissionDescriptorHandle;
 
     D3D12_VERTEX_BUFFER_VIEW VertexBufferView()
     {

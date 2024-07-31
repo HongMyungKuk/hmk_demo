@@ -48,7 +48,7 @@ class ModelViewer : public AppBase
     int m_selectedAnim = 0;
 
     // light on/off flag
-    bool m_useDL = false; // directional light
-    bool m_usePL = true;  // point lihgt
-    bool m_useSL = true; // spot light
+    bool m_useDL = true; // directional light
+    bool m_usePL = false;  // point lihgt
+    bool m_useSL = false; // spot light
 };

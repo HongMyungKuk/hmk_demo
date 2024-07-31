@@ -1,9 +1,12 @@
 #include "Common.hlsli"
 
-Texture2D albedoTexture : register(t10);
-Texture2D metalnessTexture : register(t11);
-Texture2D roughnessTexture : register(t12);
-Texture2D normalTexture : register(t13);
+Texture2D albedoTexture : register(t4);
+Texture2D metalnessTexture : register(t5);
+Texture2D roughnessTexture : register(t6);
+Texture2D normalTexture : register(t7);
+Texture2D aoTexture : register(t9);
+Texture2D emissionTexture : register(t10);
+
 
 #define PI 3.141592
 
@@ -33,12 +36,12 @@ float3 SpecularIBL(float3 albedo, float3 toEye, float3 normalWorld, float metaln
     return (F0 * BRDF.x + BRDF.y) * irradiance;
 }
 
-float3 AmbientLightingByIBL(float3 albedo, float3 toEye, float3 normalWorld, float roughness, float metalness)
+float3 AmbientLightingByIBL(float3 albedo, float3 toEye, float3 normalWorld, float roughness, float metalness, float ao)
 {
     float3 diffuseIBL = DiffuseIBL(albedo, toEye, normalWorld, metalness);
     float3 specularIBL = SpecularIBL(albedo, toEye, normalWorld, metalness, roughness);
     
-    return diffuseIBL + specularIBL;
+    return (diffuseIBL + specularIBL) * ao;
 }
 
 float NdfGGX(float hdotn, float roughness)
@@ -64,16 +67,26 @@ float SchlickGGX(float ndotl, float ndotv, float roughness)
 
 float3 CalcIrradiance(Light L, float3 posWorld, float3 toEye, float3 normalWorld, Texture2D shadowMap)
 {
-    float3 lightVec = L.position - posWorld;
-    float distance = length(lightVec);
     
-    lightVec /= distance;
+    float3 lightVec = 0.0;
     
-    float att = CalcAttenuation(L.fallOffStart, L.fallOffEnd, distance);
+    if (L.type & DIRECTIONAL_LIGHT)
+        lightVec = normalize(-L.direction);
     
+    float att = 1.0;
     float spotPower = 1.0;
-    spotPower = (L.type & SPOT_LIGHT) ? pow(max(0.0, dot(normalize(L.direction), -lightVec)), L.spotPower) : 1.0;
+    if (L.type & POINT_LIGHT || L.type & SPOT_LIGHT)
+    {
+        lightVec = normalize(L.position - posWorld);
     
+        float distance = length(lightVec);
+    
+        lightVec /= distance;
+    
+        att = CalcAttenuation(L.fallOffStart, L.fallOffEnd, distance);
+    
+        spotPower = (L.type & SPOT_LIGHT) ? pow(max(0.0, dot(normalize(L.direction), -lightVec)), L.spotPower) : 1.0;
+    }
     
     float shadowFactor = 1.0;
     if (L.type & SHADOW_MAP)
@@ -105,26 +118,31 @@ float3 CalcIrradiance(Light L, float3 posWorld, float3 toEye, float3 normalWorld
     return L.irRadiance * shadowFactor * att * spotPower;
 }
 
-float3 GetNoramlWorld(float3 normalWorld, float3 tangentWorld, float2 texCoord)
+float3 GetNoramlWorld(PSInput input)
 {
-    float3 normal = normalWorld;
+    float3 normalWorld = normalize(input.normalWorld);
     
     if (mapFlags & 0x10)
     {
-        normal = normalTexture.Sample(linearClampSS, texCoord).xyz;
-        normal *= 2.0; // [0.0 ~ 2.0]
-        normal -= 1.0; // [-1.0 ~ 1.0]
+        float3 normal = normalTexture.Sample(linearClampSS, input.texCoord).xyz;
+        normal = 2.0 * normal - 1.0;
+        
+        // This case => OpenGL file.
+        if(mapFlags & 0x40)
+        {
+            normal.y *= -1.0;
+        }
         
         float3 N = normalWorld;
-        float3 T = normalize(tangentWorld - dot(T, N) * N);
-        float3 B = cross(N, B);
+        float3 T = normalize(input.tangentWorld - dot(input.tangentWorld, N) * N);
+        float3 B = cross(N, T);
         
         float3x3 TBN = float3x3(T, B, N);
         
-        float3 normal = mul(normal, TBN);
+        normalWorld = normalize(mul(normal, TBN));
     }
     
-    return normal;
+    return normalWorld;
 }
 
 PSOutput main(PSInput input)
@@ -133,17 +151,18 @@ PSOutput main(PSInput input)
     
     float3 toEye = normalize(eyeWorld - input.posWorld);
     
-    float3 normalWorld = GetNoramlWorld(input.normalWorld, input.tangentWorld, input.texCoord);
+    float3 normalWorld = GetNoramlWorld(input);
     
     float3 albedo = (mapFlags & 0x01) ? albedoTexture.Sample(linearWrapSS, input.texCoord).xyz : albedoFactor;
     float metalness = (mapFlags & 0x02) ? metalnessTexture.Sample(linearWrapSS, input.texCoord).r : metalnessFactor;
     float roughness = (mapFlags & 0x04) ? roughnessTexture.Sample(linearWrapSS, input.texCoord).r : roughnessFactor;
-    float3 emission = (mapFlags & 0x08) ? float3(1.0, 1.0, 1.0) : emissionFactor;
+    float3 emission = (mapFlags & 0x08) ? emissionTexture.Sample(linearWrapSS, input.texCoord).rgb : emissionFactor;
+    float ao = (mapFlags & 0x40) ? aoTexture.Sample(linearWrapSS, input.texCoord).r : 1.0;
     
     // Image Based Lighting.
     float3 ambientLighting = 0.0;
     
-    ambientLighting = AmbientLightingByIBL(albedo, toEye, normalWorld, roughness, metalness) * envStrength;
+    ambientLighting = AmbientLightingByIBL(albedo, toEye, normalWorld, roughness, metalness, ao) * envStrength;
     
     // Shading Model
     float3 directLighting = 0.0;

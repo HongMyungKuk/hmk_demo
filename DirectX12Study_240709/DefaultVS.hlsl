@@ -1,5 +1,7 @@
 #include "Common.hlsli"
 
+Texture2D heightTexture : register(t8);
+
 PSInput main(VSInput input)
 {
     PSInput output;
@@ -38,6 +40,20 @@ PSInput main(VSInput input)
 
     float4 posProj = 0.0;
     
+        
+    if (useHeightMap)
+    {
+        float heightValue = heightTexture.SampleLevel(linearWrapSS, input.texCoord, 0.0).r;
+        heightValue = 2.0 * heightValue - 1.0;
+        input.posModel = input.posModel + heightValue * input.normalModel * heightScale;
+    }
+    
+    
+    // normal world
+    output.normalWorld = normalize(mul(float4(input.normalModel, 0.0), worldIT)).xyz;
+    // tangent world
+    output.tangentWorld = normalize(mul(float4(input.tangentModel, 0.0), world)).xyz;
+    
     output.posModel = input.posModel;
     
     // position world
@@ -48,11 +64,6 @@ PSInput main(VSInput input)
     posProj = mul(posProj, view);
     posProj = mul(posProj, proj);
     output.posProj = posProj;
-
-    // normal world
-    output.normalWorld = normalize(mul(float4(input.normalModel, 0.0), worldIT)).xyz;
-    // tangent world
-    output.tangentWorld = normalize(mul(float4(input.tangentModel, 0.0), world)).xyz;
     
     // texture coordinate.
     output.texCoord = input.texCoord;

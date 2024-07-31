@@ -208,13 +208,13 @@ void InitRootSignature(ID3D12Device *device)
     {
         // Create root signature.
         CD3DX12_DESCRIPTOR_RANGE rangeObj1[1] = {};
-        rangeObj1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0); // t0 ~ t3 Common Texture.
+        rangeObj1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0); // t0 ~ t3 common texture.
         CD3DX12_DESCRIPTOR_RANGE rangeObj2[1] = {};
-        rangeObj2[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 10); // t1
+        rangeObj2[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 4); // t10 ~ t14 : material texture
         CD3DX12_DESCRIPTOR_RANGE rangeObj3[1] = {};
-        rangeObj3[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 15); // t2 t3 t4
+        rangeObj3[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 11); // t10 ~ t12 : shadow map
         CD3DX12_DESCRIPTOR_RANGE rangeObj4[1] = {};
-        rangeObj4[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 5);
+        rangeObj4[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 5); // s0 ~ s5 : sampler 
 
         D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 

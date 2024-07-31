@@ -90,6 +90,45 @@ bool ModelViewer::Initialize()
     //    m_opaqueList.push_back(skinnedModel);
     //}
 
+    // Create the grid.
+    {
+        Model *obj = nullptr;
+        CREATE_MODEL_OBJ(obj);
+        {
+            MeshData grid                 = GeometryGenerator::MakeSquareGrid(256, 256, 1.0f, Vector2(1.0f));
+            grid.albedoTextureFilename    = "../../Asset/brick-wall-ue/brick-wall_albedo.png";
+            grid.normalTextureFilename    = "../../Asset/brick-wall-ue/brick-wall_normal-dx.png";
+            grid.heightTextureFilename    = "../../Asset/brick-wall-ue/brick-wall_height.png";
+            grid.metallicTextureFilename  = "../../Asset/brick-wall-ue/brick-wall_metallic.png";
+            grid.roughnessTextureFilename = "../../Asset/brick-wall-ue/brick-wall_roughness.png";
+            grid.aoTextureFilename        = "../../Asset/brick-wall-ue/brick-wall_ao.png";
+            obj->Initialize(m_device, m_commandList, {grid});
+            obj->GetMaterialConstCPU().albedoFactor    = Vector3(0.8f);
+            obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(0.0f, 0.5f, -2.0f)));
+        }
+        m_opaqueList.push_back(obj);
+    }
+
+    // Create the sphere.
+    {
+        Model *obj = nullptr;
+        CREATE_MODEL_OBJ(obj);
+        {
+            MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
+            cube.albedoTextureFilename = "../../Asset/brick-wall-ue/brick-wall_albedo.png";
+            cube.normalTextureFilename = "../../Asset/brick-wall-ue/brick-wall_normal-dx.png";
+            cube.heightTextureFilename = "../../Asset/brick-wall-ue/brick-wall_height.png";
+            obj->Initialize(m_device, m_commandList, {cube});
+            obj->GetMaterialConstCPU().albedoFactor    = Vector3(0.8f);
+            obj->GetMaterialConstCPU().useAlbedoMap    = true;
+            obj->GetMaterialConstCPU().useMetalnessMap = false;
+            obj->GetMaterialConstCPU().useNormalMap    = true;
+            obj->GetMeshConstCPU().useHeightMap        = true;
+            obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(1.5f, 0.5f, 0.0f)));
+        }
+        m_opaqueList.push_back(obj);
+    }
+
     // Create the sphere.
     {
         Model *obj = nullptr;
@@ -107,52 +146,37 @@ bool ModelViewer::Initialize()
         m_opaqueList.push_back(obj);
     }
 
-    // Create the sphere.
-    {
-        Model *obj = nullptr;
-        CREATE_MODEL_OBJ(obj);
-        {
-            MeshData cube = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
-            cube.albedoTextureFilename = "../../Asset/brick-wall-ue/brick-wall_albedo.png";
-            cube.normalTextureFilename   = "../../Asset/brick-wall-ue/brick-wall_normal-dx.png";
-            obj->Initialize(m_device, m_commandList, {cube});
-            obj->GetMaterialConstCPU().albedoFactor    = Vector3(0.8f);
-            obj->GetMaterialConstCPU().useAlbedoMap    = true;
-            obj->GetMaterialConstCPU().useMetalnessMap = false;
-            obj->GetMaterialConstCPU().useNormalMap    = true;
-            obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(1.5f, 0.5f, 0.0f)));
-        }
-        m_opaqueList.push_back(obj);
-    }
-
     //// Create the square.
     //{
     //    Model *squareObj = nullptr;
     //    CREATE_MODEL_OBJ(squareObj);
     //    {
     //        MeshData square              = GeometryGenerator::MakeSquare(10.0f, 10.0f);
-    //        square.albedoTextureFilename = "../../Asset/HDRI/DaySkyHDRI015A_4K-HDR.exr";
+    //        square.albedoTextureFilename = "../../Asset/Bricks075A_4K-JPG/Bricks075A_4K-JPG_Color.jpg";
+    //        square.normalTextureFilename = "../../Asset/Bricks075A_4K-JPG/Bricks075A_4K-JPG_NormalDX.jpg";
     //        squareObj->Initialize(m_device, m_commandList, {square});
     //        squareObj->GetMaterialConstCPU().useAlbedoMap = true;
+    //        squareObj->GetMaterialConstCPU().useNormalMap = true;
+    //        squareObj->GetMaterialConstCPU().albedoFactor = Vector3(1.0f);
     //    }
     //    m_opaqueList.push_back(squareObj);
     //}
 
-    // Create the ground.
-    {
-        Model *ground = nullptr;
-        CREATE_MODEL_OBJ(ground);
-        {
-            MeshData square = GeometryGenerator::MakeSquare(10.0f, 10.0f);
-            // square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
-            ground->Initialize(m_device, m_commandList, {square});
-            ground->GetMaterialConstCPU().albedoFactor    = Vector3(0.3f);
-            ground->GetMaterialConstCPU().useAlbedoMap    = false;
-            ground->GetMaterialConstCPU().useMetalnessMap = false;
-            ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
-        }
-        m_opaqueList.push_back(ground);
-    }
+    //// Create the ground.
+    //{
+    //    Model *ground = nullptr;
+    //    CREATE_MODEL_OBJ(ground);
+    //    {
+    //        MeshData square = GeometryGenerator::MakeSquare(10.0f, 10.0f);
+    //        // square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
+    //        ground->Initialize(m_device, m_commandList, {square});
+    //        ground->GetMaterialConstCPU().albedoFactor    = Vector3(0.3f);
+    //        ground->GetMaterialConstCPU().useAlbedoMap    = false;
+    //        ground->GetMaterialConstCPU().useMetalnessMap = false;
+    //        ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
+    //    }
+    //    m_opaqueList.push_back(ground);
+    //}
 
     ThrowIfFailed(m_commandList->Close());
     // Execute the command list.
