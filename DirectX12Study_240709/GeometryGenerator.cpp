@@ -4,6 +4,65 @@
 #include "ModelLoader.h"
 #include <DirectXMesh.h>
 
+MeshData GeometryGenerator::MakeTriangle(const float x)
+{
+    MeshData meshData = {};
+
+    float w2 = 0.5f * x;
+    float h2 = w2 * sqrtf(3.0);
+
+    std::vector<Vertex> &vertices           = meshData.vertices;
+    std::vector<MeshData::index_t> &indices = meshData.indices;
+
+    Vertex v;
+    v.position = Vector3(-w2, -h2 * 1.0f / 3.0f, 0.0f);
+    v.normal   = Vector3(0.0f, 0.0f, -1.0f);
+    v.texCoord = Vector2(0.0f, 1.0f);
+    vertices.push_back(v);
+
+    v.position = Vector3(0.0f, h2 * 2.0f / 3.0f, 0.0f);
+    v.normal   = Vector3(0.0f, 0.0f, -1.0f);
+    v.texCoord = Vector2(0.5f, 0.0f);
+    vertices.push_back(v);
+
+    v.position = Vector3(w2, -h2 * 1.0f / 3.0f, 0.0f);
+    v.normal   = Vector3(0.0f, 0.0f, -1.0f);
+    v.texCoord = Vector2(1.0f, 1.0f);
+    vertices.push_back(v);
+
+    indices = {0, 1, 2};
+
+    return meshData;
+}
+
+MeshData GeometryGenerator::MakeTriangle(const Vector3 v0, const Vector3 v1, const Vector3 v2)
+{
+    MeshData meshData = {};
+
+    std::vector<Vertex> &vertices           = meshData.vertices;
+    std::vector<MeshData::index_t> &indices = meshData.indices;
+
+    Vertex v;
+    v.position = v0;
+    v.normal   = Vector3(0.0f, 0.0f, -1.0f);
+    v.texCoord = Vector2(0.0f, 1.0f);
+    vertices.push_back(v);
+
+    v.position = v1;
+    v.normal   = Vector3(0.0f, 0.0f, -1.0f);
+    v.texCoord = Vector2(0.5f, 0.0f);
+    vertices.push_back(v);
+
+    v.position = v2;
+    v.normal   = Vector3(0.0f, 0.0f, -1.0f);
+    v.texCoord = Vector2(1.0f, 1.0f);
+    vertices.push_back(v);
+
+    indices = {0, 1, 2};
+
+    return meshData;
+}
+
 MeshData GeometryGenerator::MakeSquare(const float w, const float h)
 {
     MeshData meshData = {};
@@ -41,10 +100,10 @@ MeshData GeometryGenerator::MakeSquareGrid(const int numSlices, const int numSta
         for (int i = 0; i < numSlices + 1; i++)
         {
             Vertex v;
-            v.position     = Vector3(x, y, 0.0f) * scale;
-            v.normal  = Vector3(0.0f, 0.0f, -1.0f);
-            v.texCoord     = Vector2(x + 1.0f, y + 1.0f) * 0.5f * texScale;
-            v.tangent = Vector3(1.0f, 0.0f, 0.0f);
+            v.position = Vector3(x, y, 0.0f) * scale;
+            v.normal   = Vector3(0.0f, 0.0f, -1.0f);
+            v.texCoord = Vector2(x + 1.0f, y + 1.0f) * 0.5f * texScale;
+            v.tangent  = Vector3(1.0f, 0.0f, 0.0f);
 
             meshData.vertices.push_back(v);
 
@@ -64,6 +123,62 @@ MeshData GeometryGenerator::MakeSquareGrid(const int numSlices, const int numSta
             meshData.indices.push_back((numSlices + 1) * j + i + 1);
             meshData.indices.push_back((numSlices + 1) * (j + 1) + i + 1);
         }
+    }
+
+    return meshData;
+}
+
+MeshData GeometryGenerator::MakeCylinder(const float bottomRadius, const float topRadius, float height, int numSlices)
+{
+
+    // Texture 좌표계때문에 (numSlices + 1) x 2 개의 버텍스 사용
+
+    const float dTheta = -XM_2PI / float(numSlices);
+
+    MeshData meshData;
+
+    std::vector<Vertex> &vertices = meshData.vertices;
+
+    // 옆면의 바닥 버텍스들 (인덱스 0 이상 numSlices 미만)
+    for (int i = 0; i <= numSlices; i++)
+    {
+        Vertex v;
+        v.position =
+            Vector3::Transform(Vector3(bottomRadius, -0.5f * height, 0.0f), Matrix::CreateRotationY(dTheta * float(i)));
+
+        // std::cout << v.position.x << " " << v.position.z << std::endl;
+
+        v.normal = v.position - Vector3(0.0f, -0.5f * height, 0.0f);
+        v.normal.Normalize();
+        v.texCoord = Vector2(float(i) / numSlices, 1.0f);
+
+        vertices.push_back(v);
+    }
+
+    // 옆면의 맨 위 버텍스들 (인덱스 numSlices 이상 2 * numSlices 미만)
+    for (int i = 0; i <= numSlices; i++)
+    {
+        Vertex v;
+        v.position =
+            Vector3::Transform(Vector3(topRadius, 0.5f * height, 0.0f), Matrix::CreateRotationY(dTheta * float(i)));
+        v.normal = v.position - Vector3(0.0f, 0.5f * height, 0.0f);
+        v.normal.Normalize();
+        v.texCoord = Vector2(float(i) / numSlices, 0.0f);
+
+        vertices.push_back(v);
+    }
+
+    std::vector<uint32_t> &indices = meshData.indices;
+
+    for (int i = 0; i < numSlices; i++)
+    {
+        indices.push_back(i);
+        indices.push_back(i + numSlices + 1);
+        indices.push_back(i + 1 + numSlices + 1);
+
+        indices.push_back(i);
+        indices.push_back(i + 1 + numSlices + 1);
+        indices.push_back(i + 1);
     }
 
     return meshData;
