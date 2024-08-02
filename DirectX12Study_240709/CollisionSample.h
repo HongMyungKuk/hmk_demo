@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AppBase.h"
+#include <directxtk/simplemath.h>
 
 struct Ray
 {
@@ -35,7 +36,7 @@ struct SphereCollider
         if (det >= 0)
         {
             float t1 = -b + sqrtf(det);
-            float t2 = -b + sqrtf(det);
+            float t2 = -b - sqrtf(det);
 
             if ((t1 * d).Length() > (t2 * d).Length())
             {
@@ -68,8 +69,9 @@ struct TriangleCollider
 {
     Vector3 normal; // 노말 필요 없음... 편의 상 설정.
     std::vector<Vector3> positions;
+    std::vector<uint32_t> indices;
 
-    bool CheckRayToTriangleIntersect(Ray ray, Vector3 &closestHit, float& hitDistance)
+    bool CheckRayToTriangleIntersect(Ray ray, Vector3 &closestHit, float &hitDistance)
     {
         Vector3 d = ray.direction;
         Vector3 o = ray.startPosition;
@@ -78,17 +80,20 @@ struct TriangleCollider
         Vector3 v1 = positions[1];
         Vector3 v2 = positions[2];
 
+        normal = (v1 - v0).Cross(v2 - v0);
+        normal.Normalize();
+
         float numer = v0.Dot(normal) - o.Dot(normal);
         float denom = normal.Dot(d);
-
         float t = numer / denom;
 
-        closestHit = o + t * d; // closest hit position.
+        closestHit  = o + t * d; // closest hit position.
         hitDistance = (t * d).Length();
 
         Vector3 a1 = (closestHit - v0).Cross(v2 - v0);
         Vector3 a2 = (closestHit - v1).Cross(v0 - v1);
         Vector3 a3 = (closestHit - v2).Cross(v1 - v2);
+
         a1.Normalize();
         a2.Normalize();
         a3.Normalize();
@@ -122,6 +127,49 @@ struct CylinderCollider
     Vector3 dirVector;
     float radius;
     float height;
+
+    bool CheckRayToCylinderIntersect(Ray ray, Vector3 &closestHit, float &hitDistance)
+    {
+        Vector3 d = ray.direction;
+        Vector3 o = ray.startPosition;
+
+        Vector3 tc = topCenter;
+        Vector3 bc = bottomCenter;
+        Vector3 x  = o - tc;
+        Vector3 y  = o - bc;
+        Vector3 v  = bottomCenter - topCenter;
+        v.Normalize();
+
+        float a = d.Dot(d) - d.Dot(v) * d.Dot(v);
+        float c = x.Dot(x) - x.Dot(v) * x.Dot(v) - radius * radius;
+        float b = 2.0f * (d.Dot(x) - d.Dot(v) * x.Dot(v));
+
+        float det = b * b - 4.0f * a * c;
+
+        float t1 = (-b + sqrtf(det)) / (2.0f * a);
+        float t2 = (-b - sqrtf(det)) / (2.0f * a);
+
+        float t = 0.0f;
+        if ((t1 * d).Length() > (t2 * d).Length())
+        {
+            t = t2;
+        }
+        else
+        {
+            t = t1;
+        }
+
+        closestHit = o + d * t;
+
+        float m = (closestHit - tc).Dot(v);
+
+        if (det >= 0 && m >= 0 && m <= height)
+        {
+            return true;
+        }
+
+        return false;
+    }
 };
 
 class TransformTriangleColiider
@@ -145,7 +193,18 @@ class TransformTriangleColiider
         }
 
         // 모서리에 충돌했을때 == 실린더에 충돌
-
+        if (m_cylinderCollider[0].CheckRayToCylinderIntersect(ray, hitPostion, hitDistance))
+        {
+            return true;
+        }
+        if (m_cylinderCollider[1].CheckRayToCylinderIntersect(ray, hitPostion, hitDistance))
+        {
+            return true;
+        }
+        if (m_cylinderCollider[2].CheckRayToCylinderIntersect(ray, hitPostion, hitDistance))
+        {
+            return true;
+        }
         // 꼭지점에 충돌했을때 == 구에 충돌
         if (m_sphereCollider[0].CheckRayToSphereIntersect(ray, hitPostion))
         {
@@ -208,6 +267,8 @@ class TransformTriangleColiider
 
     Vector3 hitPostion = Vector3(0.0f);
     float hitDistance  = 0.0f;
+
+    MeshData m_cylinder;
 };
 
 class CollisionSample : public AppBase
@@ -243,4 +304,12 @@ class CollisionSample : public AppBase
 
     // Collider 생성.
     TransformTriangleColiider m_collider;
+
+    bool m_testCollisionFlag = false;
+    bool m_testFlag          = true;
+
+
+
+    DirectX::BoundingSphere m_boundingSphere;
+    bool m_gravityFlag = true;
 };
