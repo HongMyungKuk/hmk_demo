@@ -58,6 +58,8 @@ bool MapTool::Initialize()
         QuadTree *quadTree = new QuadTree;
         MeshData grid      = GeometryGenerator::MakeSquareGrid(1024, 1024, 50.0f, Vector2(1.0f));
 
+
+
         quadTree->Initialize(nullptr, {grid});
     }
 
