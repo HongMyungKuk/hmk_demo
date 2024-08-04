@@ -72,6 +72,7 @@ cbuffer MeshConsts : register(b1)
     
     uint useHeightMap;
     float heightScale;
+    float texCoordScale;
 };
 
 cbuffer MaterialConstants : register(b2)

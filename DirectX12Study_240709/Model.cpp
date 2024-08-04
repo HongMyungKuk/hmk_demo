@@ -107,7 +107,11 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
         commandList->IASetIndexBuffer(&m.IndexBufferView());
         commandList->DrawIndexedInstanced(m.indexCount, 1, 0, 0, 0);
         idx++;
+
+        m_numRenderTriangles += m.indexCount;
     }
+
+    m_numRenderTriangles /= 3;
 }
 
 void Model::RenderNormal(ID3D12GraphicsCommandList *commandList)

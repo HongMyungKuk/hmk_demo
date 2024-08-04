@@ -172,6 +172,7 @@
     </ClCompile>
     <ClCompile Include="PostEffects.cpp" />
     <ClCompile Include="PostProcess.cpp" />
+    <ClCompile Include="QuadTree.cpp" />
     <ClCompile Include="RootSignature.cpp" />
     <ClCompile Include="SkinnedMeshModel.cpp" />
     <ClCompile Include="Texture.cpp" />
@@ -206,6 +207,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="PostEffects.h" />
     <ClInclude Include="PostProcess.h" />
+    <ClInclude Include="QuadTree.h" />
     <ClInclude Include="RootSignature.h" />
     <ClInclude Include="SkinnedMeshModel.h" />
     <ClInclude Include="Texture.h" />

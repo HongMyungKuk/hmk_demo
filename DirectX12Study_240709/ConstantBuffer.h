@@ -11,7 +11,8 @@ __declspec(align(256)) struct MeshConsts
     Matrix worldIT;
 
     uint32_t useHeightMap;
-    float heightScale =0.0f;
+    float heightScale =0.1f;
+    float texCoordScale;
 };
 // Light
 #define MAX_LIGHTS        3

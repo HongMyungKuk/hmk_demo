@@ -13,6 +13,7 @@ class MapTool : public AppBase
 
   protected:
     virtual void Update(const float dt) override;
+    virtual void UpdateLights() override;
     virtual void Render() override;
     virtual void UpdateGui(const float frameRate) override;
 
@@ -20,4 +21,9 @@ class MapTool : public AppBase
     std::string m_basePath = "";
     Model *m_terrain       = nullptr;
     Model *m_skybox        = nullptr;
+
+    // light on/off flag
+    bool m_useDL = true;  // directional light
+    bool m_usePL = false; // point lihgt
+    bool m_useSL = false; // spot light
 };

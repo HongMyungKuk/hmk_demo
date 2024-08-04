@@ -43,7 +43,7 @@ PSInput main(VSInput input)
         
     if (useHeightMap)
     {
-        float heightValue = heightTexture.SampleLevel(linearWrapSS, input.texCoord, 0.0).r;
+        float heightValue = heightTexture.SampleLevel(linearWrapSS, input.texCoord.xy / texCoordScale, 0.0).r;
         heightValue = 2.0 * heightValue - 1.0;
         input.posModel = input.posModel + heightValue * input.normalModel * heightScale;
     }

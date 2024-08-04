@@ -105,12 +105,12 @@ class Model
         m_speed[type] = s;
     }
 
-    const Vector3& GetPos()
+    const Vector3 &GetPos()
     {
         return m_pos;
     }
 
-    void SetPos(const Vector3& pos)
+    void SetPos(const Vector3 &pos)
     {
         m_pos = pos;
     }
@@ -130,6 +130,17 @@ class Model
     {
         return m_velocity;
     }
+
+    uint32_t GetNumRenderTriangles()
+    {
+        return m_numRenderTriangles;
+    }
+
+    uint32_t GetNumMeshes()
+    {
+        return uint32_t(m_meshes.size());
+    }
+
 
   private:
     ID3D12RootSignature *m_rootSignature   = nullptr;
@@ -158,4 +169,6 @@ class Model
     uint32_t m_texHandleIdx = 0;
 
     Vector3 m_velocity = Vector3(0.0f);
+
+    uint32_t m_numRenderTriangles = 0;
 };
