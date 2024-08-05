@@ -569,7 +569,7 @@ void AppBase::UpdateGui(const float frameRate)
 
     ImGui::Text("App average %.3f ms/frame (%.1f FPS)", 1000.0f / frameRate, frameRate);
     auto cameraSpeed = m_camera->GetCameraSpeed();
-    ImGui::SliderFloat("Camera speed", &cameraSpeed, 0.001f, 0.01f);
+    ImGui::SliderFloat("Camera speed", &cameraSpeed, 0.0001f, 0.001f, "%.4f");
     if (cameraSpeed != m_camera->GetCameraSpeed())
     {
         m_camera->SetCameraSpeed(cameraSpeed);

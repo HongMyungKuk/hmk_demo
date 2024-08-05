@@ -46,11 +46,13 @@ void DebugQuadTree::CreateCubeMeshs(ID3D12Device *device, ID3D12GraphicsCommandL
     }
 
     MeshData cube = GeometryGenerator::MakeCube(node->width, node->width, node->width);
+    
 
     Model *model = new Model;
     model->Initialize(device, commandList, {cube});
     model->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(node->positionX, 0.0f, node->positionZ)));
-    model->GetMaterialConstCPU().albedoFactor = Vector3(0.0f, 1.0f, 0.0f);
+    model->GetMaterialConstCPU().useEmissiveMap = false;
+    model->GetMaterialConstCPU().emissionFactor = Vector3(0.0f, 1.0f, 0.0f);
 
     m_modelList.push_back(model);
 }
