@@ -7,6 +7,7 @@
 #include "QuadTree.h"
 #include "Frustum.h"
 #include "DebugQuadTree.h"
+#include "Input.h"
 
 // https://sketchfab.com/3d-models/gm-bigcity-f80855b6286944459392fc723ed0b50f#download
 // https://free3d.com/3d-model/sci-fi-downtown-city-53758.html
@@ -247,7 +248,8 @@ void MapTool::Render()
     
     m_quadTree->Render(m_frustum, m_commandList);
 
-    m_DebugQaudTree->Render(m_commandList);
+    if (GameInput::IsPressed(GameInput::kKey_b))
+        m_DebugQaudTree->Render(m_commandList);
 }
 
 void MapTool::UpdateGui(const float frameRate)
