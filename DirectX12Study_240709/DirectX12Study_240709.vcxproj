@@ -149,10 +149,12 @@
     <ClCompile Include="Command.cpp" />
     <ClCompile Include="ConstantBuffer.cpp" />
     <ClCompile Include="D3DUtils.cpp" />
+    <ClCompile Include="DebugQuadTree.cpp" />
     <ClCompile Include="DepthBuffer.cpp" />
     <ClCompile Include="DesciptorHeap.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />
     <ClCompile Include="EventHandler.cpp" />
+    <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="GPUbuffer.cpp" />
     <ClCompile Include="GraphicsCommon.cpp" />
@@ -189,10 +191,12 @@
     <ClInclude Include="ConstantBuffer.h" />
     <ClInclude Include="D3DUtils.h" />
     <ClInclude Include="d3dx12.h" />
+    <ClInclude Include="DebugQuadTree.h" />
     <ClInclude Include="Define.h" />
     <ClInclude Include="DepthBuffer.h" />
     <ClInclude Include="DescriptorHeap.h" />
     <ClInclude Include="EventHandler.h" />
+    <ClInclude Include="Frustum.h" />
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="GPUbuffer.h" />
     <ClInclude Include="GraphicsCommon.h" />
