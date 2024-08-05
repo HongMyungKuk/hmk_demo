@@ -5,6 +5,9 @@
 #include "MapTool.h"
 #include "Model.h"
 #include "QuadTree.h"
+#include "Frustum.h"
+#include "DebugQuadTree.h"
+#include "Input.h"
 
 // https://sketchfab.com/3d-models/gm-bigcity-f80855b6286944459392fc723ed0b50f#download
 // https://free3d.com/3d-model/sci-fi-downtown-city-53758.html
@@ -34,34 +37,104 @@ bool MapTool::Initialize()
     AppBase::InitCubemap(L"../../Asset/Skybox/HDRI/", L"SkyboxEnvHDR.dds", L"SkyboxDiffuseHDR.dds",
                          L"SkyboxSpecularHDR.dds", L"SkyboxBrdf.dds");
 
-    // Create the grid.
+    //// Create the grid.
+    //{
+    //    Model *obj = nullptr;
+    //    CREATE_MODEL_OBJ(obj);
+    //    {
+    //        const float texCoordSacle = 25.0f;
+
+    //        MeshData grid = GeometryGenerator::MakeSquareGrid(255, 255, 1.0f, Vector2(texCoordSacle));
+
+    //        uint8_t *image = nullptr;
+    //        int width      = 0;
+    //        int height     = 0;
+    //        int channel    = 0;
+    //        ReadImage(&image, "../../Asset/heightmap01.bmp", width, height, channel);
+
+    //        for (auto &v : grid.vertices)
+    //        {
+    //            v.position = Vector3::Transform(v.position, Matrix::CreateRotationX(XM_PIDIV2));
+    //            v.normal   = Vector3::Transform(v.normal, Matrix::CreateRotationX(XM_PIDIV2));
+    //        }
+
+    //        float heightScale = 0.02f;
+
+    //        for (int i = 0; i < grid.indices.size(); i += 3)
+    //        {
+    //            auto i0 = grid.indices[i];
+    //            auto i1 = grid.indices[i + 1];
+    //            auto i2 = grid.indices[i + 2];
+
+    //            float h0 = float(image[4 * i0]) / 255.0f;
+    //            float h1 = float(image[4 * i1]) / 255.0f;
+    //            float h2 = float(image[4 * i2]) / 255.0f;
+
+    //            grid.vertices[i0].position = Vector3::Transform(
+    //                grid.vertices[i0].position, Matrix::CreateTranslation(Vector3(0.0f, h0, 0.0f) * heightScale));
+    //            grid.vertices[i1].position = Vector3::Transform(
+    //                grid.vertices[i1].position, Matrix::CreateTranslation(Vector3(0.0f, h1, 0.0f) * heightScale));
+    //            grid.vertices[i2].position = Vector3::Transform(
+    //                grid.vertices[i2].position, Matrix::CreateTranslation(Vector3(0.0f, h2, 0.0f) * heightScale));
+    //        }
+
+
+
+
+    //        //grid.heightTextureFilename = "../../Asset/heightmap01.bmp";
+    //        obj->Initialize(m_device, m_commandList, {grid});
+    //        obj->GetMaterialConstCPU().albedoFactor = Vector3(0.8f);
+    //        obj->GetMaterialConstCPU().useAlbedoMap = true;
+    //        obj->GetMeshConstCPU().useHeightMap     = true;
+    //        obj->GetMeshConstCPU().texCoordScale    = texCoordSacle;
+    //        // obj->UpdateWorldMatrix(Matrix::CreateRotationX(XM_PIDIV2));
+    //    }
+    //    m_opaqueList.push_back(obj);
+    //}
+
     {
-        Model *obj = nullptr;
-        CREATE_MODEL_OBJ(obj);
+        m_quadTree = new QuadTree;
+        MeshData grid      = GeometryGenerator::MakeSquareGrid(255, 255, 1.0f, Vector2(1.0f));
+
+        uint8_t *image     = nullptr;
+        int width          = 0;
+        int height         = 0;
+        int channel        = 0;
+        ReadImage(&image, "../../Asset/heightmap01.bmp", width, height, channel);
+
+        for (auto &v : grid.vertices)
         {
-            const float texCoordSacle = 25.0f;
-
-            MeshData grid              = GeometryGenerator::MakeSquareGrid(1024, 1024, 50.0f, Vector2(texCoordSacle));
-            grid.albedoTextureFilename = "../../Asset/GroundDirtRocky020_COL_4K.jpg";
-            grid.heightTextureFilename = "../../Asset/heightmap01.bmp";
-            obj->Initialize(m_device, m_commandList, {grid});
-            obj->GetMaterialConstCPU().albedoFactor = Vector3(0.8f);
-            obj->GetMaterialConstCPU().useAlbedoMap = true;
-            obj->GetMeshConstCPU().useHeightMap     = true;
-            obj->GetMeshConstCPU().texCoordScale    = texCoordSacle;
-            obj->UpdateWorldMatrix(Matrix::CreateRotationX(XM_PIDIV2));
+            v.position = Vector3::Transform(v.position, Matrix::CreateRotationX(XM_PIDIV2));
+            v.normal   = Vector3::Transform(v.normal, Matrix::CreateRotationX(XM_PIDIV2));
         }
-        m_opaqueList.push_back(obj);
+
+        float heightScale = 0.02f;
+
+        for (int i = 0; i < grid.indices.size(); i += 3)
+        {
+            auto i0 = grid.indices[i];
+            auto i1 = grid.indices[i + 1];
+            auto i2 = grid.indices[i + 2];
+
+            float h0 = float(image[4 * i0]) / 255.0f;
+            float h1 = float(image[4 * i1]) / 255.0f;
+            float h2 = float(image[4 * i2]) / 255.0f;
+
+            grid.vertices[i0].position = Vector3::Transform(
+                grid.vertices[i0].position, Matrix::CreateTranslation(Vector3(0.0f, h0, 0.0f) * heightScale));
+            grid.vertices[i1].position = Vector3::Transform(
+                grid.vertices[i1].position, Matrix::CreateTranslation(Vector3(0.0f, h1, 0.0f) * heightScale));
+            grid.vertices[i2].position = Vector3::Transform(
+                grid.vertices[i2].position, Matrix::CreateTranslation(Vector3(0.0f, h2, 0.0f) * heightScale));
+        }
+
+        m_quadTree->Initialize(nullptr, {grid}, m_device, m_commandList);
     }
 
-    {
-        QuadTree *quadTree = new QuadTree;
-        MeshData grid      = GeometryGenerator::MakeSquareGrid(1024, 1024, 50.0f, Vector2(1.0f));
+    m_frustum = new Frustum;
 
-
-
-        quadTree->Initialize(nullptr, {grid});
-    }
+    m_DebugQaudTree = new DebugQuadTree;
+    m_DebugQaudTree->Initialize(m_device, m_commandList, m_quadTree);
 
     ThrowIfFailed(m_commandList->Close());
     // Execute the command list.
@@ -79,8 +152,15 @@ void MapTool::Update(const float dt)
 
     UpdateCamera(dt);
 
+    m_quadTree->Update();
+
+    m_frustum->ConstructFrustum(m_camera->GetFarZ(), m_globalConstsData.view.Transpose(), m_globalConstsData.proj.Transpose());
+
+    m_DebugQaudTree->Update();
+
     m_postProcess.GetConstCPU().exposure     = m_exposureFactor;
     m_postProcess.GetConstCPU().gammeaFactor = m_gammaFactor;
+
     m_postProcess.Update();
 }
 
@@ -163,6 +243,13 @@ void MapTool::Render()
             m_lightSpheres[1]->Render(m_commandList);
         }
     }
+
+    m_commandList->SetPipelineState(m_isWireFrame ? Graphics::defaultWirePSO : Graphics::defaultSolidPSO);
+    
+    m_quadTree->Render(m_frustum, m_commandList);
+
+    if (GameInput::IsPressed(GameInput::kKey_b))
+        m_DebugQaudTree->Render(m_commandList);
 }
 
 void MapTool::UpdateGui(const float frameRate)
@@ -183,7 +270,7 @@ void MapTool::UpdateGui(const float frameRate)
     // Section
     if (ImGui::CollapsingHeader("Debugging"))
     {
-        ImGui::Text("The number of triangles is %d in this frame.", m_opaqueList[0]->GetNumRenderTriangles());
+        // ImGui::Text("The number of triangles is %d in this frame.", m_quadTree->GetNumRenderTriangles());
 
         ImGui::Checkbox("First person view", &m_isFPV);
         ImGui::Checkbox("Draw as normal", &m_drawAsNormal);

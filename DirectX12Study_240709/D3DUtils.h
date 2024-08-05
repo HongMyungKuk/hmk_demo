@@ -4,6 +4,8 @@
 
 using namespace DirectX;
 
+extern void ReadImage(uint8_t **image, const std::string &filename, int &w, int &h, int &c);
+
 inline std::string HrToString(HRESULT hr)
 {
     char s_str[64] = {};

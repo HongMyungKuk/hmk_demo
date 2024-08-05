@@ -3,6 +3,9 @@
 #include "AppBase.h"
 
 class Model;
+class QuadTree;
+class Frustum;
+class DebugQuadTree;
 
 class MapTool : public AppBase
 {
@@ -26,4 +29,8 @@ class MapTool : public AppBase
     bool m_useDL = true;  // directional light
     bool m_usePL = false; // point lihgt
     bool m_useSL = false; // spot light
+
+    QuadTree *m_quadTree = nullptr;
+    Frustum *m_frustum   = nullptr;
+    DebugQuadTree *m_DebugQaudTree = nullptr;
 };
