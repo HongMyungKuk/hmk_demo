@@ -19,7 +19,7 @@ class QuadTree
     void Initialize(Model *terrain, std::vector<MeshData> meshes);
 
   private:
-    void CaculateMeshDimesion(float &centerX, float &centerZ, float &wdith);
+    void CaculateMeshDimesion(float &centerX, float &centerZ, float &width);
 
   private:
     std::vector<MeshData> m_meshes;
