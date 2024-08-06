@@ -33,7 +33,7 @@ void QuadTree::Render(Frustum *frustum, ID3D12GraphicsCommandList *commandList)
 
     RenderNode(frustum, m_rootNode, commandList);
 
-    //std::cout << m_drawCount << std::endl;
+    // std::cout << m_drawCount << std::endl;
 }
 
 void QuadTree::GetHeight(float positionX, float positionZ, float &height)
@@ -103,7 +103,7 @@ void QuadTree::CreateTreeNode(NodeType *node, float positionX, float positionZ, 
         return;
     }
 
-    if (numTriangles > 50000)
+    if (numTriangles > 2500)
     {
         for (int i = 0; i < 4; i++)
         {
@@ -372,6 +372,16 @@ void QuadTree::RenderNode(Frustum *frustum, NodeType *node, ID3D12GraphicsComman
 
 void QuadTree::FindNode(NodeType *node, float positionX, float positionZ, float &height)
 {
+    float minX = node->positionX - node->width / 2.0f;
+    float maxX = node->positionX + node->width / 2.0f;
+    float minZ = node->positionZ - node->width / 2.0f;
+    float maxZ = node->positionZ + node->width / 2.0f;
+
+    if (positionX < minX || positionX > maxX || positionZ < minZ || positionZ > maxZ)
+    {
+        return;
+    }
+
     int count = 0;
     for (int i = 0; i < 4; i++)
     {
@@ -384,16 +394,6 @@ void QuadTree::FindNode(NodeType *node, float positionX, float positionZ, float 
     }
 
     if (count != 0)
-    {
-        return;
-    }
-
-    float minX = m_rootNode->positionX - m_rootNode->width / 2.0f;
-    float maxX = m_rootNode->positionX + m_rootNode->width / 2.0f;
-    float minZ = m_rootNode->positionZ - m_rootNode->width / 2.0f;
-    float maxZ = m_rootNode->positionZ + m_rootNode->width / 2.0f;
-
-    if (positionX < minX || positionX > maxX || positionZ < minZ || positionZ > maxZ)
     {
         return;
     }
@@ -417,8 +417,6 @@ void QuadTree::FindNode(NodeType *node, float positionX, float positionZ, float 
     {
         t[i].join();
     }
-
-    std::cout << height << std::endl;
 }
 
 void QuadTree::GetThreadTriangleHeight(NodeType *node, int start, int end, float positionX, float positionZ,
