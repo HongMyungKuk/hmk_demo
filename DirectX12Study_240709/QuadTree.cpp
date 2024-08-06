@@ -194,6 +194,7 @@ void QuadTree::CreateTreeNode(NodeType *node, float positionX, float positionZ, 
 
     node->model = new Model;
     node->model->Initialize(device, commandList, meshes);
+    node->model->GetMaterialConstCPU().albedoFactor = Vector3(1.0f);
     node->meshData = meshes[0];
 }
 
@@ -474,7 +475,7 @@ bool QuadTree::GetTriangleHeight(Vector3 v0, Vector3 v1, Vector3 v2, float posit
         return false;
     }
 
-    height = p.y + 2.0f;
+    height = p.y + 0.1f;
 
     return true;
 }
