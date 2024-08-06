@@ -94,7 +94,7 @@ bool MapTool::Initialize()
 
     {
         m_quadTree = new QuadTree;
-        MeshData grid      = GeometryGenerator::MakeSquareGrid(255, 255, 1.0f, Vector2(1.0f));
+        MeshData grid      = GeometryGenerator::MakeSquareGrid(255, 255, 50.0f, Vector2(1.0f));
 
         uint8_t *image     = nullptr;
         int width          = 0;
@@ -108,7 +108,7 @@ bool MapTool::Initialize()
             v.normal   = Vector3::Transform(v.normal, Matrix::CreateRotationX(XM_PIDIV2));
         }
 
-        float heightScale = 0.02f;
+        float heightScale = 2.0f;
 
         for (int i = 0; i < grid.indices.size(); i += 3)
         {
@@ -153,6 +153,14 @@ void MapTool::Update(const float dt)
     UpdateCamera(dt);
 
     m_quadTree->Update();
+
+    {
+        auto cameraPosition = m_camera->GetPosition();
+
+        m_quadTree->GetHeight(cameraPosition.x, cameraPosition.z, cameraPosition.y);
+
+        m_camera->SetPosition(cameraPosition);
+    }
 
     m_frustum->ConstructFrustum(m_camera->GetFarZ(), m_globalConstsData.view.Transpose(), m_globalConstsData.proj.Transpose());
 

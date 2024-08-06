@@ -49,7 +49,7 @@ class Camera
     }
 
   private:
-    Vector3 m_eyePosition    = Vector3(1.0f, 3.0f, -3.0f);
+    Vector3 m_eyePosition    = Vector3(1.0f, 2.0f, -3.0f);
     Vector3 m_eyeDirection   = Vector3(0.0f, 0.0f, 1.0f);
     Vector3 m_upDirection    = Vector3(0.0f, 1.0f, 0.0f);
     Vector3 m_rightDirection = Vector3(1.0f, 0.0f, 0.0f);

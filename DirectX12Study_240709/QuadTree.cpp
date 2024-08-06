@@ -36,6 +36,21 @@ void QuadTree::Render(Frustum *frustum, ID3D12GraphicsCommandList *commandList)
     std::cout << m_drawCount << std::endl;
 }
 
+void QuadTree::GetHeight(float positionX, float positionZ, float &height)
+{
+    float minX = m_rootNode->positionX - m_rootNode->width / 2.0f;
+    float maxX = m_rootNode->positionX + m_rootNode->width / 2.0f;
+    float minZ = m_rootNode->positionZ - m_rootNode->width / 2.0f;
+    float maxZ = m_rootNode->positionZ + m_rootNode->width / 2.0f;
+
+    if (positionX < minX || positionX > maxX || positionZ < minZ || positionZ > maxZ)
+    {
+        return;
+    }
+
+    FindNode(m_rootNode, positionX, positionZ, height);
+}
+
 void QuadTree::CaculateMeshDimesion(float &centerX, float &centerZ, float &width)
 {
     centerX = 0.0f;
@@ -178,7 +193,8 @@ void QuadTree::CreateTreeNode(NodeType *node, float positionX, float positionZ, 
     }
 
     node->model = new Model;
-    node->model->Initialize(device, commandList, {meshes});
+    node->model->Initialize(device, commandList, meshes);
+    node->meshData = meshes[0];
 }
 
 int QuadTree::CountTriangles(float positionX, float positionZ, float width)
@@ -352,4 +368,84 @@ void QuadTree::RenderNode(Frustum *frustum, NodeType *node, ID3D12GraphicsComman
     node->model->Render(commandList);
 
     m_drawCount += node->triangleCount;
+}
+
+void QuadTree::FindNode(NodeType *node, float positionX, float positionZ, float &height)
+{
+    int count = 0;
+    for (int i = 0; i < 4; i++)
+    {
+        if (node->nodes[i])
+        {
+            count++;
+
+            FindNode(node->nodes[i], positionX, positionZ, height);
+        }
+    }
+
+    if (count != 0)
+    {
+        return;
+    }
+
+    float minX = m_rootNode->positionX - m_rootNode->width / 2.0f;
+    float maxX = m_rootNode->positionX + m_rootNode->width / 2.0f;
+    float minZ = m_rootNode->positionZ - m_rootNode->width / 2.0f;
+    float maxZ = m_rootNode->positionZ + m_rootNode->width / 2.0f;
+
+    if (positionX < minX || positionX > maxX || positionZ < minZ || positionZ > maxZ)
+    {
+        return;
+    }
+
+    for (int i = 0; i < node->meshData.indices.size(); i += 3)
+    {
+        uint32_t i0 = node->meshData.indices[i];
+        uint32_t i1 = node->meshData.indices[i + 1];
+        uint32_t i2 = node->meshData.indices[i + 2];
+
+        Vector3 v0 = node->meshData.vertices[i0].position;
+        Vector3 v1 = node->meshData.vertices[i1].position;
+        Vector3 v2 = node->meshData.vertices[i2].position;
+
+        if (GetTriangleHeight(v0, v1, v2, positionX, positionZ, height))
+        {
+            return;
+        }
+    }
+}
+
+bool QuadTree::GetTriangleHeight(Vector3 v0, Vector3 v1, Vector3 v2, float positionX, float positionZ, float &height)
+{
+    Vector3 n = (v1 - v0).Cross(v2 - v1);
+    n.Normalize();
+
+    Vector3 o = Vector3(positionX, height, positionZ);
+    Vector3 d = Vector3(0.0f, -1.0f, 0.0f);
+
+    float t0 = (v0.Dot(n) - o.Dot(n)) / n.Dot(d);
+    float t1 = (v1.Dot(n) - o.Dot(n)) / n.Dot(d);
+    float t2 = (v2.Dot(n) - o.Dot(n)) / n.Dot(d);
+
+    float t = XMMin(t0, XMMin(t1, t2));
+
+    Vector3 p = o + t * d; // hit closest position.
+
+    Vector3 a0 = (p - v1).Cross(v0 - v1);
+    Vector3 a1 = (p - v2).Cross(v1 - v2);
+    Vector3 a2 = (p - v0).Cross(v2 - v0);
+
+    float alpha0 = a0.Dot(n);
+    float alpha1 = a1.Dot(n);
+    float alpha2 = a2.Dot(n);
+
+    // 삼각형 내부에 hit position 이 존재하지 않는다면 예외
+    if (alpha0 < 0.0f || alpha1 < 0.0f || alpha2 < 0.0f)
+    {
+        return false;
+    }
+
+    height = p.y + 2.0f;
+
+    return true;
 }
