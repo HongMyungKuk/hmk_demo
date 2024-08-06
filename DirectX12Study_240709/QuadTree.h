@@ -14,14 +14,17 @@ class QuadTree
     {
         float positionX, positionZ, width;
         int triangleCount;
-        Model *model;
+        Model *model = nullptr;
         MeshData meshData;
         NodeType *nodes[4];
     };
 
   public:
+    ~QuadTree();
+
     void Initialize(Model *terrain, std::vector<MeshData> meshes, ID3D12Device *device,
                     ID3D12GraphicsCommandList *commandList);
+    void ReleaseNode(NodeType *node);
     void Update();
     void Render(Frustum *frustum, ID3D12GraphicsCommandList *commandList);
 
@@ -48,7 +51,6 @@ class QuadTree
 
   private:
     std::vector<MeshData> m_meshDatas;
-    std::vector<Mesh> m_meshes;
     NodeType *m_rootNode = nullptr;
     uint32_t m_drawCount = 0;
 };

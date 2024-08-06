@@ -4,6 +4,14 @@
 #include "Model.h"
 #include "GeometryGenerator.h"
 
+DebugQuadTree::~DebugQuadTree()
+{
+    for (auto m : m_modelList)
+    {
+        SAFE_DELETE(m);
+    }
+}
+
 void DebugQuadTree::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, QuadTree *quadTree)
 {
     CreateCubeMeshs(device, commandList, quadTree->GetRootNode());

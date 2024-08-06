@@ -6,6 +6,11 @@
 
 #include <thread>
 
+QuadTree::~QuadTree()
+{
+    ReleaseNode(m_rootNode);
+}
+
 void QuadTree::Initialize(Model *terrain, std::vector<MeshData> meshes, ID3D12Device *device,
                           ID3D12GraphicsCommandList *commandList)
 {
@@ -20,6 +25,24 @@ void QuadTree::Initialize(Model *terrain, std::vector<MeshData> meshes, ID3D12De
     m_rootNode = new NodeType;
 
     CreateTreeNode(m_rootNode, centerX, centerZ, width, device, commandList);
+}
+
+void QuadTree::ReleaseNode(NodeType *node)
+{
+    static int nodeNum = 0;
+
+    for (int i = 0; i < 4; i++)
+    {
+        if (node->nodes[i])
+        {
+            ReleaseNode(node->nodes[i]);
+        }
+    }
+
+    SAFE_DELETE(node->model);
+    SAFE_DELETE(node);
+
+    nodeNum++;
 }
 
 void QuadTree::Update()
@@ -475,7 +498,7 @@ bool QuadTree::GetTriangleHeight(Vector3 v0, Vector3 v1, Vector3 v2, float posit
         return false;
     }
 
-    height = p.y + 0.1f;
+    height = p.y + 0.2f; // radius
 
     return true;
 }

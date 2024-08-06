@@ -18,6 +18,9 @@ MapTool::MapTool()
 
 MapTool::~MapTool()
 {
+    SAFE_DELETE(m_frustum);
+    SAFE_DELETE(m_DebugQaudTree);
+    SAFE_DELETE(m_quadTree);
     SAFE_DELETE(m_skybox);
     SAFE_DELETE(m_terrain);
 }
@@ -184,7 +187,6 @@ void MapTool::Update(const float dt)
     m_opaqueList[0]->Move(dt);
 
     m_opaqueList[0]->SetVelocity(Vector3(0.0f));
-
 
     m_frustum->ConstructFrustum(m_camera->GetFarZ(), m_globalConstsData.view.Transpose(),
                                 m_globalConstsData.proj.Transpose());

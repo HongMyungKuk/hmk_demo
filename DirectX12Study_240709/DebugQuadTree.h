@@ -7,6 +7,8 @@ class Model;
 class DebugQuadTree
 {
   public:
+    ~DebugQuadTree();
+
     void Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, QuadTree *quadTree);
     void Update();
     void Render(ID3D12GraphicsCommandList *commandList);

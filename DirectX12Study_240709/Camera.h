@@ -62,7 +62,7 @@ class Camera
 
     float m_fov   = 70.0f;
     float m_nearZ = 0.1f;
-    float m_farZ  = 100.0f;
+    float m_farZ  = 1000.0f;
 
     float m_speed = 0.001f;
 };
