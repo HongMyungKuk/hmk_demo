@@ -43,7 +43,7 @@ class QuadTree
     void RenderNode(Frustum *frustum, NodeType *node, ID3D12GraphicsCommandList *commandList);
     void FindNode(NodeType *node, float positionX, float positionZ, float &height);
 
-
+    void GetThreadTriangleHeight(NodeType *node, int start, int end, float positionX, float positionZ, float *height);
     bool GetTriangleHeight(Vector3 v0, Vector3 v1, Vector3 v2, float positionX, float positionZ, float &height);
 
   private:

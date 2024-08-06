@@ -33,7 +33,7 @@ void QuadTree::Render(Frustum *frustum, ID3D12GraphicsCommandList *commandList)
 
     RenderNode(frustum, m_rootNode, commandList);
 
-    std::cout << m_drawCount << std::endl;
+    //std::cout << m_drawCount << std::endl;
 }
 
 void QuadTree::GetHeight(float positionX, float positionZ, float &height)
@@ -103,7 +103,7 @@ void QuadTree::CreateTreeNode(NodeType *node, float positionX, float positionZ, 
         return;
     }
 
-    if (numTriangles > 10000)
+    if (numTriangles > 50000)
     {
         for (int i = 0; i < 4; i++)
         {
@@ -398,7 +398,33 @@ void QuadTree::FindNode(NodeType *node, float positionX, float positionZ, float 
         return;
     }
 
-    for (int i = 0; i < node->meshData.indices.size(); i += 3)
+    std::thread t[8];
+
+    auto size = node->meshData.indices.size();
+    size -= (size % 3);
+
+    for (int i = 0; i < 8; i++)
+    {
+        int start = i * size / 8;
+        int end   = (i + 1) * size / 8;
+
+        start -= (start % 3);
+
+        t[i] = std::thread(&QuadTree::GetThreadTriangleHeight, this, node, start, end, positionX, positionZ, &height);
+    }
+
+    for (int i = 0; i < 8; i++)
+    {
+        t[i].join();
+    }
+
+    std::cout << height << std::endl;
+}
+
+void QuadTree::GetThreadTriangleHeight(NodeType *node, int start, int end, float positionX, float positionZ,
+                                       float *height)
+{
+    for (int i = start; i < end; i += 3)
     {
         uint32_t i0 = node->meshData.indices[i];
         uint32_t i1 = node->meshData.indices[i + 1];
@@ -408,7 +434,7 @@ void QuadTree::FindNode(NodeType *node, float positionX, float positionZ, float 
         Vector3 v1 = node->meshData.vertices[i1].position;
         Vector3 v2 = node->meshData.vertices[i2].position;
 
-        if (GetTriangleHeight(v0, v1, v2, positionX, positionZ, height))
+        if (GetTriangleHeight(v0, v1, v2, positionX, positionZ, *height))
         {
             return;
         }
@@ -422,6 +448,11 @@ bool QuadTree::GetTriangleHeight(Vector3 v0, Vector3 v1, Vector3 v2, float posit
 
     Vector3 o = Vector3(positionX, height, positionZ);
     Vector3 d = Vector3(0.0f, -1.0f, 0.0f);
+
+    if (abs(n.Dot(d)) < 1e-5)
+    {
+        return false;
+    }
 
     float t0 = (v0.Dot(n) - o.Dot(n)) / n.Dot(d);
     float t1 = (v1.Dot(n) - o.Dot(n)) / n.Dot(d);
