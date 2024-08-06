@@ -215,6 +215,8 @@ void QuadTree::CreateTreeNode(NodeType *node, float positionX, float positionZ, 
         }
     }
 
+    meshes[0].albedoTextureFilename = m_meshDatas[0].albedoTextureFilename;
+
     node->model = new Model;
     node->model->Initialize(device, commandList, meshes);
     node->model->GetMaterialConstCPU().albedoFactor = Vector3(1.0f);

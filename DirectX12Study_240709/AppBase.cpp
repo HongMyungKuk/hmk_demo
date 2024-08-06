@@ -109,7 +109,8 @@ bool AppBase::Initialize()
     // Create sky box.
     CREATE_OBJ(m_skybox, Model);
     {
-        MeshData cube = GeometryGenerator::MakeCube(100.0f, 100.0f, 100.0f);
+        MeshData cube = GeometryGenerator::MakeCube(500.0f, 500.0f, 500.0f);
+        std::reverse(cube.indices.begin(), cube.indices.end());
         m_skybox->Initialize(m_device, m_commandList, {cube});
     }
 

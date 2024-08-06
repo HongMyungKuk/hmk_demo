@@ -307,7 +307,7 @@ void InitViewportAndScissorRect()
 void InitRasterizerState()
 {
     solidCW.FillMode              = D3D12_FILL_MODE_SOLID;
-    solidCW.CullMode              = D3D12_CULL_MODE_NONE;
+    solidCW.CullMode              = D3D12_CULL_MODE_BACK;
     solidCW.FrontCounterClockwise = FALSE;
     solidCW.DepthBias             = D3D12_DEFAULT_DEPTH_BIAS;
     solidCW.DepthBiasClamp        = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;

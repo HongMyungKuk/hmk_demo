@@ -58,7 +58,8 @@ bool MapTool::Initialize()
 
     {
         m_quadTree    = new QuadTree;
-        MeshData grid = GeometryGenerator::MakeSquareGrid(255, 255, 50.0f, Vector2(1.0f));
+        MeshData grid = GeometryGenerator::MakeSquareGrid(255, 255, 50.0f, Vector2(25.0f));
+        grid.albedoTextureFilename = "../../Asset/GroundDirtWeedsPatchy004/GroundDirtWeedsPatchy004_COL_2K.jpg";
 
         uint8_t *image = nullptr;
         int width      = 0;
@@ -184,7 +185,7 @@ void MapTool::Update(const float dt)
         m_opaqueList[0]->AddVelocity(Vector3(0.0f, -1.0f, 0.0f));
     }
 
-    m_opaqueList[0]->Move(dt);
+    m_opaqueList[0]->Move(dt * 5.0f);
 
     m_opaqueList[0]->SetVelocity(Vector3(0.0f));
 
