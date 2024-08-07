@@ -59,7 +59,7 @@ bool MapTool::Initialize()
     {
         m_quadTree    = new QuadTree;
         MeshData grid = GeometryGenerator::MakeSquareGrid(255, 255, 50.0f, Vector2(25.0f));
-        grid.albedoTextureFilename = "../../Asset/GroundDirtWeedsPatchy004/GroundDirtWeedsPatchy004_COL_2K.jpg";
+        grid.albedoTextureFilename = "../../Asset/GroundDirtRocky020_COL_4K.jpg";
 
         uint8_t *image = nullptr;
         int width      = 0;
