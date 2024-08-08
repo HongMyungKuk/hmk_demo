@@ -183,7 +183,7 @@ bool ModelViewer::Initialize()
     ID3D12CommandList *ppCommandLists[] = {m_commandList};
     m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-    WaitForPreviousFrame();
+    WaitForGpu();
 
     // Set event handler.
     g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::FRONT,

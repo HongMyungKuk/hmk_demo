@@ -56,7 +56,8 @@ class AppBase
     LRESULT CALLBACK MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
   protected:
-    void WaitForPreviousFrame();
+    void WaitForGpu();
+    void MoveToNextFrame();
 
     void InitCubemap(std::wstring basePath, std::wstring envFilename, std::wstring diffuseFilename,
                      std::wstring specularFilename, std::wstring brdfFilename);
@@ -99,7 +100,7 @@ class AppBase
     // Pipeline objects.
     IDXGISwapChain1 *m_swapChain               = nullptr;
     ID3D12Device *m_device                     = nullptr;
-    ID3D12CommandAllocator *m_commandAllocator = nullptr;
+    ID3D12CommandAllocator *m_commandAllocator[s_frameCount] = {};
     ID3D12CommandQueue *m_commandQueue         = nullptr;
     ID3D12GraphicsCommandList *m_commandList   = nullptr;
 
@@ -122,7 +123,7 @@ class AppBase
     uint32_t m_frameIndex = 0;
     HANDLE m_fenceEvent   = nullptr;
     ID3D12Fence *m_fence  = nullptr;
-    uint64_t m_fenceValue = 0;
+    uint64_t m_fenceValue[s_frameCount] = {};
 
     HWND m_hwnd          = nullptr;
     bool m_useWarpDevice = false;
