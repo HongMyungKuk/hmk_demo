@@ -39,5 +39,5 @@ float4 psmain(PixelShaderInput input) : SV_TARGET
     {
         color = diffuseTexture.SampleLevel(linearWrapSS, input.posModel, mipmap).xyz;
     }
-    return float4(color * envStrength, 1.0);
+    return float4(color, 1.0);
 }

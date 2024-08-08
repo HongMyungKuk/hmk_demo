@@ -215,6 +215,8 @@ void QuadTree::CreateTreeNode(NodeType *node, float positionX, float positionZ, 
         }
     }
 
+    // memory 상에 엄청난 비효율이 생김.
+    // texture는 한장만 있어도 괜찮음
     meshes[0].albedoTextureFilename = m_meshDatas[0].albedoTextureFilename;
 
     node->model = new Model;
@@ -467,6 +469,8 @@ void QuadTree::GetThreadTriangleHeight(NodeType *node, int start, int end, float
 
 bool QuadTree::GetTriangleHeight(Vector3 v0, Vector3 v1, Vector3 v2, float positionX, float positionZ, float &height)
 {
+    float objHeight = 0.2f;
+
     Vector3 n = (v1 - v0).Cross(v2 - v1);
     n.Normalize();
 
@@ -500,7 +504,7 @@ bool QuadTree::GetTriangleHeight(Vector3 v0, Vector3 v1, Vector3 v2, float posit
         return false;
     }
 
-    height = p.y + 0.2f; // radius
+    height = p.y + objHeight; // radius
 
     return true;
 }

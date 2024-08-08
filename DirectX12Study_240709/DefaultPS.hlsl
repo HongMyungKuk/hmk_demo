@@ -103,9 +103,17 @@ float3 CalcIrradiance(Light L, float3 posWorld, float3 toEye, float3 normalWorld
         
         float depthSrc = shadowMap.Sample(shadowPointDynamicSS, float2(texCoord.x, texCoord.y)).r;
         
+        // 물체를 비추는 방향의 반대쪽에 그림자가 생기는것을 방지하기 위해 예외처리
+        if (depthDest > 1.0)
+        {
+            depthSrc = 100.0f;
+        }
+        
         // set border value.
         if (texCoord.x < 0.0f || texCoord.x > 1.0f || texCoord.y < 0.0f || texCoord.y > 1.0f)
+        {
             depthSrc = 100.0f;
+        }
         
         float2 ab = texCoord;
 

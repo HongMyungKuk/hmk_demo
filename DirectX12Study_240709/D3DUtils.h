@@ -92,4 +92,7 @@ class D3DUtils
     static D3D12_VIEWPORT CreateViewport(const float xLT, const float yLT, const float w, const float h,
                                          const float minDepth = 0.0f, const float maxDepth = 1.0f);
     static D3D12_RECT CreateScissorRect(const long left, const long top, const long right, const long bottom);
+
+  public:
+    static uint32_t CheckMultiSample(ID3D12Device *device, DXGI_FORMAT format, uint32_t sampleCount);
 };

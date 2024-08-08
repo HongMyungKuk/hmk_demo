@@ -53,7 +53,7 @@ void DebugQuadTree::CreateCubeMeshs(ID3D12Device *device, ID3D12GraphicsCommandL
         return;
     }
 
-    MeshData cube = GeometryGenerator::MakeCube(node->width, 1.0f, node->width);
+    MeshData cube = GeometryGenerator::MakeCube(node->width, 20.0f, node->width);
     
 
     Model *model = new Model;
