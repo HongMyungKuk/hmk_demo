@@ -53,98 +53,98 @@ bool ModelViewer::Initialize()
     //    }
     //}
 
-    //// Create the model.
+    // Create the model.
+    {
+        Model *skinnedModel = new SkinnedMeshModel;
+        if (!skinnedModel)
+        {
+            return false;
+        }
+        {
+            m_basPath   = "../../Asset/Model/";
+            m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
+                           "Walking Backward.fbx"};
+
+            AnimationData animData = {};
+            for (const auto &clip : m_animClips)
+            {
+                auto [_, anim] = GeometryGenerator::ReadFromAnimationFile(m_basPath.c_str(), clip.c_str());
+
+                if (animData.clips.empty())
+                {
+                    animData = anim;
+                }
+                else
+                {
+                    animData.clips.push_back(anim.clips.front());
+                }
+            }
+
+            auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model.fbx");
+
+            ((SkinnedMeshModel *)skinnedModel)->Initialize(m_device, m_commandList, model, material, animData);
+            skinnedModel->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
+            skinnedModel->GetMaterialConstCPU().albedoFactor = Vector3(0.3f);
+            skinnedModel->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
+        }
+        m_opaqueList.push_back(skinnedModel);
+    }
+
+    //// Create the grid.
     //{
-    //    Model *skinnedModel = new SkinnedMeshModel;
-    //    if (!skinnedModel)
+    //    Model *obj = nullptr;
+    //    CREATE_MODEL_OBJ(obj);
     //    {
-    //        return false;
+    //        MeshData grid                 = GeometryGenerator::MakeSquareGrid(256, 256, 1.0f, Vector2(1.0f));
+    //        grid.albedoTextureFilename    = "../../Asset/brick-wall-ue/brick-wall_albedo.png";
+    //        grid.normalTextureFilename    = "../../Asset/brick-wall-ue/brick-wall_normal-dx.png";
+    //        grid.heightTextureFilename    = "../../Asset/brick-wall-ue/brick-wall_height.png";
+    //        grid.metallicTextureFilename  = "../../Asset/brick-wall-ue/brick-wall_metallic.png";
+    //        grid.roughnessTextureFilename = "../../Asset/brick-wall-ue/brick-wall_roughness.png";
+    //        grid.aoTextureFilename        = "../../Asset/brick-wall-ue/brick-wall_ao.png";
+    //        obj->Initialize(m_device, m_commandList, {grid});
+    //        obj->GetMaterialConstCPU().albedoFactor    = Vector3(0.8f);
+    //        obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(0.0f, 0.5f, -2.0f)));
     //    }
-    //    {
-    //        m_basPath   = "../../Asset/Model/";
-    //        m_animClips = {"idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx", "Left Strafe Walking.fbx",
-    //                       "Walking Backward.fbx"};
-
-    //        AnimationData animData = {};
-    //        for (const auto &clip : m_animClips)
-    //        {
-    //            auto [_, anim] = GeometryGenerator::ReadFromAnimationFile(m_basPath.c_str(), clip.c_str());
-
-    //            if (animData.clips.empty())
-    //            {
-    //                animData = anim;
-    //            }
-    //            else
-    //            {
-    //                animData.clips.push_back(anim.clips.front());
-    //            }
-    //        }
-
-    //        auto [model, material] = GeometryGenerator::ReadFromModelFile(m_basPath.c_str(), "comp_model.fbx");
-
-    //        ((SkinnedMeshModel *)skinnedModel)->Initialize(m_device, m_commandList, model, material, animData);
-    //        skinnedModel->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
-    //        skinnedModel->GetMaterialConstCPU().albedoFactor = Vector3(0.3f);
-    //        skinnedModel->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-    //    }
-    //    m_opaqueList.push_back(skinnedModel);
+    //    m_opaqueList.push_back(obj);
     //}
 
-    // Create the grid.
-    {
-        Model *obj = nullptr;
-        CREATE_MODEL_OBJ(obj);
-        {
-            MeshData grid                 = GeometryGenerator::MakeSquareGrid(256, 256, 1.0f, Vector2(1.0f));
-            grid.albedoTextureFilename    = "../../Asset/brick-wall-ue/brick-wall_albedo.png";
-            grid.normalTextureFilename    = "../../Asset/brick-wall-ue/brick-wall_normal-dx.png";
-            grid.heightTextureFilename    = "../../Asset/brick-wall-ue/brick-wall_height.png";
-            grid.metallicTextureFilename  = "../../Asset/brick-wall-ue/brick-wall_metallic.png";
-            grid.roughnessTextureFilename = "../../Asset/brick-wall-ue/brick-wall_roughness.png";
-            grid.aoTextureFilename        = "../../Asset/brick-wall-ue/brick-wall_ao.png";
-            obj->Initialize(m_device, m_commandList, {grid});
-            obj->GetMaterialConstCPU().albedoFactor    = Vector3(0.8f);
-            obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(0.0f, 0.5f, -2.0f)));
-        }
-        m_opaqueList.push_back(obj);
-    }
+    //// Create the sphere.
+    //{
+    //    Model *obj = nullptr;
+    //    CREATE_MODEL_OBJ(obj);
+    //    {
+    //        MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
+    //        cube.albedoTextureFilename = "../../Asset/brick-wall-ue/brick-wall_albedo.png";
+    //        cube.normalTextureFilename = "../../Asset/brick-wall-ue/brick-wall_normal-dx.png";
+    //        cube.heightTextureFilename = "../../Asset/brick-wall-ue/brick-wall_height.png";
+    //        obj->Initialize(m_device, m_commandList, {cube});
+    //        obj->GetMaterialConstCPU().albedoFactor    = Vector3(0.8f);
+    //        obj->GetMaterialConstCPU().useAlbedoMap    = true;
+    //        obj->GetMaterialConstCPU().useMetalnessMap = false;
+    //        obj->GetMaterialConstCPU().useNormalMap    = true;
+    //        obj->GetMeshConstCPU().useHeightMap        = true;
+    //        obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(1.5f, 0.5f, 0.0f)));
+    //    }
+    //    m_opaqueList.push_back(obj);
+    //}
 
-    // Create the sphere.
-    {
-        Model *obj = nullptr;
-        CREATE_MODEL_OBJ(obj);
-        {
-            MeshData cube              = GeometryGenerator::MakeCube(1.0f, 1.0f, 1.0f);
-            cube.albedoTextureFilename = "../../Asset/brick-wall-ue/brick-wall_albedo.png";
-            cube.normalTextureFilename = "../../Asset/brick-wall-ue/brick-wall_normal-dx.png";
-            cube.heightTextureFilename = "../../Asset/brick-wall-ue/brick-wall_height.png";
-            obj->Initialize(m_device, m_commandList, {cube});
-            obj->GetMaterialConstCPU().albedoFactor    = Vector3(0.8f);
-            obj->GetMaterialConstCPU().useAlbedoMap    = true;
-            obj->GetMaterialConstCPU().useMetalnessMap = false;
-            obj->GetMaterialConstCPU().useNormalMap    = true;
-            obj->GetMeshConstCPU().useHeightMap        = true;
-            obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(1.5f, 0.5f, 0.0f)));
-        }
-        m_opaqueList.push_back(obj);
-    }
+    //// Create the sphere.
+    //{
+    //    Model *obj = nullptr;
+    //    CREATE_MODEL_OBJ(obj);
+    //    {
+    //        MeshData sphere = GeometryGenerator::MakeSphere(0.6f, 25, 25);
+    //        obj->Initialize(m_device, m_commandList, {sphere});
+    //        obj->GetMaterialConstCPU().albedoFactor    = Vector3(1.0f, 1.0f, 1.0f);
+    //        obj->GetMaterialConstCPU().useAlbedoMap    = false;
+    //        obj->GetMaterialConstCPU().useMetalnessMap = false;
+    //        obj->GetMaterialConstCPU().useNormalMap    = false;
 
-    // Create the sphere.
-    {
-        Model *obj = nullptr;
-        CREATE_MODEL_OBJ(obj);
-        {
-            MeshData sphere = GeometryGenerator::MakeSphere(0.6f, 25, 25);
-            obj->Initialize(m_device, m_commandList, {sphere});
-            obj->GetMaterialConstCPU().albedoFactor    = Vector3(1.0f, 1.0f, 1.0f);
-            obj->GetMaterialConstCPU().useAlbedoMap    = false;
-            obj->GetMaterialConstCPU().useMetalnessMap = false;
-            obj->GetMaterialConstCPU().useNormalMap    = false;
-
-            obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(-0.5f, 1.0f, 0.0f)));
-        }
-        m_opaqueList.push_back(obj);
-    }
+    //        obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(-0.5f, 1.0f, 0.0f)));
+    //    }
+    //    m_opaqueList.push_back(obj);
+    //}
 
     //// Create the square.
     //{
@@ -162,21 +162,21 @@ bool ModelViewer::Initialize()
     //    m_opaqueList.push_back(squareObj);
     //}
 
-    //// Create the ground.
-    //{
-    //    Model *ground = nullptr;
-    //    CREATE_MODEL_OBJ(ground);
-    //    {
-    //        MeshData square = GeometryGenerator::MakeSquare(10.0f, 10.0f);
-    //        // square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
-    //        ground->Initialize(m_device, m_commandList, {square});
-    //        ground->GetMaterialConstCPU().albedoFactor    = Vector3(0.3f);
-    //        ground->GetMaterialConstCPU().useAlbedoMap    = false;
-    //        ground->GetMaterialConstCPU().useMetalnessMap = false;
-    //        ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
-    //    }
-    //    m_opaqueList.push_back(ground);
-    //}
+    // Create the ground.
+    {
+        Model *ground = nullptr;
+        CREATE_MODEL_OBJ(ground);
+        {
+            MeshData square = GeometryGenerator::MakeSquare(10.0f, 10.0f);
+            square.albedoTextureFilename = "../../Asset/Tiles105_4K-JPG/Tiles105_4K-JPG_Color.jpg";
+            ground->Initialize(m_device, m_commandList, {square});
+            ground->GetMaterialConstCPU().albedoFactor    = Vector3(0.3f);
+            ground->GetMaterialConstCPU().useAlbedoMap    = true;
+            ground->GetMaterialConstCPU().useMetalnessMap = false;
+            ground->UpdateWorldMatrix(XMMatrixRotationX(XMConvertToRadians(90.0f)));
+        }
+        m_opaqueList.push_back(ground);
+    }
 
     ThrowIfFailed(m_commandList->Close());
     // Execute the command list.
@@ -194,6 +194,10 @@ bool ModelViewer::Initialize()
                                            new ObjectMoveRightCommand(m_opaqueList[0], m_light));
     g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::LEFT,
                                            new ObjectMoveLeftCommand(m_opaqueList[0], m_light));
+
+    // global const setting.
+    m_globalConstsData.envStrength = 0.5f;
+    
 
     return true;
 }

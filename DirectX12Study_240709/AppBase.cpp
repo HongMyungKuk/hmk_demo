@@ -121,8 +121,9 @@ bool AppBase::Initialize()
         m_depthMap->Initialize(m_device, m_commandList, {square});
     }
 
+    // Initialize the post effects.
     m_postEffects.Initialize();
-
+    // Initialize the post process.
     m_postProcess.Initialize();
 
     return true;
@@ -706,7 +707,7 @@ void AppBase::RenderPostProcess()
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
                                           m_resolvedBuffer[m_frameIndex].GetResource(),
                                           D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_DEST));
-
+    // float msaa on => float mass off
     m_commandList->ResolveSubresource(m_resolvedBuffer[m_frameIndex].GetResource(), 0,
                                       m_floatBuffer[m_frameIndex].GetResource(), 0, DXGI_FORMAT_R16G16B16A16_FLOAT);
 
@@ -756,9 +757,16 @@ void AppBase::CreateBuffers()
     using namespace Display;
     using namespace Graphics;
 
-    this->InitSRVDesriptorHeap();
+    // Initialize Shader resource view and sampler descriptor heap.
+    this->InitSRVAandSamplerDesriptorHeap();
+
     // Create a RTV for each frame.
     D3D12_RESOURCE_DESC rtvDesc = {};
+
+    // refactorying
+    uint32_t numQualityLevels = D3DUtils::CheckMultiSample(m_device, DXGI_FORMAT_R16G16B16A16_FLOAT, 4);
+
+    m_useMSAA = (numQualityLevels > 0) ? true : false;
 
     for (UINT n = 0; n < s_frameCount; n++)
     {
@@ -768,25 +776,17 @@ void AppBase::CreateBuffers()
 
         rtvDesc = backBuffer->GetDesc();
 
-        m_floatBuffer[n].Create(rtvDesc);           // Multi sampling on.
-        m_resolvedBuffer[n].Create(rtvDesc, false); // Multi sampling off.
+        m_floatBuffer[n].Create(rtvDesc, m_useMSAA); // Multi sampling on.
+        m_resolvedBuffer[n].Create(rtvDesc, false);  // Multi sampling off.
     }
 
-    // refactorying
-    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS info;
-    info.Flags            = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
-    info.Format           = DXGI_FORMAT_R16G16B16A16_FLOAT;
-    info.SampleCount      = 4;
-    info.NumQualityLevels = 0;
-    ThrowIfFailed(g_Device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &info, sizeof(info)));
-
     // Create depth stencil buffer.
-    m_depthBuffer.Create(g_screenWidth, g_screenHeight, DXGI_FORMAT_R24G8_TYPELESS);
+    m_depthBuffer.Create(g_screenWidth, g_screenHeight, DXGI_FORMAT_R24G8_TYPELESS, false, m_useMSAA);
     for (uint32_t i = 0; i < MAX_LIGHTS; i++)
     {
-        // 0 : depth only buffer
-        // 1 ~ : shadow map
-        m_shadowMap[i].Create(1024, 1024, DXGI_FORMAT_R32_TYPELESS, true);
+        // 0    : depth only buffer
+        // 1 ~  : shadow map
+        m_shadowMap[i].Create(1024, 1024, DXGI_FORMAT_R32_TYPELESS, true, m_useMSAA);
     }
 }
 
@@ -812,13 +812,12 @@ void AppBase::OnMouse(const float x, const float y)
     }
 }
 
-void AppBase::InitSRVDesriptorHeap()
+void AppBase::InitSRVAandSamplerDesriptorHeap()
 {
     Graphics::s_Texture.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4098);
     Graphics::s_Sampler.Create(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 256);
 
     // Create sampler
-
     DescriptorHandle samplerHandle = Graphics::s_Sampler.Alloc(1);
 
     D3D12_SAMPLER_DESC samplerDesc = {};
@@ -1013,10 +1012,12 @@ void AppBase::Resize()
 
         this->CreateBuffers();
 
+        // generic depth stencil buffer.
         // Transition the resource from its initial state to be used as a depth buffer.
         m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_depthBuffer.GetResource(),
                                                                                 D3D12_RESOURCE_STATE_COMMON,
                                                                                 D3D12_RESOURCE_STATE_DEPTH_WRITE));
+        // shaddow map.
         // Transition the resource from its initial state to be used as a depth buffer.
         for (uint32_t i = 0; i < MAX_LIGHTS; i++)
         {

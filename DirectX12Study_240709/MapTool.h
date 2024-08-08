@@ -33,4 +33,6 @@ class MapTool : public AppBase
     QuadTree *m_quadTree = nullptr;
     Frustum *m_frustum   = nullptr;
     DebugQuadTree *m_DebugQaudTree = nullptr;
+
+    bool m_isDebugTreeFlag = false;
 };

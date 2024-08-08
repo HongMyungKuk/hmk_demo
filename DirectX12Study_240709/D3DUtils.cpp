@@ -187,6 +187,20 @@ D3D12_RECT D3DUtils::CreateScissorRect(const long left, const long top, const lo
     return ret;
 }
 
+uint32_t D3DUtils::CheckMultiSample(ID3D12Device *device, DXGI_FORMAT format, uint32_t sampleCount)
+{
+
+    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS info;
+    info.Format           = format;
+    info.SampleCount      = sampleCount;
+    info.Flags            = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
+    info.NumQualityLevels = 0;
+
+    ThrowIfFailed(device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &info, sizeof(info)));
+
+    return info.NumQualityLevels;
+}
+
 void ReadEXRImage(uint8_t **image, const std::string filename, int &w, int &h, int &c, DXGI_FORMAT &format)
 {
     std::wstring wFilename = std::wstring(filename.begin(), filename.end());

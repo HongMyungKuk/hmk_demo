@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "Camera.h"
+#include "Command.h"
 #include "DebugQuadTree.h"
 #include "Frustum.h"
 #include "GeometryGenerator.h"
@@ -46,10 +47,10 @@ bool MapTool::Initialize()
         CREATE_MODEL_OBJ(obj);
         {
             const float texCoordSacle = 25.0f;
+            float radius              = 0.2f;
+            MeshData sphere           = GeometryGenerator::MakeSphere(radius, 25, 25);
 
-            MeshData grid = GeometryGenerator::MakeSphere(0.2f, 25, 25);
-
-            obj->Initialize(m_device, m_commandList, {grid});
+            obj->Initialize(m_device, m_commandList, {sphere});
             obj->GetMaterialConstCPU().albedoFactor = Vector3(0.2f, 0.6f, 0.2f);
             obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(0.0f, 5.0f, 0.0f)));
         }
@@ -57,9 +58,9 @@ bool MapTool::Initialize()
     }
 
     {
-        m_quadTree    = new QuadTree;
-        MeshData grid = GeometryGenerator::MakeSquareGrid(255, 255, 50.0f, Vector2(25.0f));
-        grid.albedoTextureFilename = "../../Asset/GroundDirtRocky020_COL_4K.jpg";
+        m_quadTree                 = new QuadTree;
+        MeshData grid              = GeometryGenerator::MakeSquareGrid(255, 255, 50.0f, Vector2(25.0f));
+        grid.albedoTextureFilename = "../../Asset/GroundDirtWeedsPatchy004/GroundDirtWeedsPatchy004_COL_2K.jpg";
 
         uint8_t *image = nullptr;
         int width      = 0;
@@ -130,6 +131,22 @@ bool MapTool::Initialize()
 
     WaitForPreviousFrame();
 
+    // Set event handler.
+    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::FRONT,
+                                           new ObjectMoveFrontCommand(m_opaqueList[0], m_light));
+    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::BACK,
+                                           new ObjectMoveBackCommand(m_opaqueList[0], m_light));
+    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::RIGHT,
+                                           new ObjectMoveRightCommand(m_opaqueList[0], m_light));
+    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::LEFT,
+                                           new ObjectMoveLeftCommand(m_opaqueList[0], m_light));
+
+    m_globalConstsData.envStrength = 0.0f;
+
+    m_useDL = false;
+    m_usePL = true;
+    m_useSL = true;
+
     return true;
 }
 
@@ -149,45 +166,62 @@ void MapTool::Update(const float dt)
     //    m_camera->SetPosition(cameraPosition);
     //}
 
-    float height = 0.0f;
+    float height = 0.0f; // object radius.
     m_quadTree->GetHeight(m_opaqueList[0]->GetPos().x, m_opaqueList[0]->GetPos().z, height);
     m_opaqueList[0]->UpdateWorldMatrix(
         Matrix::CreateTranslation(Vector3(m_opaqueList[0]->GetPos().x, height, m_opaqueList[0]->GetPos().z)));
 
+    // if (GameInput::IsPressed(GameInput::kKey_up))
+    //{
+
+    //    m_opaqueList[0]->AddVelocity(Vector3(0.0f, 0.0f, 1.0f));
+    //}
+    // if (GameInput::IsPressed(GameInput::kKey_right))
+    //{
+
+    //    m_opaqueList[0]->AddVelocity(Vector3(1.0f, 0.0f, 0.0f));
+    //}
+    // if (GameInput::IsPressed(GameInput::kKey_left))
+    //{
+
+    //    m_opaqueList[0]->AddVelocity(Vector3(-1.0f, 0.0f, 0.0f));
+    //}
+    // if (GameInput::IsPressed(GameInput::kKey_down))
+    //{
+
+    //    m_opaqueList[0]->AddVelocity(Vector3(0.0f, 0.0f, -1.0f));
+    //}
+    // if (GameInput::IsPressed(GameInput::kKey_z))
+    //{
+
+    //    m_opaqueList[0]->AddVelocity(Vector3(0.0f, 1.0f, 0.0f));
+    //}
+    // if (GameInput::IsPressed(GameInput::kKey_x))
+    //{
+
+    //    m_opaqueList[0]->AddVelocity(Vector3(0.0f, -1.0f, 0.0f));
+    //}
+
+    // m_opaqueList[0]->Move(dt * 5.0f);
+
+    // m_opaqueList[0]->SetVelocity(Vector3(0.0f));
+
     if (GameInput::IsPressed(GameInput::kKey_up))
     {
-
-        m_opaqueList[0]->AddVelocity(Vector3(0.0f, 0.0f, 1.0f));
+        g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::FRONT, dt);
     }
     if (GameInput::IsPressed(GameInput::kKey_right))
     {
-
-        m_opaqueList[0]->AddVelocity(Vector3(1.0f, 0.0f, 0.0f));
+        g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::RIGHT, dt);
     }
     if (GameInput::IsPressed(GameInput::kKey_left))
     {
-
-        m_opaqueList[0]->AddVelocity(Vector3(-1.0f, 0.0f, 0.0f));
+        g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::LEFT, dt);
     }
     if (GameInput::IsPressed(GameInput::kKey_down))
     {
-
-        m_opaqueList[0]->AddVelocity(Vector3(0.0f, 0.0f, -1.0f));
+        g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::BACK, dt);
     }
-    if (GameInput::IsPressed(GameInput::kKey_z))
-    {
-
-        m_opaqueList[0]->AddVelocity(Vector3(0.0f, 1.0f, 0.0f));
-    }
-    if (GameInput::IsPressed(GameInput::kKey_x))
-    {
-
-        m_opaqueList[0]->AddVelocity(Vector3(0.0f, -1.0f, 0.0f));
-    }
-
-    m_opaqueList[0]->Move(dt * 5.0f);
-
-    m_opaqueList[0]->SetVelocity(Vector3(0.0f));
 
     m_frustum->ConstructFrustum(m_camera->GetFarZ(), m_globalConstsData.view.Transpose(),
                                 m_globalConstsData.proj.Transpose());
@@ -251,6 +285,11 @@ void MapTool::UpdateLights()
     {
         l->Update();
     }
+
+    if (GameInput::IsFirstPressed(GameInput::kKey_b))
+    {
+        m_isDebugTreeFlag = !m_isDebugTreeFlag;
+    }
 }
 
 void MapTool::Render()
@@ -284,8 +323,11 @@ void MapTool::Render()
 
     m_quadTree->Render(m_frustum, m_commandList);
 
-    if (GameInput::IsPressed(GameInput::kKey_b))
+    if (m_isDebugTreeFlag)
+    {
+        m_commandList->SetPipelineState(Graphics::defaultWirePSO);
         m_DebugQaudTree->Render(m_commandList);
+    }
 }
 
 void MapTool::UpdateGui(const float frameRate)

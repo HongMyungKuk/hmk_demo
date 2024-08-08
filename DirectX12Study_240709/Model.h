@@ -161,7 +161,7 @@ class Model
     Matrix m_worldIT = Matrix();
 
     Vector3 m_pos      = Vector3(0.0f);
-    float m_speed[END] = {0.0005f, 0.0005f, 0.00025f};
+    float m_speed[END] = {0.0005f * 25.0f, 0.0005f * 25.0f, 0.00025f * 25.0f};
 
     uint32_t m_cbvDescriptorSize = 0;
 

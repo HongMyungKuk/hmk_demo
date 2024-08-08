@@ -72,7 +72,7 @@ class AppBase
     void Resize();
     void CreateBuffers();
     void InitGlobalConsts();
-    void InitSRVDesriptorHeap();
+    void InitSRVAandSamplerDesriptorHeap();
 
     void UpdateGlobalConsts(const float dt);
     void RenderDepthOnlyPass();
@@ -131,7 +131,7 @@ class AppBase
     bool m_drawAsNormal = false;
     bool m_isWireFrame  = false;
     bool m_useMSAA      = false;
-    bool m_useTexture   = false;
+    bool m_useTexture   = true;
     // Mouse control
     bool m_leftButtonDown       = false;
     bool m_rightButtonDown      = false;
