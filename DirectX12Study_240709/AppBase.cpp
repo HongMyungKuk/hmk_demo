@@ -46,7 +46,7 @@ AppBase::AppBase()
 
 AppBase::~AppBase()
 {
-    WaitForPreviousFrame();
+    WaitForGpu();
     CloseHandle(m_fenceEvent);
 
     Graphics::DestroyGraphicsCommon();
@@ -69,7 +69,10 @@ AppBase::~AppBase()
     SAFE_DELETE(m_timer);
     SAFE_RELEASE(m_fence);
     SAFE_RELEASE(m_commandList);
-    SAFE_RELEASE(m_commandAllocator);
+    for (uint32_t i = 0; i < s_frameCount; i++)
+    {
+        SAFE_RELEASE(m_commandAllocator[i]);
+    }
     SAFE_RELEASE(m_swapChain);
     SAFE_RELEASE(m_commandQueue);
     SAFE_RELEASE(m_device);
@@ -158,8 +161,8 @@ void AppBase::Update(const float dt)
 
 void AppBase::Render()
 {
-    ThrowIfFailed(m_commandAllocator->Reset());
-    ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
+    ThrowIfFailed(m_commandAllocator[m_frameIndex]->Reset());
+    ThrowIfFailed(m_commandList->Reset(m_commandAllocator[m_frameIndex], nullptr));
     // Depth only pass.
     RenderDepthOnlyPass();
     // Render Object.
@@ -220,9 +223,7 @@ int32_t AppBase::Run()
             // Present the frame.
             ThrowIfFailed(m_swapChain->Present(1, 0));
 
-            WaitForPreviousFrame();
-
-            m_frameIndex = (m_frameIndex + 1) % s_frameCount;
+            MoveToNextFrame();
         }
     }
     // Return this part of the WM_QUIT message to Windows.
@@ -323,11 +324,17 @@ bool AppBase::InitD3D()
     m_swapChain = swapChain;
     swapChain   = nullptr;
 
-    ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
+    for (uint32_t i = 0; i < s_frameCount; i++)
+    {
+        ThrowIfFailed(
+            m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator[i])));
+    }
+
+    m_frameIndex = 0;
 
     // Create the command list.
-    ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator, nullptr,
-                                              IID_PPV_ARGS(&m_commandList)));
+    ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator[m_frameIndex],
+                                              nullptr, IID_PPV_ARGS(&m_commandList)));
 
     // Command lists are created in the recording state, but there is nothing
     // to record yet. The main loop expects it to be closed, so close it now.
@@ -336,7 +343,7 @@ bool AppBase::InitD3D()
     // Create synchronization objects.
     {
         ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-        m_fenceValue = 1;
+        m_fenceValue[m_frameIndex] = 1;
 
         // Create an event handle to use for frame synchronization.
         m_fenceEvent = CreateEvent(nullptr, false, false, nullptr);
@@ -768,6 +775,8 @@ void AppBase::CreateBuffers()
 
     m_useMSAA = (numQualityLevels > 0) ? true : false;
 
+    // m_useMSAA = false;
+
     for (UINT n = 0; n < s_frameCount; n++)
     {
         ID3D12Resource *backBuffer = nullptr;
@@ -786,7 +795,7 @@ void AppBase::CreateBuffers()
     {
         // 0    : depth only buffer
         // 1 ~  : shadow map
-        m_shadowMap[i].Create(1024, 1024, DXGI_FORMAT_R32_TYPELESS, true, m_useMSAA);
+        m_shadowMap[i].Create(1024, 1024, DXGI_FORMAT_R32_TYPELESS, true, false);
     }
 }
 
@@ -899,7 +908,7 @@ LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
     return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
-void AppBase::WaitForPreviousFrame()
+void AppBase::WaitForGpu()
 {
     // WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
     // This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
@@ -907,9 +916,9 @@ void AppBase::WaitForPreviousFrame()
     // maximize GPU utilization.
 
     // Signal and increment the fence value.
-    const UINT64 fence = m_fenceValue;
+    const UINT64 fence = m_fenceValue[m_frameIndex];
     ThrowIfFailed(m_commandQueue->Signal(m_fence, fence));
-    m_fenceValue++;
+    m_fenceValue[m_frameIndex]++;
 
     // Wait until the previous frame is finished.
     if (m_fence->GetCompletedValue() < fence)
@@ -917,6 +926,29 @@ void AppBase::WaitForPreviousFrame()
         ThrowIfFailed(m_fence->SetEventOnCompletion(fence, m_fenceEvent));
         WaitForSingleObject(m_fenceEvent, INFINITE);
     }
+}
+
+void AppBase::MoveToNextFrame()
+{
+    // WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
+    // This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
+    // sample illustrates how to use fences for efficient resource usage and to
+    // maximize GPU utilization.
+
+    // Signal and increment the fence value.
+    const UINT64 currentFenceValue = m_fenceValue[m_frameIndex];
+    ThrowIfFailed(m_commandQueue->Signal(m_fence, currentFenceValue));
+
+    m_frameIndex = (m_frameIndex + 1) % s_frameCount;
+
+    // Wait until the previous frame is finished.
+    if (m_fence->GetCompletedValue() < m_fenceValue[m_frameIndex])
+    {
+        ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValue[m_frameIndex], m_fenceEvent));
+        WaitForSingleObject(m_fenceEvent, INFINITE);
+    }
+
+    m_fenceValue[m_frameIndex] = currentFenceValue + 1;
 }
 
 void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename, std::wstring diffuseFilename,
@@ -934,7 +966,7 @@ void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename, std::
 
 void AppBase::InitLights()
 {
-    ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
+    ThrowIfFailed(m_commandList->Reset(m_commandAllocator[m_frameIndex], nullptr));
 
     // directional light
     {
@@ -985,7 +1017,7 @@ void AppBase::Resize()
     using namespace Display;
     using namespace Graphics;
 
-    m_commandList->Reset(m_commandAllocator, nullptr);
+    m_commandList->Reset(m_commandAllocator[m_frameIndex], nullptr);
 
     // Reset a RTV for each frame.
     if (g_DisplayPlane[0].GetResource())
@@ -1008,8 +1040,6 @@ void AppBase::Resize()
 
     // Create frame resources.
     {
-        m_frameIndex = 0;
-
         this->CreateBuffers();
 
         // generic depth stencil buffer.
@@ -1032,5 +1062,5 @@ void AppBase::Resize()
     ID3D12CommandList *ppCommandLists[] = {m_commandList};
     m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-    WaitForPreviousFrame();
+    WaitForGpu();
 }
