@@ -8,7 +8,7 @@
 #include "GeometryGenerator.h"
 #include "Input.h"
 #include "Model.h"
-//#include "QuadTree.h"
+// #include "QuadTree.h"
 #include "Terrain.h"
 // https://sketchfab.com/3d-models/gm-bigcity-f80855b6286944459392fc723ed0b50f#download
 // https://free3d.com/3d-model/sci-fi-downtown-city-53758.html
@@ -60,8 +60,8 @@ bool Engine::Initialize()
     //}
 
     {
-        m_terrain    = new Terrain;
-        MeshData grid = GeometryGenerator::MakeSquareGrid(255, 255, 50.0f, Vector2(25.0f));
+        m_terrain        = new Terrain;
+        MeshData grid    = GeometryGenerator::MakeSquareGrid(255, 255, 50.0f, Vector2(25.0f));
         s_TerrainSRV     = Graphics::s_Texture.Alloc(1);
         m_uploadResource = D3DUtils::CreateTexture(m_device, m_commandList, "../../Asset/GroundDirtRocky020_COL_4K.jpg",
                                                    &m_terrainTexResource, D3D12_CPU_DESCRIPTOR_HANDLE(s_TerrainSRV));
@@ -162,7 +162,7 @@ bool Engine::Initialize()
             ((SkinnedMeshModel *)skinnedModel)->Initialize(m_device, m_commandList, model, material, animData);
             skinnedModel->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
             skinnedModel->GetMaterialConstCPU().albedoFactor = Vector3(0.3f);
-            skinnedModel->UpdateWorldMatrix(XMMatrixTranslation(0.0f, 0.5f, 0.0f));
+            skinnedModel->UpdateWorldMatrix(Matrix::CreateRotationY(XM_PI));
         }
         m_opaqueList.push_back(skinnedModel);
     }
@@ -172,33 +172,18 @@ bool Engine::Initialize()
     ID3D12CommandList *ppCommandLists[] = {m_commandList};
     m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-    WaitForPreviousFrame();
-
-    // Set event handler.
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::FRONT,
-                                           new ObjectMoveFrontCommand(m_opaqueList[0], m_light));
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::BACK,
-                                           new ObjectMoveBackCommand(m_opaqueList[0], m_light));
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::RIGHT,
-                                           new ObjectMoveRightCommand(m_opaqueList[0], m_light));
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::LEFT,
-                                           new ObjectMoveLeftCommand(m_opaqueList[0], m_light));
-
-    m_globalConstsData.envStrength = 0.0f;
+    WaitForGpu();
 
     m_useDL = false;
     m_usePL = true;
     m_useSL = true;
 
     // Set event handler.
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::FRONT,
-                                           new ObjectMoveFrontCommand(m_opaqueList[0], m_light));
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::BACK,
-                                           new ObjectMoveBackCommand(m_opaqueList[0], m_light));
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::RIGHT,
-                                           new ObjectMoveRightCommand(m_opaqueList[0], m_light));
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::LEFT,
-                                           new ObjectMoveLeftCommand(m_opaqueList[0], m_light));
+    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::COMMAND_TYPE::OBJ,
+                                           new ObjectMoveFrontCommand(m_opaqueList[0], m_light, m_camera));
+
+    // global const setting.
+    m_globalConstsData.envStrength = 0.15f;
 
     return true;
 }
@@ -207,21 +192,16 @@ void Engine::Update(const float dt)
 {
     AppBase::Update(dt);
 
-    UpdateCamera(dt);
-
-    //{
-    //    auto cameraPosition = m_camera->GetPosition();
-
-    //    m_quadTree->GetHeight(cameraPosition.x, cameraPosition.z, cameraPosition.y);
-
-    //    m_camera->SetPosition(cameraPosition);
-    //}
+    // UpdateCamera(dt);
 
     m_terrain->Update();
 
     float height = 0.0f; // object radius.
     m_terrain->GetObjectHeight(m_opaqueList[0]->GetPos().x, m_opaqueList[0]->GetPos().z, &height);
-    m_opaqueList[0]->UpdateWorldMatrix(
+
+    Vector3 translation = m_opaqueList[0]->GetWorldRow().Translation();
+    m_opaqueList[0]->GetWorldRow().Translation(Vector3(0.0f));
+    m_opaqueList[0]->UpdateWorldMatrix(m_opaqueList[0]->GetWorldRow() * 
         Matrix::CreateTranslation(Vector3(m_opaqueList[0]->GetPos().x, height, m_opaqueList[0]->GetPos().z)));
 
     if (((SkinnedMeshModel *)m_opaqueList[0])->GetAnim().clips.size() > 0)
@@ -232,36 +212,36 @@ void Engine::Update(const float dt)
             static int frameCount = 0;
             static int state      = 0;
 
-            if (GameInput::IsFirstPressed(GameInput::kKey_up))
+            if (GameInput::IsFirstPressed(GameInput::kKey_w))
             {
                 if (state == 0)
                 {
                     state = 1;
                 }
             }
-            if (GameInput::IsFirstPressed(GameInput::kKey_right))
+            if (GameInput::IsFirstPressed(GameInput::kKey_d))
             {
                 if (state == 0)
                 {
                     state = 2;
                 }
             }
-            if (GameInput::IsFirstPressed(GameInput::kKey_left))
+            if (GameInput::IsFirstPressed(GameInput::kKey_a))
             {
                 if (state == 0)
                 {
                     state = 3;
                 }
             }
-            if (GameInput::IsFirstPressed(GameInput::kKey_down))
+            if (GameInput::IsFirstPressed(GameInput::kKey_s))
             {
                 if (state == 0)
                 {
                     state = 4;
                 }
             }
-            if (GameInput::IsFirstReleased(GameInput::kKey_up) || GameInput::IsFirstReleased(GameInput::kKey_right) ||
-                GameInput::IsFirstReleased(GameInput::kKey_left) || GameInput::IsFirstReleased(GameInput::kKey_down))
+            if (GameInput::IsFirstReleased(GameInput::kKey_w) || GameInput::IsFirstReleased(GameInput::kKey_d) ||
+                GameInput::IsFirstReleased(GameInput::kKey_a) || GameInput::IsFirstReleased(GameInput::kKey_s))
             {
                 state = 0;
             }
@@ -269,27 +249,27 @@ void Engine::Update(const float dt)
             // TODO!!
             // 애니메시연 Event handler 통합하기
 
-            if (GameInput::IsPressed(GameInput::kKey_up))
+            if (GameInput::IsPressed(GameInput::kKey_w))
             {
                 state = 1;
-                g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::FRONT, dt);
+                g_EvnetHandler.ObjectMoveHandle(EventHandler::COMMAND_TYPE::OBJ, OBJ_TYPE);
             }
-            if (GameInput::IsPressed(GameInput::kKey_right))
+            if (GameInput::IsPressed(GameInput::kKey_d))
             {
                 state = 2;
-                g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::RIGHT, dt);
+                g_EvnetHandler.ObjectMoveHandle(EventHandler::COMMAND_TYPE::OBJ);
             }
-            if (GameInput::IsPressed(GameInput::kKey_left))
+            if (GameInput::IsPressed(GameInput::kKey_a))
             {
                 state = 3;
-                g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::LEFT, dt);
+                g_EvnetHandler.ObjectMoveHandle(EventHandler::COMMAND_TYPE::OBJ);
             }
-            if (GameInput::IsPressed(GameInput::kKey_down))
+            if (GameInput::IsPressed(GameInput::kKey_s))
             {
                 state = 4;
-                g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::BACK, dt);
+                g_EvnetHandler.ObjectMoveHandle(EventHandler::COMMAND_TYPE::OBJ);
             }
-            
+
             // if (m_aniPlayFlag)
             //     state = m_selectedAnim;
 

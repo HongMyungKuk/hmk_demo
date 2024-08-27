@@ -27,6 +27,18 @@ class Camera
     {
         return m_eyePosition;
     }
+    Vector3 GetDirection()
+    {
+        return m_eyeDirection;
+    }
+    Vector3 GetRightDirection()
+    {
+        return m_rightDirection;
+    }
+    void SetDirection(Vector3 v)
+    {
+        m_eyeDirection = v;
+    }
     void SetPosition(Vector3 p)
     {
         m_eyePosition = p;

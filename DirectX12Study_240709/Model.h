@@ -63,9 +63,9 @@ class Model
         END,
     };
 
-    const float GetSpeed(MOVE_TYPE type)
+    const float GetSpeed()
     {
-        return m_speed[type];
+        return m_speed;
     }
 
     void MoveFront(const float dt)
@@ -97,14 +97,14 @@ class Model
 
     void Move(const float dt)
     {
-        m_world *= Matrix::CreateTranslation(m_speed[0] * m_velocity * dt);
-        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed[SIDE] * m_velocity * dt));
+        m_world *= Matrix::CreateTranslation(m_speed * m_velocity * dt);
+        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed * m_velocity * dt));
         UpdateWorldMatrix(m_world);
     }
 
-    void SetSpeed(float s, int type)
+    void SetSpeed(float s)
     {
-        m_speed[type] = s;
+        m_speed = s;
     }
 
     const Vector3 &GetPos()
@@ -163,7 +163,7 @@ class Model
     Matrix m_worldIT = Matrix();
 
     Vector3 m_pos      = Vector3(0.0f);
-    float m_speed[END] = {0.0007f, 0.0007f, 0.0005f};
+    // float m_speed[END] = {0.0007f, 0.0007f, 0.0005f};
 
     uint32_t m_cbvDescriptorSize = 0;
 
@@ -175,4 +175,6 @@ class Model
     uint32_t m_numRenderTriangles = 0;
 
     bool m_isTerrian = false;
+
+    float m_speed = 0.0001f;
 };

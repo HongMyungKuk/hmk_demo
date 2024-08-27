@@ -5,13 +5,9 @@ class Command;
 class EventHandler
 {
   public:
-    enum OBJ_COMMAND_TYPE
+    enum COMMAND_TYPE
     {
-        FRONT,
-        BACK,
-        LEFT,
-        RIGHT,
-
+        OBJ,
         END,
     };
 
@@ -20,12 +16,13 @@ class EventHandler
         m_vecCommand.resize(END);
     }
 
-    void RegistObjectMoveCommand(OBJ_COMMAND_TYPE type, Command *cmd)
+    void RegistObjectMoveCommand(COMMAND_TYPE type, Command *cmd)
     {
         m_vecCommand[type] = cmd;
     }
 
-    void EventHandler::ObjectMoveHandle(OBJ_COMMAND_TYPE type, const float dt);
+    void ObjectMoveHandle(COMMAND_TYPE type);
+    void Excute(COMMAND_TYPE type, const float dt);
 
   private:
     std::vector<Command *> m_vecCommand;
