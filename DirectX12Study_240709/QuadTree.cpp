@@ -6,6 +6,8 @@
 
 #include <thread>
 
+#define MAX_TRIANGLE 10000
+
 QuadTree::~QuadTree()
 {
     ReleaseNode(m_rootNode);
@@ -126,7 +128,7 @@ void QuadTree::CreateTreeNode(NodeType *node, float positionX, float positionZ, 
         return;
     }
 
-    if (numTriangles > 2500)
+    if (numTriangles > MAX_TRIANGLE)
     {
         for (int i = 0; i < 4; i++)
         {
@@ -215,13 +217,10 @@ void QuadTree::CreateTreeNode(NodeType *node, float positionX, float positionZ, 
         }
     }
 
-    // memory 상에 엄청난 비효율이 생김.
-    // texture는 한장만 있어도 괜찮음
-    meshes[0].albedoTextureFilename = m_meshDatas[0].albedoTextureFilename;
-
     node->model = new Model;
-    node->model->Initialize(device, commandList, meshes);
+    node->model->Initialize(device, commandList, meshes, {}, true);
     node->model->GetMaterialConstCPU().albedoFactor = Vector3(1.0f);
+    node->model->GetMaterialConstCPU().useAlbedoMap = true;
     node->meshData = meshes[0];
 }
 

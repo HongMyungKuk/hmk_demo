@@ -12,9 +12,12 @@ DebugQuadTree::~DebugQuadTree()
     }
 }
 
-void DebugQuadTree::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, QuadTree *quadTree)
+void DebugQuadTree::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, Terrain *quadTree)
 {
-    CreateCubeMeshs(device, commandList, quadTree->GetRootNode());
+    m_device = device;
+    m_commandList = commandList;
+
+    CreateCubeMeshs(quadTree->m_rootNode);
 }
 
 void DebugQuadTree::Update()
@@ -34,17 +37,17 @@ void DebugQuadTree::Render(ID3D12GraphicsCommandList *commandList)
     }
 }
 
-void DebugQuadTree::CreateCubeMeshs(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, QuadTree::NodeType *node)
+void DebugQuadTree::CreateCubeMeshs(Terrain::QuadTree* node)
 {
     int count = 0;
     
     for (int i = 0; i < 4; i++)
     {
-        if (node->nodes[i])
+        if (node->child[i])
         {
             count++;
 
-            CreateCubeMeshs(device, commandList, node->nodes[i]);
+            CreateCubeMeshs(node->child[i]);
         }
     }
 
@@ -53,12 +56,11 @@ void DebugQuadTree::CreateCubeMeshs(ID3D12Device *device, ID3D12GraphicsCommandL
         return;
     }
 
-    MeshData cube = GeometryGenerator::MakeCube(node->width, 20.0f, node->width);
-    
+    MeshData cube = GeometryGenerator::MakeCube(node->radius * 2.0f, node->radius * 2.0f, node->radius * 2.0f);
 
     Model *model = new Model;
-    model->Initialize(device, commandList, {cube});
-    model->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(node->positionX, 0.0f, node->positionZ)));
+    model->Initialize(m_device, m_commandList, {cube});
+    model->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(node->cx, 0.0f, node->cz)));
     model->GetMaterialConstCPU().useEmissiveMap = false;
     model->GetMaterialConstCPU().emissionFactor = Vector3(0.0f, 1.0f, 0.0f);
 

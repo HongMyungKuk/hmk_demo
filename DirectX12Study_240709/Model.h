@@ -6,6 +6,8 @@
 
 using namespace DirectX;
 
+extern DescriptorHandle s_TerrainSRV;
+
 class Model
 {
   public:
@@ -14,7 +16,7 @@ class Model
 
   public:
     void Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, std::vector<MeshData> meshes,
-                    std::vector<MaterialConsts> materials = {}); // const buffer, mesh data
+                    std::vector<MaterialConsts> materials = {}, bool isTerrian = false); // const buffer, mesh data
     virtual void Update();
     virtual void Render(ID3D12GraphicsCommandList *commandList);
     virtual void RenderNormal(ID3D12GraphicsCommandList *commandList);
@@ -161,7 +163,7 @@ class Model
     Matrix m_worldIT = Matrix();
 
     Vector3 m_pos      = Vector3(0.0f);
-    float m_speed[END] = {0.0005f * 25.0f, 0.0005f * 25.0f, 0.00025f * 25.0f};
+    float m_speed[END] = {0.0007f, 0.0007f, 0.0005f};
 
     uint32_t m_cbvDescriptorSize = 0;
 
@@ -171,4 +173,6 @@ class Model
     Vector3 m_velocity = Vector3(0.0f);
 
     uint32_t m_numRenderTriangles = 0;
+
+    bool m_isTerrian = false;
 };

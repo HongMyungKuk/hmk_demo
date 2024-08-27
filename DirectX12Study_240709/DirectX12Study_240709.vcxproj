@@ -150,6 +150,7 @@
     <ClCompile Include="DepthBuffer.cpp" />
     <ClCompile Include="DesciptorHeap.cpp" />
     <ClCompile Include="DescriptorHeap.cpp" />
+    <ClCompile Include="Engine.cpp" />
     <ClCompile Include="EventHandler.cpp" />
     <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
@@ -174,6 +175,7 @@
     <ClCompile Include="QuadTree.cpp" />
     <ClCompile Include="RootSignature.cpp" />
     <ClCompile Include="SkinnedMeshModel.cpp" />
+    <ClCompile Include="Terrain.cpp" />
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Timer.cpp" />
     <ClCompile Include="Utils.cpp" />
@@ -192,6 +194,7 @@
     <ClInclude Include="Define.h" />
     <ClInclude Include="DepthBuffer.h" />
     <ClInclude Include="DescriptorHeap.h" />
+    <ClInclude Include="Engine.h" />
     <ClInclude Include="EventHandler.h" />
     <ClInclude Include="Frustum.h" />
     <ClInclude Include="GeometryGenerator.h" />
@@ -211,6 +214,7 @@
     <ClInclude Include="QuadTree.h" />
     <ClInclude Include="RootSignature.h" />
     <ClInclude Include="SkinnedMeshModel.h" />
+    <ClInclude Include="Terrain.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="Utils.h" />

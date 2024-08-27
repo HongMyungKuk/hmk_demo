@@ -432,6 +432,8 @@ void NomalizeModel(std::vector<MeshData> &meshes, const float sacle, AnimationDa
     const float scale   = sacle / DirectX::XMMax(XMMax(dx, dy), dz);
     Vector3 translation = -(max + min) * 0.5f;
 
+    translation.y = 0.0f;
+
     for (auto &m : meshes)
     {
         for (auto &p : m.vertices)

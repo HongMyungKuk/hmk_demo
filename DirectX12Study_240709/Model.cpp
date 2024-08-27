@@ -3,6 +3,8 @@
 #include "AppBase.h"
 #include "Model.h"
 
+DescriptorHandle s_TerrainSRV;
+
 Model::Model()
 {
 }
@@ -17,8 +19,10 @@ Model::~Model()
 }
 
 void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, std::vector<MeshData> meshes,
-                       std::vector<MaterialConsts> materials)
+                       std::vector<MaterialConsts> materials, bool isTerrian)
 {
+    m_isTerrian = isTerrian;
+
     m_meshUpload.Initialize(device, 1);
     m_materialUpload.Initialize(device, 1);
 
@@ -61,12 +65,6 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
 
         m_meshes.push_back(newMesh);
     }
-
-    // for (auto &m : materials)
-    //{
-    //     m.texNum = count;
-    //     m_material.push_back(m);
-    // }
 }
 
 void Model::Update()
@@ -96,7 +94,10 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
     int idx = 0;
     for (auto &m : m_meshes)
     {
-        commandList->SetGraphicsRootDescriptorTable(4, m.albedoDescriptorHandle);
+        if (!m_isTerrian)
+            commandList->SetGraphicsRootDescriptorTable(4, m.albedoDescriptorHandle);
+        else
+            commandList->SetGraphicsRootDescriptorTable(4, s_TerrainSRV);
 
         commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload.GetResource()->GetGPUVirtualAddress());
         auto address = m_materialUpload.GetResource()->GetGPUVirtualAddress() + idx * sizeof(MaterialConsts);
