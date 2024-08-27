@@ -252,7 +252,7 @@ void Engine::Update(const float dt)
             if (GameInput::IsPressed(GameInput::kKey_w))
             {
                 state = 1;
-                g_EvnetHandler.ObjectMoveHandle(EventHandler::COMMAND_TYPE::OBJ, OBJ_TYPE);
+                g_EvnetHandler.ObjectMoveHandle(EventHandler::COMMAND_TYPE::OBJ, ObjectCommand::OBJ_TYPE::FRONT);
             }
             if (GameInput::IsPressed(GameInput::kKey_d))
             {

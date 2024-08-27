@@ -52,7 +52,7 @@ class ObjectCommand : public Command
         case LEFT:
             if (m_camera)
             {
-                m_model->AddVelocity(m_camera->GetDirection());
+                m_model->AddVelocity(-m_camera->GetRightDirection());
             }
             break;
         }
