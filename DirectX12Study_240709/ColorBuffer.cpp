@@ -59,7 +59,7 @@ void ColorBuffer::Create(const int w, const int h, const DXGI_FORMAT format)
     textureDesc.Format              = format;
     textureDesc.Width               = UINT64(w);
     textureDesc.Height              = UINT64(h);
-    textureDesc.Flags               = D3D12_RESOURCE_FLAG_NONE;
+    textureDesc.Flags               = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
     textureDesc.DepthOrArraySize    = 1;
     textureDesc.SampleDesc.Count    = 1;
     textureDesc.SampleDesc.Quality  = 0;
@@ -68,4 +68,13 @@ void ColorBuffer::Create(const int w, const int h, const DXGI_FORMAT format)
     ThrowIfFailed(Graphics::g_Device->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &textureDesc,
         D3D12_RESOURCE_STATE_RENDER_TARGET, nullptr, IID_PPV_ARGS(&m_resource)));
+
+    m_rtv = Graphics::AllocateDesciptor(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    m_srv = Graphics::s_Texture.Alloc(1);
+
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
+
+    Graphics::g_Device->CreateRenderTargetView(m_resource, nullptr, m_rtv);
+    Graphics::g_Device->CreateShaderResourceView(m_resource, nullptr, m_srv);
 }

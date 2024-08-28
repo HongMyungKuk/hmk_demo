@@ -135,6 +135,9 @@
     <ClCompile Include="OceanModel.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="ImageFilter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AppBase.h">
@@ -254,9 +257,11 @@
     <ClInclude Include="OceanModel.h">
       <Filter>Engine</Filter>
     </ClInclude>
+    <ClInclude Include="ImageFilter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include=".clang-format" />
     <None Include="Common.hlsli">
       <Filter>Shader</Filter>
     </None>
@@ -304,6 +309,18 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="OceanPS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="BloomDownPS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="SamplingVS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="CombinePS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="BloomUpPS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

@@ -363,8 +363,8 @@ void ModelViewer::Update(const float dt)
         }
     }
 
-    m_postProcess.GetConstCPU().exposure     = m_exposureFactor;
-    m_postProcess.GetConstCPU().gammeaFactor = m_gammaFactor;
+    //m_postProcess.GetConstCPU().exposure     = m_exposureFactor;
+    //m_postProcess.GetConstCPU().gammeaFactor = m_gammaFactor;
     m_postProcess.Update();
 }
 

@@ -63,6 +63,11 @@ cbuffer GloabalConsts : register(b0)
     uint envType;
     float envStrength;
     float mipmap;
+    float fogStrength;
+
+    float3 haloPosition;
+    float haloRadius;
+    float haloStrength;
 }
 
 cbuffer MeshConsts : register(b1)

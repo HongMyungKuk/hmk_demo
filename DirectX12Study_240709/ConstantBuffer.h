@@ -55,6 +55,11 @@ __declspec(align(256)) struct GlobalConsts
     uint32_t envType  = 0;
     float envStrength = 1.0f;
     float mipmap      = 1.0f;
+    float fogStrength  = 0.0f;
+
+    Vector3 haloPosition;
+    float haloRadius;
+    float haloStrength;
 };
 
 __declspec(align(256)) struct MaterialConsts

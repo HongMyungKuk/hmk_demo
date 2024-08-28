@@ -178,6 +178,9 @@ bool Engine::Initialize()
     // 태양 구현
     m_billBoardSun = new BillboardModel;
     ((BillboardModel *)m_billBoardSun)->Initialize(m_device, m_commandList, {Vector4(30.0f, 30.0f, 30.0f, 1.0f)}, 1.0f);
+    m_billBoardSun->m_castShadow = false;
+    m_globalConstsData.haloPosition = Vector3(30.0f, 30.0f, 30.0f);
+    m_globalConstsData.haloRadius = 50.0f;
     m_opaqueList.push_back(m_billBoardSun);
 
     // 바다
@@ -375,8 +378,8 @@ void Engine::Update(const float dt)
 
     m_DebugQaudTree->Update();
 
-    m_postProcess.GetConstCPU().exposure     = m_exposureFactor;
-    m_postProcess.GetConstCPU().gammeaFactor = m_gammaFactor;
+    //m_postProcess.GetConstCPU().exposure     = m_exposureFactor;
+    //m_postProcess.GetConstCPU().gammeaFactor = m_gammaFactor;
 
     m_postProcess.Update();
 }
@@ -474,6 +477,9 @@ void Engine::Render()
         m_commandList->SetPipelineState(Graphics::defaultWirePSO);
         m_DebugQaudTree->Render(m_commandList);
     }
+
+    AppBase::RenderPostEffects();
+    AppBase::RenderPostProcess();
 }
 
 void Engine::UpdateGui(const float frameRate)

@@ -590,8 +590,8 @@ void CollisionSample::Update(const float dt)
         m_gravityFlag = true;
     }
 
-    m_postProcess.GetConstCPU().exposure     = m_exposureFactor;
-    m_postProcess.GetConstCPU().gammeaFactor = m_gammaFactor;
+    //m_postProcess.GetConstCPU().exposure     = m_exposureFactor;
+    //m_postProcess.GetConstCPU().gammeaFactor = m_gammaFactor;
     m_postProcess.Update();
 }
 
