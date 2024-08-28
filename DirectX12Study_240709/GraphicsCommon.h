@@ -28,6 +28,7 @@ extern std::vector<D3D12_INPUT_ELEMENT_DESC> skinnedILDesc;
 extern std::vector<D3D12_INPUT_ELEMENT_DESC> normalILDesc;
 extern std::vector<D3D12_INPUT_ELEMENT_DESC> skyboxILDesc;
 extern std::vector<D3D12_INPUT_ELEMENT_DESC> postEffectsILDesc;
+extern std::vector<D3D12_INPUT_ELEMENT_DESC> billBoardILDesc;
 
 extern ID3DBlob *basicVS;
 extern ID3DBlob *skinnedVS;
@@ -42,8 +43,13 @@ extern ID3DBlob *skyboxPS;
 extern ID3DBlob *depthOnlyPS;
 extern ID3DBlob *dummyPS;
 extern ID3DBlob *postProcessPS;
+extern ID3DBlob *billBoardVS;
+extern ID3DBlob *billBoardGS;
+extern ID3DBlob *billBoardPS;
+extern ID3DBlob *oceanPS;
 
 extern D3D12_BLEND_DESC coverBS;
+extern D3D12_BLEND_DESC alphaBS;
 
 extern ID3D12RootSignature *postProcessRootSignature;
 extern ID3D12RootSignature *defaultRootSignature;
@@ -66,6 +72,9 @@ extern ID3D12PipelineState *depthOnlyPSO;
 extern ID3D12PipelineState *depthOnlySkinnedPSO;
 extern ID3D12PipelineState *depthViewportPSO;
 extern ID3D12PipelineState *postProcessPSO;
+extern ID3D12PipelineState *billBoardPointsPSO;
+extern ID3D12PipelineState *depthOnlyBillboardPSO;
+extern ID3D12PipelineState *oceanPSO;
 
 
 void InitGraphicsCommon(ID3D12Device *device);

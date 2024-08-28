@@ -7,7 +7,6 @@ class Command
 {
   public:
     virtual void Excute(const float dt) = 0;
-    virtual void Set()                  = 0;
 };
 
 class ObjectCommand : public Command
@@ -27,35 +26,24 @@ class ObjectCommand : public Command
     {
     }
 
-    virtual void Set(OBJ_TYPE type)
+    virtual void Excute(const float dt)
     {
-        switch (type)
-        {
-        case FRONT:
-            if (m_camera)
-            {
-                m_model->AddVelocity(m_camera->GetDirection());
-            }
-            break;
-        case BACK :
-            if (m_camera)
-            {
-                m_model->AddVelocity(-m_camera->GetDirection());
-            }
-            break;
-        case RIGHT:
-            if (m_camera)
-            {
-                m_model->AddVelocity(m_camera->GetRightDirection());
-            }
-            break;
-        case LEFT:
-            if (m_camera)
-            {
-                m_model->AddVelocity(-m_camera->GetRightDirection());
-            }
-            break;
-        }
+    }
+
+  protected:
+    Model *m_model   = nullptr;
+    Light *m_light   = nullptr;
+    Camera *m_camera = nullptr;
+
+    float m_speed = 0.0f;
+};
+
+// Object move command.
+class ObjectMoveCommand : public ObjectCommand
+{
+  public:
+    ObjectMoveCommand(Model *model, Light *light, Camera *camera = nullptr) : ObjectCommand(model, light, camera)
+    {
     }
 
     virtual void Excute(const float dt)
@@ -76,61 +64,26 @@ class ObjectCommand : public Command
             m_camera->MoveBack(dt);
         }
     }
-
-  protected:
-    Model *m_model   = nullptr;
-    Light *m_light   = nullptr;
-    Camera *m_camera = nullptr;
-
-    float m_speed = 0.0f;
 };
 
-// Object move command.
-class ObjectMoveBackCommand : public ObjectCommand
+class ObjectDirectionSetCommand : public ObjectCommand
 {
   public:
-    ObjectMoveBackCommand(Model *model, Light *light, Camera *camera = nullptr) : ObjectCommand(model, light, camera)
+    ObjectDirectionSetCommand(Model *model, Light *light, Camera *camera = nullptr)
+        : ObjectCommand(model, light, camera)
     {
     }
-};
 
-class ObjectMoveFrontCommand : public ObjectCommand
-{
-  public:
-    ObjectMoveFrontCommand(Model *model, Light *light, Camera *camera = nullptr) : ObjectCommand(model, light, camera)
+    virtual void Excute(const float dt)
     {
-    }
-};
-
-class ObjectMoveLeftCommand : public ObjectCommand
-{
-  public:
-    ObjectMoveLeftCommand(Model *model, Light *light, Camera *camera = nullptr) : ObjectCommand(model, light, camera)
-    {
-    }
-};
-
-class ObjectMoveRightCommand : public ObjectCommand
-{
-  public:
-    ObjectMoveRightCommand(Model *model, Light *light, Camera *camera = nullptr) : ObjectCommand(model, light, camera)
-    {
+        if (m_camera)
+        {
+            m_model->AddVelocity(m_camera->GetDirection());
+        }
     }
 };
 
 // Light move command
-class LightMoveBackCommand : public Command
-{
-};
-
-class LightMoveFrontCommand : public Command
-{
-};
-
-class LightMoveLeftCommand : public Command
-{
-};
-
-class LightMoveRightCommand : public Command
+class LightMoveCommand : public Command
 {
 };

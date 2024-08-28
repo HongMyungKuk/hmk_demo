@@ -21,6 +21,7 @@ std::vector<D3D12_INPUT_ELEMENT_DESC> skinnedILDesc;
 std::vector<D3D12_INPUT_ELEMENT_DESC> normalILDesc;
 std::vector<D3D12_INPUT_ELEMENT_DESC> skyboxILDesc;
 std::vector<D3D12_INPUT_ELEMENT_DESC> postEffectsILDesc;
+std::vector<D3D12_INPUT_ELEMENT_DESC> billBoardILDesc;
 
 ID3DBlob *basicVS;
 ID3DBlob *skinnedVS;
@@ -35,8 +36,13 @@ ID3DBlob *skyboxPS;
 ID3DBlob *depthOnlyPS;
 ID3DBlob *dummyPS;
 ID3DBlob *postProcessPS;
+ID3DBlob *billBoardVS;
+ID3DBlob *billBoardGS;
+ID3DBlob *billBoardPS;
+ID3DBlob *oceanPS;
 
 D3D12_BLEND_DESC coverBS;
+D3D12_BLEND_DESC alphaBS;
 
 ID3D12RootSignature *postProcessRootSignature = nullptr;
 ID3D12RootSignature *defaultRootSignature     = nullptr;
@@ -59,6 +65,9 @@ ID3D12PipelineState *depthOnlyPSO;
 ID3D12PipelineState *depthOnlySkinnedPSO;
 ID3D12PipelineState *depthViewportPSO;
 ID3D12PipelineState *postProcessPSO;
+ID3D12PipelineState *billBoardPointsPSO;
+ID3D12PipelineState *depthOnlyBillboardPSO;
+ID3D12PipelineState *oceanPSO;
 
 void InitGraphicsCommon(ID3D12Device *device)
 {
@@ -161,6 +170,14 @@ void InitShader()
 
     D3DUtils::CreateShader(L"PostProcessPS.hlsl", &postProcessPS, "main", "ps_5_1");
 
+    D3DUtils::CreateShader(L"BillboardVS.hlsl", &billBoardVS, "main", "vs_5_0");
+
+    D3DUtils::CreateShader(L"BillboardGS.hlsl", &billBoardGS, "main", "gs_5_0");
+
+    D3DUtils::CreateShader(L"SunPS.hlsl", &billBoardPS, "main", "ps_5_0");
+
+    D3DUtils::CreateShader(L"OceanPS.hlsl", &oceanPS, "main", "ps_5_0");
+
     basicILDesc = {{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
                    {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
                    {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -185,6 +202,9 @@ void InitShader()
         {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
+
+    billBoardILDesc = {
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
 }
 
 void InitBlendState()
@@ -201,6 +221,19 @@ void InitBlendState()
     coverBS.RenderTarget[0].BlendOpAlpha          = D3D12_BLEND_OP_ADD;
     coverBS.RenderTarget[0].LogicOp               = D3D12_LOGIC_OP_NOOP;
     coverBS.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+    alphaBS.AlphaToCoverageEnable                 = false;
+    alphaBS.IndependentBlendEnable                = false;
+    alphaBS.RenderTarget[0].BlendEnable           = true;
+    alphaBS.RenderTarget[0].LogicOpEnable         = false;
+    alphaBS.RenderTarget[0].SrcBlend              = D3D12_BLEND_SRC_ALPHA;
+    alphaBS.RenderTarget[0].DestBlend             = D3D12_BLEND_INV_SRC_ALPHA;
+    alphaBS.RenderTarget[0].BlendOp               = D3D12_BLEND_OP_ADD;
+    alphaBS.RenderTarget[0].SrcBlendAlpha         = D3D12_BLEND_ONE;
+    alphaBS.RenderTarget[0].DestBlendAlpha        = D3D12_BLEND_ONE;
+    alphaBS.RenderTarget[0].BlendOpAlpha          = D3D12_BLEND_OP_ADD;
+    alphaBS.RenderTarget[0].LogicOp               = D3D12_LOGIC_OP_NOOP;
+    alphaBS.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 }
 
 void InitRootSignature(ID3D12Device *device)
@@ -214,7 +247,7 @@ void InitRootSignature(ID3D12Device *device)
         CD3DX12_DESCRIPTOR_RANGE rangeObj3[1] = {};
         rangeObj3[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 11); // t10 ~ t12 : shadow map
         CD3DX12_DESCRIPTOR_RANGE rangeObj4[1] = {};
-        rangeObj4[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 5); // s0 ~ s5 : sampler 
+        rangeObj4[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 5); // s0 ~ s5 : sampler
 
         D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
@@ -307,7 +340,7 @@ void InitViewportAndScissorRect()
 void InitRasterizerState()
 {
     solidCW.FillMode              = D3D12_FILL_MODE_SOLID;
-    solidCW.CullMode              = D3D12_CULL_MODE_BACK;
+    solidCW.CullMode              = D3D12_CULL_MODE_NONE;
     solidCW.FrontCounterClockwise = FALSE;
     solidCW.DepthBias             = D3D12_DEFAULT_DEPTH_BIAS;
     solidCW.DepthBiasClamp        = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
@@ -361,10 +394,22 @@ void InitPipeLineState(ID3D12Device *device)
     psoDesc.RasterizerState = wireCW;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&skinnedWirePSO)));
 
-    psoDesc.InputLayout     = {skyboxILDesc.data(), UINT(skyboxILDesc.size())};
-    psoDesc.RasterizerState = solidMSSACW;
-    psoDesc.VS              = CD3DX12_SHADER_BYTECODE(skyboxVS);
-    psoDesc.PS              = CD3DX12_SHADER_BYTECODE(skyboxPS);
+    psoDesc.InputLayout           = {billBoardILDesc.data(), UINT(billBoardILDesc.size())};
+    psoDesc.VS                    = CD3DX12_SHADER_BYTECODE(billBoardVS);
+    psoDesc.GS                    = CD3DX12_SHADER_BYTECODE(billBoardGS);
+    psoDesc.PS                    = CD3DX12_SHADER_BYTECODE(billBoardPS);
+    psoDesc.RasterizerState       = solidMSSACW;
+    psoDesc.BlendState            = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    psoDesc.SampleMask            = UINT_MAX;
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+    ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&billBoardPointsPSO)));
+
+    psoDesc.InputLayout           = {skyboxILDesc.data(), UINT(skyboxILDesc.size())};
+    psoDesc.RasterizerState       = solidMSSACW;
+    psoDesc.VS                    = CD3DX12_SHADER_BYTECODE(skyboxVS);
+    psoDesc.GS                    = {};
+    psoDesc.PS                    = CD3DX12_SHADER_BYTECODE(skyboxPS);
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&skyboxPSO)));
 
     psoDesc.InputLayout        = {basicILDesc.data(), UINT(basicILDesc.size())};
@@ -383,13 +428,26 @@ void InitPipeLineState(ID3D12Device *device)
     psoDesc.DSVFormat       = DXGI_FORMAT_D32_FLOAT;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&depthOnlySkinnedPSO)));
 
-    psoDesc.InputLayout        = {postEffectsILDesc.data(), UINT(postEffectsILDesc.size())};
-    psoDesc.RasterizerState    = solidMSSACW;
-    psoDesc.VS                 = CD3DX12_SHADER_BYTECODE(postEffecstVS);
-    psoDesc.PS                 = CD3DX12_SHADER_BYTECODE(dummyPS);
-    psoDesc.DSVFormat          = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    psoDesc.SampleDesc.Count   = 4;
-    psoDesc.SampleDesc.Quality = 0;
+    psoDesc.InputLayout           = {billBoardILDesc.data(), UINT(billBoardILDesc.size())};
+    psoDesc.RasterizerState       = solidCW;
+    psoDesc.VS                    = CD3DX12_SHADER_BYTECODE(billBoardVS);
+    psoDesc.GS                    = CD3DX12_SHADER_BYTECODE(billBoardGS);
+    psoDesc.PS                    = CD3DX12_SHADER_BYTECODE(depthOnlyPS);
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+    psoDesc.DSVFormat             = DXGI_FORMAT_D32_FLOAT;
+    psoDesc.SampleDesc.Count      = 1;
+    psoDesc.SampleDesc.Quality    = 0;
+    ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&depthOnlyBillboardPSO)));
+
+    psoDesc.InputLayout           = {postEffectsILDesc.data(), UINT(postEffectsILDesc.size())};
+    psoDesc.RasterizerState       = solidMSSACW;
+    psoDesc.VS                    = CD3DX12_SHADER_BYTECODE(postEffecstVS);
+    psoDesc.GS                    = {};
+    psoDesc.PS                    = CD3DX12_SHADER_BYTECODE(dummyPS);
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    psoDesc.DSVFormat             = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    psoDesc.SampleDesc.Count      = 4;
+    psoDesc.SampleDesc.Quality    = 0;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&depthViewportPSO)));
 
     psoDesc.InputLayout = {basicILDesc.data(), UINT(basicILDesc.size())};
@@ -408,6 +466,16 @@ void InitPipeLineState(ID3D12Device *device)
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
     ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&normalPSO)));
 
+    psoDesc.InputLayout           = {basicILDesc.data(), UINT(basicILDesc.size())};
+    psoDesc.VS                    = CD3DX12_SHADER_BYTECODE(basicVS);
+    psoDesc.GS                    = {};
+    psoDesc.PS                    = CD3DX12_SHADER_BYTECODE(oceanPS);
+    psoDesc.RasterizerState       = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    psoDesc.BlendState            = alphaBS;
+    psoDesc.SampleMask            = UINT_MAX;
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&oceanPSO)));
+
     psoDesc.pRootSignature        = Graphics::postProcessRootSignature;
     psoDesc.InputLayout           = {postEffectsILDesc.data(), UINT(postEffectsILDesc.size())};
     psoDesc.RasterizerState       = solidDepthOffCW;
@@ -424,7 +492,10 @@ void InitPipeLineState(ID3D12Device *device)
 
 void DestroyPipeLineState()
 {
+    SAFE_RELEASE(oceanPSO);
+    SAFE_RELEASE(depthOnlyBillboardPSO);
     SAFE_RELEASE(postProcessPSO);
+    SAFE_RELEASE(billBoardPointsPSO);
     SAFE_RELEASE(depthViewportPSO);
     SAFE_RELEASE(depthOnlySkinnedPSO);
     SAFE_RELEASE(depthOnlyPSO);
@@ -439,6 +510,10 @@ void DestroyPipeLineState()
 
 void DestroyShader()
 {
+    SAFE_RELEASE(oceanPS);
+    SAFE_RELEASE(billBoardPS);
+    SAFE_RELEASE(billBoardGS);
+    SAFE_RELEASE(billBoardVS);
     SAFE_RELEASE(postProcessPS);
     SAFE_RELEASE(depthOnlyPS);
     SAFE_RELEASE(dummyPS);

@@ -70,28 +70,28 @@ class Model
 
     void MoveFront(const float dt)
     {
-        m_world *= Matrix::CreateTranslation(m_speed[FRONT] * Vector3(0.0f, 0.0f, -1.0f) * dt);
-        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed[FRONT] * Vector3(0.0f, 0.0f, -1.0f) * dt));
+        m_world *= Matrix::CreateTranslation(m_speed * Vector3(0.0f, 0.0f, -1.0f) * dt);
+        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed * Vector3(0.0f, 0.0f, -1.0f) * dt));
         UpdateWorldMatrix(m_world);
 
         // light의 움직임도 등록.
     }
     void MoveBack(const float dt)
     {
-        m_world *= Matrix::CreateTranslation(m_speed[BACK] * Vector3(0.0f, 0.0f, -1.0f) * -dt);
-        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed[BACK] * Vector3(0.0f, 0.0f, -1.0f) * -dt));
+        m_world *= Matrix::CreateTranslation(m_speed * Vector3(0.0f, 0.0f, -1.0f) * -dt);
+        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed * Vector3(0.0f, 0.0f, -1.0f) * -dt));
         UpdateWorldMatrix(m_world);
     }
     void MoveRight(const float dt)
     {
-        m_world *= Matrix::CreateTranslation(m_speed[SIDE] * Vector3(-1.0f, 0.0f, 0.0f) * dt);
-        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed[SIDE] * Vector3(-1.0f, 0.0f, 0.0f) * dt));
+        m_world *= Matrix::CreateTranslation(m_speed * Vector3(-1.0f, 0.0f, 0.0f) * dt);
+        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed * Vector3(-1.0f, 0.0f, 0.0f) * dt));
         UpdateWorldMatrix(m_world);
     }
     void MoveLeft(const float dt)
     {
-        m_world *= Matrix::CreateTranslation(m_speed[SIDE] * Vector3(1.0f, 0.0f, 0.0f) * dt);
-        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed[SIDE] * Vector3(1.0f, 0.0f, 0.0f) * dt));
+        m_world *= Matrix::CreateTranslation(m_speed * Vector3(1.0f, 0.0f, 0.0f) * dt);
+        m_pos = Vector3::Transform(m_pos, Matrix::CreateTranslation(m_speed * Vector3(1.0f, 0.0f, 0.0f) * dt));
         UpdateWorldMatrix(m_world);
     }
 
@@ -125,7 +125,7 @@ class Model
     void AddVelocity(const Vector3 v)
     {
         m_velocity += v;
-        // m_velocity.Normalize();
+        m_velocity.Normalize();
     }
 
     Vector3 GetVelocity()
@@ -143,6 +143,11 @@ class Model
         return uint32_t(m_meshes.size());
     }
 
+  protected:
+    UploadBuffer<MeshConsts> m_meshUpload;
+    UploadBuffer<MaterialConsts> m_materialUpload;
+    MeshConsts m_meshConstsData        = {};
+    MaterialConsts m_materialConstData = {};
 
   private:
     ID3D12RootSignature *m_rootSignature   = nullptr;
@@ -152,17 +157,12 @@ class Model
     uint32_t m_descRef                     = 0;
     uint32_t m_descNum                     = 300;
 
-    UploadBuffer<MeshConsts> m_meshUpload;
-    UploadBuffer<MaterialConsts> m_materialUpload;
-    MeshConsts m_meshConstsData        = {};
-    MaterialConsts m_materialConstData = {};
-
     BoundingSphere m_boundingSphere = {};
 
     Matrix m_world   = Matrix();
     Matrix m_worldIT = Matrix();
 
-    Vector3 m_pos      = Vector3(0.0f);
+    Vector3 m_pos = Vector3(0.0f);
     // float m_speed[END] = {0.0007f, 0.0007f, 0.0005f};
 
     uint32_t m_cbvDescriptorSize = 0;
@@ -177,4 +177,7 @@ class Model
     bool m_isTerrian = false;
 
     float m_speed = 0.0001f;
+
+  public:
+    bool m_castShadow = true;
 };

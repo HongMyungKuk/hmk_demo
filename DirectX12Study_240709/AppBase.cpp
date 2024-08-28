@@ -112,7 +112,7 @@ bool AppBase::Initialize()
     // Create sky box.
     CREATE_OBJ(m_skybox, Model);
     {
-        MeshData cube = GeometryGenerator::MakeCube(500.0f, 500.0f, 500.0f);
+        MeshData cube = GeometryGenerator::MakeCube(100.0f, 100.0f, 100.0f);
         std::reverse(cube.indices.begin(), cube.indices.end());
         m_skybox->Initialize(m_device, m_commandList, {cube});
     }
@@ -200,7 +200,7 @@ int32_t AppBase::Run()
 
             ImGui::Render();
 
-            this->Update(io.Framerate);
+            this->Update(ImGui::GetIO().DeltaTime);
 
             this->Render();
 
@@ -468,6 +468,7 @@ void AppBase::UpdateGlobalConsts(const float dt)
     m_globalConstsData.projInv     = m_globalConstsData.proj.Invert();
     m_globalConstsData.viewProjInv = (viewRow * projRow).Invert().Transpose();
     m_globalConstsData.envType     = (uint8_t)m_cubeMapType;
+    m_globalConstsData.dt          += dt;
 
     // shadow consts data.
     m_shadowConstsData[0] = m_globalConstsData;
@@ -641,8 +642,11 @@ void AppBase::RenderDepthOnlyPass()
         // render object.
         for (auto &e : m_opaqueList)
         {
-            m_commandList->SetPipelineState(e->GetDepthOnlyPSO());
-            e->Render(m_commandList);
+            if (e->m_castShadow)
+            {
+                m_commandList->SetPipelineState(e->GetDepthOnlyPSO());
+                e->Render(m_commandList);
+            }
         }
         // render skybox
         m_commandList->SetPipelineState(Graphics::depthOnlyPSO);
@@ -823,7 +827,7 @@ void AppBase::OnMouse(const float x, const float y)
 
 void AppBase::InitSRVAandSamplerDesriptorHeap()
 {
-    Graphics::s_Texture.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4098);
+    Graphics::s_Texture.Create(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4098 * 2);
     Graphics::s_Sampler.Create(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 256);
 
     // Create sampler

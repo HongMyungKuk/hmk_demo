@@ -51,7 +51,7 @@ void Terrain::Render(Frustum *frustum)
 
     RenderNode(m_rootNode);
 
-    std::cout << m_meshCompRenderCount << std::endl;
+    // std::cout << m_meshCompRenderCount << std::endl;
 }
 
 void Terrain::Update()

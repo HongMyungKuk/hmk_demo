@@ -7,7 +7,8 @@ class EventHandler
   public:
     enum COMMAND_TYPE
     {
-        OBJ,
+        OBJ_DIRECTION_SET,
+        OBJ_MOVE,
         END,
     };
 
@@ -21,7 +22,7 @@ class EventHandler
         m_vecCommand[type] = cmd;
     }
 
-    void ObjectMoveHandle(COMMAND_TYPE type);
+    void SetHandler(COMMAND_TYPE type);
     void Excute(COMMAND_TYPE type, const float dt);
 
   private:

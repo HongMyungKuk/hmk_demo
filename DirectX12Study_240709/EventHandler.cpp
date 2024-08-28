@@ -3,9 +3,9 @@
 #include "EventHandler.h"
 #include "Command.h"
 
-void EventHandler::ObjectMoveHandle(COMMAND_TYPE type, ObjectCommand::OBJ_TYPE objType)
+void EventHandler::SetHandler(COMMAND_TYPE type)
 {
-    m_vecCommand[type]->Set(objType);
+
 }
 
 void EventHandler::Excute(COMMAND_TYPE type, const float dt)

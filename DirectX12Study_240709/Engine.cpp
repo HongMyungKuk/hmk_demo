@@ -1,5 +1,6 @@
 #include "pch.h"
 
+#include "BillboardModel.h"
 #include "Camera.h"
 #include "Command.h"
 #include "DebugQuadTree.h"
@@ -9,6 +10,7 @@
 #include "Input.h"
 #include "Model.h"
 // #include "QuadTree.h"
+#include "OceanModel.h"
 #include "Terrain.h"
 // https://sketchfab.com/3d-models/gm-bigcity-f80855b6286944459392fc723ed0b50f#download
 // https://free3d.com/3d-model/sci-fi-downtown-city-53758.html
@@ -78,7 +80,7 @@ bool Engine::Initialize()
             v.normal   = Vector3::Transform(v.normal, Matrix::CreateRotationX(XM_PIDIV2));
         }
 
-        float heightScale = 2.0f;
+        float heightScale = 0.5f;
 
         for (int i = 0; i < grid.indices.size(); i += 3)
         {
@@ -157,14 +159,34 @@ bool Engine::Initialize()
                 }
             }
 
-            auto [model, material] = GeometryGenerator::ReadFromModelFile(basePath.c_str(), "comp_model.fbx");
+            auto [model, material] = GeometryGenerator::ReadFromModelFile(basePath.c_str(), "comp_model.fbx", true);
 
             ((SkinnedMeshModel *)skinnedModel)->Initialize(m_device, m_commandList, model, material, animData);
             skinnedModel->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
             skinnedModel->GetMaterialConstCPU().albedoFactor = Vector3(0.3f);
-            skinnedModel->UpdateWorldMatrix(Matrix::CreateRotationY(XM_PI));
+            // skinnedModel->UpdateWorldMatrix(Matrix::CreateRotationY(XM_PI));
         }
         m_opaqueList.push_back(skinnedModel);
+    }
+
+    // m_temple        = new Model;
+    // auto [model, _] = GeometryGenerator::ReadFromModelFile("../../Asset/", "temple_test.fbx");
+    // m_temple->Initialize(m_device, m_commandList, model, {}, false);
+    // m_temple->UpdateWorldMatrix(Matrix::CreateScale(25.0f));
+    // m_opaqueList.push_back(m_temple);
+
+    m_billBoardSun = new BillboardModel;
+    ((BillboardModel *)m_billBoardSun)->Initialize(m_device, m_commandList, {Vector4(0.0f, 15.0f, 15.0f, 1.0f)}, 1.0f);
+    m_opaqueList.push_back(m_billBoardSun);
+
+    // 바다
+    {
+        auto mesh        = GeometryGenerator::MakeSquare(200.0, 200.0f);
+        m_ocean          = new OceanModel(m_device, m_commandList, std::vector{mesh});
+        Vector3 position = Vector3(0.0f, -0.1f, 2.0f);
+        m_ocean->UpdateWorldMatrix(Matrix::CreateRotationX(3.141592f * 0.5f) * Matrix::CreateTranslation(position));
+        m_ocean->m_castShadow = false;
+        m_opaqueList.push_back(m_ocean);
     }
 
     ThrowIfFailed(m_commandList->Close());
@@ -178,12 +200,12 @@ bool Engine::Initialize()
     m_usePL = true;
     m_useSL = true;
 
-    // Set event handler.
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::COMMAND_TYPE::OBJ,
-                                           new ObjectMoveFrontCommand(m_opaqueList[0], m_light, m_camera));
+    //// Set event handler.
+    // g_EvnetHandler.RegistObjectMoveCommand(EventHandler::COMMAND_TYPE::OBJ,
+    //                                        new ObjectMoveFrontCommand(m_opaqueList[0], m_light, m_camera));
 
     // global const setting.
-    m_globalConstsData.envStrength = 0.15f;
+    m_globalConstsData.envStrength = 0.0f;
 
     return true;
 }
@@ -194,15 +216,45 @@ void Engine::Update(const float dt)
 
     // UpdateCamera(dt);
 
-    m_terrain->Update();
-
-    float height = 0.0f; // object radius.
-    m_terrain->GetObjectHeight(m_opaqueList[0]->GetPos().x, m_opaqueList[0]->GetPos().z, &height);
+    m_opaqueList[0]->SetVelocity(Vector3(0.0f));
+    m_opaqueList[0]->SetSpeed(2.5f);
 
     Vector3 translation = m_opaqueList[0]->GetWorldRow().Translation();
     m_opaqueList[0]->GetWorldRow().Translation(Vector3(0.0f));
-    m_opaqueList[0]->UpdateWorldMatrix(m_opaqueList[0]->GetWorldRow() * 
-        Matrix::CreateTranslation(Vector3(m_opaqueList[0]->GetPos().x, height, m_opaqueList[0]->GetPos().z)));
+    m_opaqueList[0]->UpdateWorldMatrix(Matrix::CreateRotationY(XM_PI) * Matrix::CreateRotationY(m_camera->GetPitch()) *
+                                       Matrix::CreateTranslation(translation));
+
+    m_terrain->Update();
+
+    // 캐릭터가 튀는 현상이 발생.
+    float height            = 0.0f; // object radius.
+    static float prevHeight = 0.0f;
+    static bool heightFlag  = false;
+    if (heightFlag)
+    {
+        m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, -prevHeight, 0.0f));
+        m_light[1].position =
+            Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, -prevHeight, 0.0f)));
+        heightFlag = false;
+    }
+
+    m_terrain->GetObjectHeight(m_opaqueList[0]->GetPos().x, m_opaqueList[0]->GetPos().z, &height);
+
+    if (height != prevHeight)
+    {
+        translation = m_opaqueList[0]->GetWorldRow().Translation();
+        m_opaqueList[0]->GetWorldRow().Translation(Vector3(0.0f));
+        m_opaqueList[0]->UpdateWorldMatrix(
+            m_opaqueList[0]->GetWorldRow() *
+            Matrix::CreateTranslation(Vector3(m_opaqueList[0]->GetPos().x, height, m_opaqueList[0]->GetPos().z)));
+
+        m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, height, 0.0f));
+        m_light[1].position =
+            Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, height, 0.0f)));
+        heightFlag = true;
+    }
+
+    prevHeight = height;
 
     if (((SkinnedMeshModel *)m_opaqueList[0])->GetAnim().clips.size() > 0)
     {
@@ -249,29 +301,53 @@ void Engine::Update(const float dt)
             // TODO!!
             // 애니메시연 Event handler 통합하기
 
+            // m_opaqueList[0]->SetSpeed(0.005f);
+
             if (GameInput::IsPressed(GameInput::kKey_w))
             {
                 state = 1;
-                g_EvnetHandler.ObjectMoveHandle(EventHandler::COMMAND_TYPE::OBJ, ObjectCommand::OBJ_TYPE::FRONT);
+                m_opaqueList[0]->AddVelocity(m_camera->GetDirection());
+                m_camera->SetCameraSpeed(m_opaqueList[0]->GetSpeed());
+                m_camera->MoveFront(dt);
+                m_light[1].position = Vector3::Transform(
+                    m_light[1].position,
+                    Matrix::CreateTranslation(m_opaqueList[0]->GetSpeed() * m_opaqueList[0]->GetVelocity() * dt));
             }
-            if (GameInput::IsPressed(GameInput::kKey_d))
+            else if (GameInput::IsPressed(GameInput::kKey_d))
             {
                 state = 2;
-                g_EvnetHandler.ObjectMoveHandle(EventHandler::COMMAND_TYPE::OBJ);
+                m_opaqueList[0]->AddVelocity(m_camera->GetRightDirection());
+                m_camera->SetCameraSpeed(m_opaqueList[0]->GetSpeed());
+                m_camera->MoveRight(dt);
+                m_light[1].position = Vector3::Transform(
+                    m_light[1].position,
+                    Matrix::CreateTranslation(m_opaqueList[0]->GetSpeed() * m_opaqueList[0]->GetVelocity() * dt));
             }
-            if (GameInput::IsPressed(GameInput::kKey_a))
+            else if (GameInput::IsPressed(GameInput::kKey_a))
             {
                 state = 3;
-                g_EvnetHandler.ObjectMoveHandle(EventHandler::COMMAND_TYPE::OBJ);
+                m_opaqueList[0]->AddVelocity(-m_camera->GetRightDirection());
+                m_camera->SetCameraSpeed(m_opaqueList[0]->GetSpeed());
+                m_camera->MoveLeft(dt);
+                m_light[1].position = Vector3::Transform(
+                    m_light[1].position,
+                    Matrix::CreateTranslation(m_opaqueList[0]->GetSpeed() * m_opaqueList[0]->GetVelocity() * dt));
             }
-            if (GameInput::IsPressed(GameInput::kKey_s))
+            else if (GameInput::IsPressed(GameInput::kKey_s))
             {
                 state = 4;
-                g_EvnetHandler.ObjectMoveHandle(EventHandler::COMMAND_TYPE::OBJ);
+                m_opaqueList[0]->AddVelocity(-m_camera->GetDirection());
+                m_camera->SetCameraSpeed(m_opaqueList[0]->GetSpeed());
+                m_camera->MoveBack(dt);
+                m_light[1].position = Vector3::Transform(
+                    m_light[1].position,
+                    Matrix::CreateTranslation(m_opaqueList[0]->GetSpeed() * m_opaqueList[0]->GetVelocity() * dt));
             }
 
             // if (m_aniPlayFlag)
             //     state = m_selectedAnim;
+
+            m_opaqueList[0]->Move(dt);
 
             ((SkinnedMeshModel *)m_opaqueList[0])->UpdateAnimation(state, frameCount++);
         }

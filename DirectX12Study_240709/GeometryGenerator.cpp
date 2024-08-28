@@ -420,8 +420,8 @@ void NomalizeModel(std::vector<MeshData> &meshes, const float sacle, AnimationDa
             min.x = DirectX::XMMin(p.position.x, min.x);
             max.y = DirectX::XMMax(p.position.y, max.y);
             min.y = DirectX::XMMin(p.position.y, min.y);
-            max.z = DirectX::XMMax(p.position.y, max.z);
-            min.z = DirectX::XMMin(p.position.y, min.z);
+            max.z = DirectX::XMMax(p.position.z, max.z);
+            min.z = DirectX::XMMin(p.position.z, min.z);
         }
     }
 
@@ -432,7 +432,7 @@ void NomalizeModel(std::vector<MeshData> &meshes, const float sacle, AnimationDa
     const float scale   = sacle / DirectX::XMMax(XMMax(dx, dy), dz);
     Vector3 translation = -(max + min) * 0.5f;
 
-    translation.y = 0.0f;
+    translation.y += dy * 0.5f;
 
     for (auto &m : meshes)
     {
@@ -450,10 +450,10 @@ void NomalizeModel(std::vector<MeshData> &meshes, const float sacle, AnimationDa
     aniData.defaultMatrix = Matrix::CreateTranslation(translation) * Matrix::CreateScale(scale);
 }
 
-auto GeometryGenerator::ReadFromModelFile(const char *filepath, const char *filename)
+auto GeometryGenerator::ReadFromModelFile(const char *filepath, const char *filename, bool isAnim)
     -> std::pair<std::vector<MeshData>, std::vector<MaterialConsts>>
 {
-    ModelLoader modelLoader((const char *)filepath, (const char *)filename);
+    ModelLoader modelLoader((const char *)filepath, (const char *)filename, isAnim);
 
     auto meshes   = modelLoader.Meshes();
     auto material = modelLoader.Materials();
@@ -467,7 +467,7 @@ auto GeometryGenerator::ReadFromModelFile(const char *filepath, const char *file
 auto GeometryGenerator::ReadFromAnimationFile(const char *filepath, const char *filename)
     -> std::pair<std::vector<MeshData>, AnimationData>
 {
-    ModelLoader modelLoader((const char *)filepath, (const char *)filename);
+    ModelLoader modelLoader((const char *)filepath, (const char *)filename, true);
 
     auto meshes = modelLoader.Meshes();
     auto &anim  = modelLoader.Animation();

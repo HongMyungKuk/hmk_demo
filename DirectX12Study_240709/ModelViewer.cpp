@@ -185,15 +185,15 @@ bool ModelViewer::Initialize()
 
     WaitForGpu();
 
-    // Set event handler.
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::FRONT,
-                                           new ObjectMoveFrontCommand(m_opaqueList[0], m_light));
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::BACK,
-                                           new ObjectMoveBackCommand(m_opaqueList[0], m_light));
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::RIGHT,
-                                           new ObjectMoveRightCommand(m_opaqueList[0], m_light));
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::LEFT,
-                                           new ObjectMoveLeftCommand(m_opaqueList[0], m_light));
+    //// Set event handler.
+    //g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::FRONT,
+    //                                       new ObjectMoveFrontCommand(m_opaqueList[0], m_light));
+    //g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::BACK,
+    //                                       new ObjectMoveBackCommand(m_opaqueList[0], m_light));
+    //g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::RIGHT,
+    //                                       new ObjectMoveRightCommand(m_opaqueList[0], m_light));
+    //g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::LEFT,
+    //                                       new ObjectMoveLeftCommand(m_opaqueList[0], m_light));
 
     // global const setting.
     m_globalConstsData.envStrength = 0.5f;
@@ -333,22 +333,22 @@ void ModelViewer::Update(const float dt)
                 if (GameInput::IsPressed(GameInput::kKey_up))
                 {
                     state = 1;
-                    g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::FRONT, dt);
+                    //g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::FRONT, dt);
                 }
                 else if (GameInput::IsPressed(GameInput::kKey_right))
                 {
                     state = 2;
-                    g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::RIGHT, dt);
+                    //g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::RIGHT, dt);
                 }
                 else if (GameInput::IsPressed(GameInput::kKey_left))
                 {
                     state = 3;
-                    g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::LEFT, dt);
+                    //g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::LEFT, dt);
                 }
                 else if (GameInput::IsPressed(GameInput::kKey_down))
                 {
                     state = 4;
-                    g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::BACK, dt);
+                    //g_EvnetHandler.ObjectMoveHandle(EventHandler::OBJ_COMMAND_TYPE::BACK, dt);
                 }
                 else
                 {

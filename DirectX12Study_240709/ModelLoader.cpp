@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <fstream>
 
-ModelLoader::ModelLoader(const char *filepath, const char *filename)
+ModelLoader::ModelLoader(const char *filepath, const char *filename, bool isAnim)
 {
     basePath = std::string(filepath);
 
@@ -16,7 +16,7 @@ ModelLoader::ModelLoader(const char *filepath, const char *filename)
     // }
     // else
     //{
-    LoadModel((const char *)fileFullpath);
+    LoadModel((const char *)fileFullpath, isAnim);
     //}
 
     free((void *)ext);
@@ -108,7 +108,7 @@ void ModelLoader::LoadObjFile(const char *filename)
     fclose(fp);
 }
 
-void ModelLoader::LoadModel(const char *filename)
+void ModelLoader::LoadModel(const char *filename, bool isAnim)
 {
     Assimp::Importer import;
     const aiScene *scene = import.ReadFile(filename, aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
@@ -130,7 +130,7 @@ void ModelLoader::LoadModel(const char *filename)
 
     ProcessNode(scene->mRootNode, scene);
 
-    if (scene->HasAnimations())
+    if (scene->HasAnimations() && isAnim)
         ReadAnimationClip(scene);
 }
 

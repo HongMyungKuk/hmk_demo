@@ -11,6 +11,12 @@ using DirectX::SimpleMath::Vector4;
 class Camera
 {
   public:
+    Camera()
+    {
+        m_startEyePosition = m_eyePosition;
+    }
+
+  public:
     Matrix GetViewMatrix();
     Matrix GetProjectionMatrix();
     void MouseUpdate(float ndcX, float ndcY);
@@ -59,22 +65,29 @@ class Camera
     {
         return m_farZ;
     }
+    float GetPitch()
+    {
+        return m_pitch;
+    }
 
   private:
-    Vector3 m_eyePosition    = Vector3(1.0f, 2.0f, -3.0f);
+    Vector3 m_startEyePosition;
+    Vector3 m_eyePosition    = Vector3(0.0f, 3.0f, -5.0f);
     Vector3 m_eyeDirection   = Vector3(0.0f, 0.0f, 1.0f);
     Vector3 m_upDirection    = Vector3(0.0f, 1.0f, 0.0f);
     Vector3 m_rightDirection = Vector3(1.0f, 0.0f, 0.0f);
 
-    float m_yaw   = -0.785398f;
-    float m_pitch = -0.523598f * 0.5f;
+    float m_yaw   = 0.0f; //-0.785398f;
+    float m_pitch = 0.0f; //-0.523598f * 0.5f;
     float m_roll  = 0.0f;
 
     SimpleMath::Quaternion m_q = SimpleMath::Quaternion();
 
     float m_fov   = 70.0f;
     float m_nearZ = 0.1f;
-    float m_farZ  = 1000.0f;
+    float m_farZ  = 500.0f;
 
     float m_speed = 0.001f;
+
+    Matrix m_view;
 };

@@ -13,7 +13,7 @@ class ModelLoader
     ModelLoader()
     {
     }
-    ModelLoader(const char *filepath, const char *filename);
+    ModelLoader(const char *filepath, const char *filename, bool isAnim = false);
     ~ModelLoader();
 
   public:
@@ -32,7 +32,7 @@ class ModelLoader
 
   private:
     void LoadObjFile(const char *filename);
-    void LoadModel(const char *filename);
+    void LoadModel(const char *filename, bool isAnim = false);
     void ProcessNode(aiNode *node, const aiScene *scene);
     MeshData ProceesMesh(aiMesh *mesh, const aiScene *scene);
     void FindDeformAnim(const aiScene *scene);

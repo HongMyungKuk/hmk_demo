@@ -133,15 +133,15 @@ bool CollisionSample::Initialize()
 
     WaitForGpu();
 
-    // Set event handler.
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::FRONT,
-                                           new ObjectMoveFrontCommand(m_opaqueList[0], m_light));
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::BACK,
-                                           new ObjectMoveBackCommand(m_opaqueList[0], m_light));
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::RIGHT,
-                                           new ObjectMoveRightCommand(m_opaqueList[0], m_light));
-    g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::LEFT,
-                                           new ObjectMoveLeftCommand(m_opaqueList[0], m_light));
+    //// Set event handler.
+    //g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::FRONT,
+    //                                       new ObjectMoveFrontCommand(m_opaqueList[0], m_light));
+    //g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::BACK,
+    //                                       new ObjectMoveBackCommand(m_opaqueList[0], m_light));
+    //g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::RIGHT,
+    //                                       new ObjectMoveRightCommand(m_opaqueList[0], m_light));
+    //g_EvnetHandler.RegistObjectMoveCommand(EventHandler::OBJ_COMMAND_TYPE::LEFT,
+    //                                       new ObjectMoveLeftCommand(m_opaqueList[0], m_light));
 
     return true;
 }
