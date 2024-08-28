@@ -175,8 +175,9 @@ bool Engine::Initialize()
     // m_temple->UpdateWorldMatrix(Matrix::CreateScale(25.0f));
     // m_opaqueList.push_back(m_temple);
 
+    // 태양 구현
     m_billBoardSun = new BillboardModel;
-    ((BillboardModel *)m_billBoardSun)->Initialize(m_device, m_commandList, {Vector4(0.0f, 15.0f, 15.0f, 1.0f)}, 1.0f);
+    ((BillboardModel *)m_billBoardSun)->Initialize(m_device, m_commandList, {Vector4(30.0f, 30.0f, 30.0f, 1.0f)}, 1.0f);
     m_opaqueList.push_back(m_billBoardSun);
 
     // 바다
@@ -229,32 +230,48 @@ void Engine::Update(const float dt)
     // 캐릭터가 튀는 현상이 발생.
     float height            = 0.0f; // object radius.
     static float prevHeight = 0.0f;
-    static bool heightFlag  = false;
-    if (heightFlag)
-    {
-        m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, -prevHeight, 0.0f));
-        m_light[1].position =
-            Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, -prevHeight, 0.0f)));
-        heightFlag = false;
-    }
+    // static bool heightFlag  = false;
+    // if (heightFlag)
+    //{
+    //     m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, -prevHeight, 0.0f));
+    //     m_light[1].position =
+    //         Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, -prevHeight, 0.0f)));
+    //     heightFlag = false;
+    // }
+
+    m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, -prevHeight, 0.0f));
+    m_light[1].position =
+        Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, -prevHeight, 0.0f)));
 
     m_terrain->GetObjectHeight(m_opaqueList[0]->GetPos().x, m_opaqueList[0]->GetPos().z, &height);
 
-    if (height != prevHeight)
-    {
-        translation = m_opaqueList[0]->GetWorldRow().Translation();
-        m_opaqueList[0]->GetWorldRow().Translation(Vector3(0.0f));
-        m_opaqueList[0]->UpdateWorldMatrix(
-            m_opaqueList[0]->GetWorldRow() *
-            Matrix::CreateTranslation(Vector3(m_opaqueList[0]->GetPos().x, height, m_opaqueList[0]->GetPos().z)));
+    // if (height != prevHeight)
+    //{
+    //     translation = m_opaqueList[0]->GetWorldRow().Translation();
+    //     m_opaqueList[0]->GetWorldRow().Translation(Vector3(0.0f));
+    //     m_opaqueList[0]->UpdateWorldMatrix(
+    //         m_opaqueList[0]->GetWorldRow() *
+    //         Matrix::CreateTranslation(Vector3(m_opaqueList[0]->GetPos().x, height, m_opaqueList[0]->GetPos().z)));
 
-        m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, height, 0.0f));
-        m_light[1].position =
-            Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, height, 0.0f)));
-        heightFlag = true;
-    }
+    //    m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, height, 0.0f));
+    //    m_light[1].position =
+    //        Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, height, 0.0f)));
+    //    // heightFlag = true;
+    //}
+
+    // prevHeight = height;
+
+    translation = m_opaqueList[0]->GetWorldRow().Translation();
+    m_opaqueList[0]->GetWorldRow().Translation(Vector3(0.0f));
+    m_opaqueList[0]->UpdateWorldMatrix(
+        m_opaqueList[0]->GetWorldRow() *
+        Matrix::CreateTranslation(Vector3(m_opaqueList[0]->GetPos().x, height, m_opaqueList[0]->GetPos().z)));
 
     prevHeight = height;
+
+    m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, height, 0.0f));
+    m_light[1].position =
+        Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, height, 0.0f)));
 
     if (((SkinnedMeshModel *)m_opaqueList[0])->GetAnim().clips.size() > 0)
     {
@@ -520,6 +537,15 @@ void Engine::UpdateGui(const float frameRate)
             ImGui::TreePop();
             ImGui::Spacing();
         }
+    }
+
+    // Ocean
+    if (ImGui::CollapsingHeader("Ocean"))
+    {
+        ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+        ImGui::SliderFloat("height", &m_height, 0.0f, 1.0f);
+        m_ocean->UpdateWorldMatrix(Matrix::CreateRotationX(3.141592f * 0.5f) *
+                                   Matrix::CreateTranslation(Vector3(0.0f, m_height, 2.0f)));
     }
 
     ImGui::End();

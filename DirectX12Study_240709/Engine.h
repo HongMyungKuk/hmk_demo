@@ -43,4 +43,6 @@ class Engine : public AppBase
 
     ID3D12Resource *m_uploadResource     = nullptr;
     ID3D12Resource *m_terrainTexResource = nullptr;
+
+    float m_height = 0.0f;
 };

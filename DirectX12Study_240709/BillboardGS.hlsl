@@ -22,8 +22,8 @@ void main(point GeometryShaderInput input[1], uint primID : SV_PrimitiveID,
 {
     float hw = 0.5 * widthWorld;
     
-    float4 up = float4(0.0, 1.0, 0.0, 0.0);
-    //float4 up = mul(float4(0, 1, 0, 0), viewInv); // <- 뷰의 업벡터를 월드로 변환 (파이어볼을 위에서 보는 경우)
+    // float4 up = float4(0.0, 1.0, 0.0, 0.0);
+    float4 up = mul(float4(0, 1, 0, 0), viewInv); // <- 뷰의 업벡터를 월드로 변환 (파이어볼을 위에서 보는 경우)
     up.xyz = normalize(up.xyz);
     float4 front = float4(eyeWorld, 1.0) - input[0].pos;
     front.w = 0.0; // 벡터

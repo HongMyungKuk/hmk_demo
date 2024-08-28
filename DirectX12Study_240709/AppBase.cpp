@@ -626,7 +626,6 @@ void AppBase::RenderDepthOnlyPass()
 {
     m_commandList->RSSetViewports(1, &Graphics::shadowViewport);
     m_commandList->RSSetScissorRects(1, &Graphics::shadowSissorRect);
-    // Root signature 이후에 변경 .... 방법 찾기
     m_commandList->SetGraphicsRootSignature(Graphics::defaultRootSignature);
     ID3D12DescriptorHeap *descHeaps[] = {Graphics::s_Texture.Get(), Graphics::s_Sampler.Get()};
     m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
@@ -691,6 +690,9 @@ void AppBase::RenderOpaqueObject()
 
 void AppBase::RenderDepthMapViewport()
 {
+
+
+
     m_commandList->RSSetViewports(1, &Graphics::depthMapViewport);
     m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
     m_commandList->SetPipelineState(Graphics::depthViewportPSO);

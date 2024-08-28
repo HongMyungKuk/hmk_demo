@@ -291,7 +291,7 @@
     <FxCompile Include="DummyPS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="PostProcess.hlsl">
+    <FxCompile Include="PostEffectsPS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="BillboardVS.hlsl">
