@@ -431,30 +431,40 @@ void Engine::Render()
 {
 	AppBase::Render();
 
-	m_commandList->RSSetViewports(1, &Graphics::mainViewport);
-	m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
+#if true
+	for (int i = 0; i < g_NumContext; i++)
+	{
+		WorkerThread(i);
+	}
+	MidFrame();
+	EndFrame();
+	m_commandQueue->ExecuteCommandLists(_countof(m_curFrameResource->m_batchSubmit), m_curFrameResource->m_batchSubmit);
+#endif
+
+	m_curFrameResource->m_commandLists[CommandListPost]->RSSetViewports(1, &Graphics::mainViewport);
+	m_curFrameResource->m_commandLists[CommandListPost]->RSSetScissorRects(1, &Graphics::mainSissorRect);
 
 	// Root signature 이후에 변경 .... 방법 찾기
-	m_commandList->SetGraphicsRootSignature(Graphics::defaultRootSignature);
-	m_commandList->SetGraphicsRootConstantBufferView(0, m_curFrameResource->m_globalConstsBuffer->GetResource()->GetGPUVirtualAddress());
+	m_curFrameResource->m_commandLists[CommandListPost]->SetGraphicsRootSignature(Graphics::defaultRootSignature);
+	m_curFrameResource->m_commandLists[CommandListPost]->SetGraphicsRootConstantBufferView(0, m_curFrameResource->m_globalConstsBuffer->GetResource()->GetGPUVirtualAddress());
 
-	m_commandList->SetGraphicsRootDescriptorTable(3, Graphics::s_Texture[1]);
+	m_curFrameResource->m_commandLists[CommandListPost]->SetGraphicsRootDescriptorTable(3, Graphics::s_Texture[1]);
 
 	for (uint32_t i = 0; i < 3; i++)
 	{
 		if (m_light[i].type & POINT_LIGHT)
 		{
-			m_commandList->SetPipelineState(m_lightSpheres[0]->GetPSO(m_isWireFrame));
-			m_lightSpheres[0]->Render(m_commandList);
+			m_curFrameResource->m_commandLists[CommandListPost]->SetPipelineState(m_lightSpheres[0]->GetPSO(m_isWireFrame));
+			m_lightSpheres[0]->Render(m_curFrameResource->m_commandLists[CommandListPost]);
 		}
 		if (m_light[i].type & SPOT_LIGHT)
 		{
-			m_commandList->SetPipelineState(m_lightSpheres[1]->GetPSO(m_isWireFrame));
-			m_lightSpheres[1]->Render(m_commandList);
+			m_curFrameResource->m_commandLists[CommandListPost]->SetPipelineState(m_lightSpheres[1]->GetPSO(m_isWireFrame));
+			m_lightSpheres[1]->Render(m_curFrameResource->m_commandLists[CommandListPost]);
 		}
 	}
 
-	m_commandList->SetPipelineState(m_isWireFrame ? Graphics::defaultWirePSO : Graphics::defaultSolidPSO);
+	m_curFrameResource->m_commandLists[CommandListPost]->SetPipelineState(m_isWireFrame ? Graphics::defaultWirePSO : Graphics::defaultSolidPSO);
 	m_terrain->Render(m_frustum);
 
 	//if (m_isDebugTreeFlag)
@@ -462,9 +472,6 @@ void Engine::Render()
 	//	m_commandList->SetPipelineState(Graphics::defaultWirePSO);
 	//	m_DebugQaudTree->Render(m_commandList);
 	//}
-
-	AppBase::RenderPostEffects();
-	AppBase::RenderPostProcess();
 }
 
 void Engine::UpdateGui(const float frameRate)
@@ -540,4 +547,10 @@ void Engine::UpdateGui(const float frameRate)
 	}
 
 	ImGui::End();
+}
+
+void Engine::EndFrame()
+{
+	AppBase::RenderPostEffects();
+	AppBase::RenderPostProcess();
 }

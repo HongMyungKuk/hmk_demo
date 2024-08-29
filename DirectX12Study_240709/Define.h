@@ -20,3 +20,8 @@
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
+
+#define CommandListCount 3
+#define CommandListPre   0
+#define CommandListMid   1
+#define CommandListPost  2

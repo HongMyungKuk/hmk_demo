@@ -175,15 +175,17 @@ void AppBase::Update(const float dt)
 
 void AppBase::Render()
 {
-	auto cmdAlloc = m_curFrameResource->m_commandAllocator;
+	BeginFrame();
 
-	ThrowIfFailed(cmdAlloc->Reset());
-	ThrowIfFailed(m_commandList->Reset(cmdAlloc, nullptr));
-
-	// Depth only pass.
-	RenderDepthOnlyPass();
-	// Render Object.
-	RenderOpaqueObject();
+#if true
+	for (int i = 0; i < g_NumContext; i++)
+	{
+		WorkerThread(i);
+	}
+	MidFrame();
+	EndFrame();
+	m_commandQueue->ExecuteCommandLists(_countof(m_curFrameResource->m_batchSubmit), m_curFrameResource->m_batchSubmit);
+#endif
 }
 
 int32_t AppBase::Run()
@@ -365,6 +367,57 @@ bool AppBase::InitD3D()
 	SAFE_RELEASE(factory);
 
 	return true;
+}
+
+void AppBase::InitContext()
+{
+#if !SINGLETHREADED
+	struct threadwrapper
+	{
+		static unsigned int WINAPI thunk(LPVOID lpParameter)
+		{
+			ThreadParameter* parameter = reinterpret_cast<ThreadParameter*>(lpParameter);
+			AppBase::Get()->WorkerThread(parameter->threadIndex);
+			return 0;
+		}
+	};
+
+	for (int i = 0; i < g_NumContext; i++)
+	{
+		m_workerBeginRenderFrame[i] = CreateEvent(
+			NULL,
+			FALSE,
+			FALSE,
+			NULL);
+
+		m_workerFinishedRenderFrame[i] = CreateEvent(
+			NULL,
+			FALSE,
+			FALSE,
+			NULL);
+
+		m_workerFinishShadowPass[i] = CreateEvent(
+			NULL,
+			FALSE,
+			FALSE,
+			NULL);
+
+		m_threadParameters[i].threadIndex = i;
+
+		m_threadHandles[i] = reinterpret_cast<HANDLE>(_beginthreadex(
+			nullptr,
+			0,
+			threadwrapper::thunk,
+			reinterpret_cast<LPVOID>(&m_threadParameters[i]),
+			0,
+			nullptr));
+
+		assert(m_workerBeginRenderFrame[i] != NULL);
+		assert(m_workerFinishedRenderFrame[i] != NULL);
+		assert(m_threadHandles[i] != NULL);
+
+	}
+#endif
 }
 
 bool AppBase::InitGui()
@@ -728,79 +781,87 @@ void AppBase::RenderOpaqueObject()
 
 void AppBase::RenderPostEffects()
 {
-	m_commandList->RSSetViewports(1, &Graphics::mainViewport);
-	m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
+	m_curFrameResource->m_commandLists[CommandListPost]->RSSetViewports(1, &Graphics::mainViewport);
+	m_curFrameResource->m_commandLists[CommandListPost]->RSSetScissorRects(1, &Graphics::mainSissorRect);
 	// PSO 설정
-	m_commandList->SetPipelineState(Graphics::postEffectsPSO);
+	m_curFrameResource->m_commandLists[CommandListPost]->SetPipelineState(Graphics::postEffectsPSO);
 
 	// Transition the resource from its initial state to be used as a depth buffer.
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[0].GetResource(),
+	m_curFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[0].GetResource(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		D3D12_RESOURCE_STATE_GENERIC_READ));
 
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_floatBuffer.GetResource(),
+	m_curFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_floatBuffer.GetResource(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_STATE_RESOLVE_SOURCE));
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+	m_curFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
 		m_resolvedBuffer.GetResource(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_DEST));
 	// float msaa on => float mass off
-	m_commandList->ResolveSubresource(m_resolvedBuffer.GetResource(), 0,
+	m_curFrameResource->m_commandLists[CommandListPost]->ResolveSubresource(m_resolvedBuffer.GetResource(), 0,
 		m_floatBuffer.GetResource(), 0, DXGI_FORMAT_R16G16B16A16_FLOAT);
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+	m_curFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
 		m_resolvedBuffer.GetResource(),
 		D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET));
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_floatBuffer.GetResource(),
+	m_curFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_floatBuffer.GetResource(),
 		D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
 		D3D12_RESOURCE_STATE_RENDER_TARGET));
 	// post effects rtv 에 출력
-	m_commandList->SetGraphicsRootDescriptorTable(3, m_resolvedBuffer.GetSRV());
-	m_commandList->SetGraphicsRootDescriptorTable(5, D3D12_GPU_DESCRIPTOR_HANDLE(m_shadowMap[0].GetSRV()));
-	m_commandList->OMSetRenderTargets(1, &m_postEffectsBuffer.GetRTV(), false, nullptr);
+	m_curFrameResource->m_commandLists[CommandListPost]->SetGraphicsRootDescriptorTable(3, m_resolvedBuffer.GetSRV());
+	m_curFrameResource->m_commandLists[CommandListPost]->SetGraphicsRootDescriptorTable(5, D3D12_GPU_DESCRIPTOR_HANDLE(m_shadowMap[0].GetSRV()));
+	m_curFrameResource->m_commandLists[CommandListPost]->OMSetRenderTargets(1, &m_postEffectsBuffer.GetRTV(), false, nullptr);
 
 	m_postEffects.Render(m_commandList);
 
 	// Transition the resource from its initial state to be used as a depth buffer.
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[0].GetResource(),
+	m_curFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[0].GetResource(),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE));
 }
 
 void AppBase::RenderPostProcess()
 {
-	// back buffer 에 출력
-	{
-		//m_commandList->ResourceBarrier(
-		//	1, &CD3DX12_RESOURCE_BARRIER::Transition(m_postEffectsBuffer.GetResource(),
-		//		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		//		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
-		//// 사각형 하나 그리기
-		//m_commandList->SetGraphicsRootSignature(Graphics::postProcessRootSignature);
-		//// set srv
-		//m_commandList->SetGraphicsRootDescriptorTable(0, m_postEffectsBuffer.GetSRV());
-
-		//m_commandList->ResourceBarrier(
-		//	1, &CD3DX12_RESOURCE_BARRIER::Transition(Graphics::g_DisplayPlane[m_frameIndex].GetResource(),
-		//		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-		//m_commandList->OMSetRenderTargets(1, &Graphics::g_DisplayPlane[m_frameIndex].GetRTV(), false, nullptr);
-
-		//m_commandList->SetPipelineState(Graphics::postProcessPSO);
-
-		//m_postProcess.Render(m_commandList, m_frameIndex);
-
-		//m_commandList->ResourceBarrier(
-		//	1, &CD3DX12_RESOURCE_BARRIER::Transition(m_postEffectsBuffer.GetResource(),
-		//		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		//		D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-		m_postProcess.Render(m_commandList, m_frameIndex);
-	}
+	m_postProcess.Render(m_curFrameResource->m_commandLists[CommandListPost], m_frameIndex);
 }
 
 void AppBase::DestroyPSO()
 {
 	SAFE_RELEASE(Graphics::defaultWirePSO);
 	SAFE_RELEASE(Graphics::defaultSolidPSO);
+}
+
+void AppBase::BeginFrame()
+{
+	m_curFrameResource->Init();
+
+	m_curFrameResource->m_commandLists[CommandListPre]->RSSetViewports(1, &Graphics::shadowViewport);
+	m_curFrameResource->m_commandLists[CommandListPre]->RSSetScissorRects(1, &Graphics::shadowSissorRect);
+	m_curFrameResource->m_commandLists[CommandListPre]->SetGraphicsRootSignature(Graphics::defaultRootSignature);
+	ID3D12DescriptorHeap* descHeaps[] = { Graphics::s_Texture.Get(), Graphics::s_Sampler.Get() };
+	m_curFrameResource->m_commandLists[CommandListPre]->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
+	m_curFrameResource->m_commandLists[CommandListPre]->SetGraphicsRootDescriptorTable(3, m_cubeMapHandle[0]);
+}
+
+void AppBase::MidFrame()
+{
+	m_curFrameResource->m_commandLists[CommandListMid]->RSSetViewports(1, &Graphics::mainViewport);
+	m_curFrameResource->m_commandLists[CommandListMid]->RSSetScissorRects(1, &Graphics::mainSissorRect);
+
+	m_curFrameResource->m_commandLists[CommandListMid]->OMSetRenderTargets(1, &m_floatBuffer.GetRTV(), false, &m_depthBuffer.GetDSV());
+	// Record commands.
+	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+	m_curFrameResource->m_commandLists[CommandListMid]->ClearRenderTargetView(m_floatBuffer.GetRTV(), clearColor, 0, nullptr);
+	m_curFrameResource->m_commandLists[CommandListMid]->ClearDepthStencilView(m_depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_STENCIL | D3D12_CLEAR_FLAG_DEPTH,
+		1.0f, 0, 0, nullptr);
+
+	m_curFrameResource->m_commandLists[CommandListMid]->SetGraphicsRootConstantBufferView(0, m_curFrameResource->m_globalConstsBuffer->GetResource()->GetGPUVirtualAddress());
+	// shadow map srv.
+	m_curFrameResource->m_commandLists[CommandListMid]->SetGraphicsRootDescriptorTable(5, D3D12_GPU_DESCRIPTOR_HANDLE(m_shadowMap[0].GetSRV()));
+	m_curFrameResource->m_commandLists[CommandListMid]->SetGraphicsRootDescriptorTable(6, D3D12_GPU_DESCRIPTOR_HANDLE(Graphics::s_Sampler[0]));
+}
+
+void AppBase::EndFrame()
+{
 }
 
 void AppBase::CreateBuffers()
@@ -1089,4 +1150,8 @@ void AppBase::Resize()
 	m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
 	WaitForGpu();
+}
+
+void AppBase::WorkerThread(int threadIndex)
+{
 }

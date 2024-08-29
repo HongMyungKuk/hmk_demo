@@ -20,6 +20,7 @@ class Engine : public AppBase
     virtual void UpdateLights() override;
     virtual void Render() override;
     virtual void UpdateGui(const float frameRate) override;
+    virtual void EndFrame();
 
   private:
     std::string m_basePath = "";
