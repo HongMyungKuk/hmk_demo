@@ -71,27 +71,10 @@ void Model::Update()
 {
     m_meshUpload.Upload(0, &m_meshConstsData);
     m_materialUpload.Upload(0, &m_materialConstData);
-
-    // if (m_material.size() > 0)
-    //{
-    //     for (int32_t i = 0; i < m_material.size(); i++)
-    //     {
-    //         m_materialConstData.texIdx   = i;
-    //         m_materialConstData.ambient  = m_material[i].ambient;
-    //         m_materialConstData.diffuse  = m_material[i].diffuse;
-    //         m_materialConstData.specular = m_material[i].specular;
-    //         m_materialUpload.Upload(i, &m_materialConstData);
-    //     }
-    // }
-    // else
-    //{
-    //     m_materialUpload.Upload(0, &m_materialConstData);
-    // }
 }
 
 void Model::Render(ID3D12GraphicsCommandList *commandList)
 {
-    int idx = 0;
     for (auto &m : m_meshes)
     {
         if (!m_isTerrian)
@@ -100,14 +83,12 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
             commandList->SetGraphicsRootDescriptorTable(4, s_TerrainSRV);
 
         commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload.GetResource()->GetGPUVirtualAddress());
-        auto address = m_materialUpload.GetResource()->GetGPUVirtualAddress() + idx * sizeof(MaterialConsts);
         commandList->SetGraphicsRootConstantBufferView(2, m_materialUpload.GetResource()->GetGPUVirtualAddress());
 
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         commandList->IASetVertexBuffers(0, 1, &m.VertexBufferView());
         commandList->IASetIndexBuffer(&m.IndexBufferView());
         commandList->DrawIndexedInstanced(m.indexCount, 1, 0, 0, 0);
-        idx++;
 
         m_numRenderTriangles += m.indexCount;
     }

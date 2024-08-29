@@ -87,7 +87,7 @@ class Camera
     float m_nearZ = 0.1f;
     float m_farZ  = 500.0f;
 
-    float m_speed = 0.001f;
+    float m_speed = 1.0f;
 
     Matrix m_view;
 };

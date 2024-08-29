@@ -167,6 +167,10 @@ void ModelLoader::ProcessNode(aiNode *node, const aiScene *scene)
         {
             v.position = Vector3::Transform(v.position, m);
         }
+        for (auto& v : newMesh.skinnedVertices)
+        {
+            v.position = Vector3::Transform(v.position, m);
+        }
         m_meshes.push_back(newMesh);
     }
     // then do the same for each of its children
@@ -235,6 +239,14 @@ MeshData ModelLoader::ProceesMesh(aiMesh *mesh, const aiScene *scene)
             m_anim.boneTransform.resize(m_anim.boneNameToId.size());
 
             auto boneID = m_anim.boneNameToId[bone->mName.C_Str()];
+
+
+            //std::cout << bone->mName.C_Str() << std::endl;
+
+            if (std::string(bone->mName.C_Str()) == "mixamorig:RightHand")
+            {
+                int a = 1;
+            }
 
             m_anim.offsetMatrix[boneID] = Matrix((float *)&bone->mOffsetMatrix).Transpose();
 
