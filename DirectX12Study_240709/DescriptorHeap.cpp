@@ -3,5 +3,5 @@
 
 DescriptorHeap::~DescriptorHeap()
 {
-    SAFE_RELEASE(m_descriptorHeap);
+	SAFE_RELEASE(m_descriptorHeap);
 }

@@ -25,9 +25,6 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
     m_useFrameResource = useFrameResource;
     m_isTerrian = isTerrian;
 
-    //m_meshUpload.Initialize(device, 1);
-    //m_materialUpload.Initialize(device, 1);
-
     for (auto &m : meshes)
     {
         Mesh newMesh;

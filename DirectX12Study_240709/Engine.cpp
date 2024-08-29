@@ -194,7 +194,7 @@ bool Engine::Initialize()
 	// global const setting.
 	m_globalConstsData.envStrength = 0.0f;
 
-	AppBase::SetFrameResource(m_opaqueList.size() + 1, MAX_LIGHTS);
+	AppBase::SetFrameResource(m_opaqueList.size() + 1 + m_lightSpheres.size(), MAX_LIGHTS);
 
 	return true;
 }
@@ -404,22 +404,22 @@ void Engine::UpdateLights()
 	m_globalConstsData.lights[1] = m_light[1];
 	m_globalConstsData.lights[2] = m_light[2];
 
-	//for (uint32_t i = 0; i < 3; i++)
-	//{
-	//	if (m_light[i].type & POINT_LIGHT)
-	//	{
-	//		m_lightSpheres[0]->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(m_light[i].position)));
-	//	}
-	//	if (m_light[i].type & SPOT_LIGHT)
-	//	{
-	//		m_lightSpheres[1]->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(m_light[i].position)));
-	//	}
-	//}
+	for (uint32_t i = 0; i < 3; i++)
+	{
+		if (m_light[i].type & POINT_LIGHT)
+		{
+			m_lightSpheres[0]->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(m_light[i].position)));
+		}
+		if (m_light[i].type & SPOT_LIGHT)
+		{
+			m_lightSpheres[1]->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(m_light[i].position)));
+		}
+	}
 
-	//for (const auto& l : m_lightSpheres)
-	//{
-	//	l->Update(m_curFrameResource->m_meshConstsBuffer, m_curFrameResource->m_materialConstsBuffer);
-	//}
+	for (const auto& l : m_lightSpheres)
+	{
+		l->Update(m_curFrameResource->m_meshConstsBuffer, m_curFrameResource->m_materialConstsBuffer);
+	}
 
 	if (GameInput::IsFirstPressed(GameInput::kKey_b))
 	{
@@ -440,19 +440,19 @@ void Engine::Render()
 
 	m_commandList->SetGraphicsRootDescriptorTable(3, Graphics::s_Texture[1]);
 
-	//for (uint32_t i = 0; i < 3; i++)
-	//{
-	//	if (m_light[i].type & POINT_LIGHT)
-	//	{
-	//		m_commandList->SetPipelineState(m_lightSpheres[0]->GetPSO(m_isWireFrame));
-	//		m_lightSpheres[0]->Render(m_commandList);
-	//	}
-	//	if (m_light[i].type & SPOT_LIGHT)
-	//	{
-	//		m_commandList->SetPipelineState(m_lightSpheres[1]->GetPSO(m_isWireFrame));
-	//		m_lightSpheres[1]->Render(m_commandList);
-	//	}
-	//}
+	for (uint32_t i = 0; i < 3; i++)
+	{
+		if (m_light[i].type & POINT_LIGHT)
+		{
+			m_commandList->SetPipelineState(m_lightSpheres[0]->GetPSO(m_isWireFrame));
+			m_lightSpheres[0]->Render(m_commandList);
+		}
+		if (m_light[i].type & SPOT_LIGHT)
+		{
+			m_commandList->SetPipelineState(m_lightSpheres[1]->GetPSO(m_isWireFrame));
+			m_lightSpheres[1]->Render(m_commandList);
+		}
+	}
 
 	m_commandList->SetPipelineState(m_isWireFrame ? Graphics::defaultWirePSO : Graphics::defaultSolidPSO);
 	m_terrain->Render(m_frustum);

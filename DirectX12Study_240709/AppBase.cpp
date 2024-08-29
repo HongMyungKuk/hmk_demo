@@ -47,7 +47,10 @@ AppBase::AppBase()
 
 AppBase::~AppBase()
 {
-	WaitForGpu();
+	for (int i = 0; i < 3; i++)
+	{
+		SAFE_DELETE(m_frameResources[i]);
+	}
 
 	Graphics::DestroyGraphicsCommon();
 
@@ -127,6 +130,12 @@ bool AppBase::Initialize()
 
 	return true;
 }
+
+void AppBase::Destroy()
+{
+	WaitForGpu();
+}
+
 void AppBase::Update(const float dt)
 {
 	m_curFrameResourceIndex = (m_curFrameResourceIndex + 1) % 3;
@@ -191,9 +200,6 @@ int32_t AppBase::Run()
 		}
 		else
 		{
-			if (m_isKeyDown[VK_ESCAPE])
-				PostQuitMessage(0);
-
 			// Start the Dear ImGui frame
 			ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
@@ -232,10 +238,14 @@ int32_t AppBase::Run()
 			m_curFrameResource->m_fence = ++m_curFence;
 
 			m_commandQueue->Signal(m_fence, m_curFence);
+
+			if (m_isKeyDown[VK_ESCAPE])
+				break;
 		}
 	}
+	this->Destroy();
 	// Return this part of the WM_QUIT message to Windows.
-	return static_cast<int32_t>(msg.wParam);
+	return 1;
 }
 
 bool AppBase::InitWindow()
@@ -992,7 +1002,8 @@ void AppBase::InitLights()
 		lightSphere->GetMaterialConstCPU().albedoFactor = Vector3(0.0f);
 		lightSphere->GetMaterialConstCPU().emissionFactor = Vector3(1.0f, 1.0f, 0.0f);
 		lightSphere->UpdateWorldMatrix(Matrix::CreateTranslation(m_light[1].position));
-		m_opaqueList.push_back(lightSphere);
+		lightSphere->m_castShadow = false;
+		m_lightSpheres.push_back(lightSphere);
 	}
 	// spot light
 	{
@@ -1007,7 +1018,8 @@ void AppBase::InitLights()
 		lightSphere->GetMaterialConstCPU().albedoFactor = Vector3(0.0f);
 		lightSphere->GetMaterialConstCPU().emissionFactor = Vector3(1.0f, 1.0f, 0.0f);
 		lightSphere->UpdateWorldMatrix(Matrix::CreateTranslation(m_light[2].position));
-		m_opaqueList.push_back(lightSphere);
+		lightSphere->m_castShadow = false;
+		m_lightSpheres.push_back(lightSphere);
 	}
 }
 

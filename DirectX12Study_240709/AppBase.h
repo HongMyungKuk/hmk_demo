@@ -50,6 +50,7 @@ public:
 
 public:
 	virtual bool Initialize();
+	void Destroy();
 	virtual void UpdateGui(const float frameRate);
 	virtual void Render();
 	virtual void Update(const float dt);
