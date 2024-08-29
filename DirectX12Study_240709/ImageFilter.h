@@ -60,12 +60,24 @@ public:
 		m_constData.dy = 1.0f / height;
 
 		m_constsBuffer.Upload(0, &m_constData);
+
+		m_viewport.TopLeftX = 0;
+		m_viewport.TopLeftY = 0;
+		m_viewport.MinDepth = 0.0f;
+		m_viewport.MaxDepth = 1.0f;
+		m_viewport.Width = width;
+		m_viewport.Height = height;
+
+		m_rect.left = 0;
+		m_rect.top = 0;
+		m_rect.right = width;
+		m_rect.bottom = height;
 	}
 
 	void Render()
 	{
-		m_commandList->RSSetViewports(1, &Graphics::mainViewport);
-		m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
+		m_commandList->RSSetViewports(1, &m_viewport);
+		m_commandList->RSSetScissorRects(1, &m_rect);
 
 		m_commandList->SetGraphicsRootSignature(Graphics::postProcessRootSignature);
 		m_commandList->SetGraphicsRootConstantBufferView(2, m_constsBuffer.GetResource()->GetGPUVirtualAddress());
@@ -137,6 +149,9 @@ private:
 	ID3D12PipelineState* m_pso = nullptr;
 	std::vector<ColorBuffer*> m_rtvBuffer;
 	std::vector<ColorBuffer*> m_srvBuffer;
+
+	D3D12_VIEWPORT m_viewport;
+	D3D12_RECT m_rect;
 
 public:
 	ImageFilterConstData m_constData;

@@ -47,7 +47,6 @@ int RaySphereIntersection(in float3 start, in float3 dir, in float3 center, in f
 	}
 }
 
-// "Foundations of Game Engine Development" by Eric Lengyel, V2 p319
 float HaloEmission(float3 posView, float radius)
 {
 	// Halo
@@ -55,6 +54,8 @@ float HaloEmission(float3 posView, float radius)
 	float3 dir = normalize(posView - rayStart);
 
 	float3 center = mul(float4(haloPosition, 1.0), view).xyz; // View 공간으로 변환
+	
+
 
 	float t1 = 0.0;
 	float t2 = 0.0;

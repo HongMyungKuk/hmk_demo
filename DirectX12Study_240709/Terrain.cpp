@@ -96,6 +96,8 @@ void Terrain::InitDivideQuad(QuadTree **node, const float cx, const float cz, co
     (*node)->model = new Model;
     (*node)->model->Initialize(m_device, m_commandList, {_m}, {}, true);
     (*node)->model->GetMaterialConstCPU().useAlbedoMap = true;
+    (*node)->model->GetMaterialConstCPU().metalnessFactor = 0.0f;
+    (*node)->model->GetMaterialConstCPU().roughnessFactor = 1.0f;
 
     m_meshCompCount++;
 }
