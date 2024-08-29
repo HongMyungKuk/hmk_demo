@@ -180,4 +180,5 @@ class Model
 
   public:
     bool m_castShadow = true;
+    bool m_isDraw = true;
 };

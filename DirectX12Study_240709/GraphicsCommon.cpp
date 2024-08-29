@@ -278,7 +278,8 @@ namespace Graphics
 			rootParameters[5].InitAsDescriptorTable(_countof(rangeObj3), rangeObj3,
 				D3D12_SHADER_VISIBILITY_ALL); // t2 t3 t4
 			rootParameters[6].InitAsDescriptorTable(_countof(rangeObj4), rangeObj4, D3D12_SHADER_VISIBILITY_ALL); // s5
-			rootParameters[7].InitAsConstantBufferView(3); // b3 : material Consts
+			//rootParameters[7].InitAsConstantBufferView(3); // b3 : material Consts
+			rootParameters[7].InitAsShaderResourceView(14);
 
 			CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
 			rootSignatureDesc.Init(_countof(rootParameters), rootParameters, UINT(vecSamplerDesc.size()),

@@ -23,7 +23,7 @@ class QuadTree
     ~QuadTree();
 
     void Initialize(Model *terrain, std::vector<MeshData> meshes, ID3D12Device *device,
-                    ID3D12GraphicsCommandList *commandList);
+                    ID3D12GraphicsCommandList *commandList, std::vector<Model*>& opaqueLists);
     void ReleaseNode(NodeType *node);
     void Update();
     void Render(Frustum *frustum, ID3D12GraphicsCommandList *commandList);
@@ -38,7 +38,7 @@ class QuadTree
   private:
     void CaculateMeshDimesion(float &centerX, float &centerZ, float &wdith);
     void CreateTreeNode(NodeType *node, float positionX, float positionZ, float width, ID3D12Device *device,
-                        ID3D12GraphicsCommandList *commandList);
+                        ID3D12GraphicsCommandList *commandList, std::vector<Model*>& opaqueLists);
     int CountTriangles(float positionX, float positionZ, float width);
     void IsTriangleContained(int idx, float positionX, float positionZ, float width, MeshData meshData, bool *b,
                              int start, int end, int *count, MeshData *newMeshData);

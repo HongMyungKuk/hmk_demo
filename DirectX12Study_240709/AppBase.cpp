@@ -350,6 +350,8 @@ bool AppBase::InitD3D()
 		}
 	}
 
+	InitSRVAandSamplerDesriptorHeap();
+
 	this->Resize();
 
 	SAFE_RELEASE(factory);
@@ -577,7 +579,7 @@ void AppBase::UpdateGui(const float frameRate)
 	ImGui::Text("App average %.3f ms/frame (%.1f FPS)", 1000.0f / frameRate, frameRate);
 	auto cameraSpeed = m_camera->GetCameraSpeed();
 	// ImGui::SliderFloat("Camera speed", &cameraSpeed, 0.0001f, 0.001f, "%.4f");
-	ImGui::SliderFloat("Camera speed", &cameraSpeed, 0.003f, 0.005f, "%.4f");
+	ImGui::SliderFloat("Camera speed", &cameraSpeed, 1.0f, 3.0f, "%.4f");
 	if (cameraSpeed != m_camera->GetCameraSpeed())
 	{
 		m_camera->SetCameraSpeed(cameraSpeed);
@@ -681,16 +683,26 @@ void AppBase::RenderOpaqueObject()
 	m_commandList->SetGraphicsRootDescriptorTable(6, D3D12_GPU_DESCRIPTOR_HANDLE(Graphics::s_Sampler[0]));
 
 	// render object.
+	int count = 0;
 	for (auto& e : m_opaqueList)
 	{
-		m_commandList->SetPipelineState(e->GetPSO(m_isWireFrame));
-		e->Render(m_commandList);
-
-		if (m_drawAsNormal)
+		if (e->m_isDraw == true)
 		{
-			m_commandList->SetPipelineState(Graphics::normalPSO);
-			e->RenderNormal(m_commandList);
+			m_commandList->SetPipelineState(e->GetPSO(m_isWireFrame));
+			e->Render(m_commandList);
+
+			if (m_drawAsNormal)
+			{
+				m_commandList->SetPipelineState(Graphics::normalPSO);
+				e->RenderNormal(m_commandList);
+			}
 		}
+		//else
+		//{
+		//	std::cout << "Number of frustum culling object. " << std::endl;
+		//	count++;
+		//	std::cout << count << std::endl;
+		//}
 	}
 	// render skybox
 	m_commandList->SetPipelineState(Graphics::skyboxPSO);
@@ -780,7 +792,7 @@ void AppBase::CreateBuffers()
 	using namespace Graphics;
 
 	// Initialize Shader resource view and sampler descriptor heap.
-	this->InitSRVAandSamplerDesriptorHeap();
+	// this->InitSRVAandSamplerDesriptorHeap();
 
 	// Create a RTV for each frame.
 	D3D12_RESOURCE_DESC rtvDesc = {};

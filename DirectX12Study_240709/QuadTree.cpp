@@ -14,7 +14,7 @@ QuadTree::~QuadTree()
 }
 
 void QuadTree::Initialize(Model *terrain, std::vector<MeshData> meshes, ID3D12Device *device,
-                          ID3D12GraphicsCommandList *commandList)
+                          ID3D12GraphicsCommandList *commandList, std::vector<Model*>& opaqueLists)
 {
     float centerX = 0.0f;
     float centerZ = 0.0f;
@@ -26,7 +26,7 @@ void QuadTree::Initialize(Model *terrain, std::vector<MeshData> meshes, ID3D12De
 
     m_rootNode = new NodeType;
 
-    CreateTreeNode(m_rootNode, centerX, centerZ, width, device, commandList);
+    CreateTreeNode(m_rootNode, centerX, centerZ, width, device, commandList, opaqueLists);
 }
 
 void QuadTree::ReleaseNode(NodeType *node)
@@ -106,7 +106,7 @@ void QuadTree::CaculateMeshDimesion(float &centerX, float &centerZ, float &width
 }
 
 void QuadTree::CreateTreeNode(NodeType *node, float positionX, float positionZ, float width, ID3D12Device *device,
-                              ID3D12GraphicsCommandList *commandList)
+                              ID3D12GraphicsCommandList *commandList, std::vector<Model*>& opaqueLists)
 {
     static int nodeIdx = 0;
 
@@ -142,7 +142,7 @@ void QuadTree::CreateTreeNode(NodeType *node, float positionX, float positionZ, 
                 node->nodes[i] = new NodeType;
 
                 CreateTreeNode(node->nodes[i], (positionX + offsetX), (positionZ + offsetZ), (width / 2.0f), device,
-                               commandList);
+                               commandList, opaqueLists);
             }
         }
         return;
@@ -219,9 +219,12 @@ void QuadTree::CreateTreeNode(NodeType *node, float positionX, float positionZ, 
 
     node->model = new Model;
     node->model->Initialize(device, commandList, meshes, {}, true);
+    node->model->m_isDraw = false;
     node->model->GetMaterialConstCPU().albedoFactor = Vector3(1.0f);
     node->model->GetMaterialConstCPU().useAlbedoMap = true;
     node->meshData = meshes[0];
+
+    opaqueLists.push_back(node->model);
 }
 
 int QuadTree::CountTriangles(float positionX, float positionZ, float width)
@@ -392,7 +395,8 @@ void QuadTree::RenderNode(Frustum *frustum, NodeType *node, ID3D12GraphicsComman
         return;
     }
 
-    node->model->Render(commandList);
+    // node->model->Render(commandList);
+    node->model->m_isDraw = true;
 
     m_drawCount += node->triangleCount;
 }

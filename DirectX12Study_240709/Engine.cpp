@@ -61,6 +61,52 @@ bool Engine::Initialize()
 	//    m_opaqueList.push_back(obj);
 	//}
 
+
+	// Create the model.
+	{
+		Model* skinnedModel = new SkinnedMeshModel;
+		//Model* gun = new Model;
+		if (!skinnedModel)
+		{
+			return false;
+		}
+		{
+			std::string basePath = "../../Asset/Model/";
+			std::vector<std::string> animClips = { "Idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx",
+												  "Left Strafe Walking.fbx", "Walking Backward.fbx" };
+
+			AnimationData animData = {};
+			for (const auto& clip : animClips)
+			{
+				auto [_, anim] = GeometryGenerator::ReadFromAnimationFile(basePath.c_str(), clip.c_str());
+
+				if (animData.clips.empty())
+				{
+					animData = anim;
+				}
+				else
+				{
+					animData.clips.push_back(anim.clips.front());
+				}
+			}
+
+			auto [model, material] = GeometryGenerator::ReadFromModelFile(basePath.c_str(), "comp_model.fbx", true);
+			//MeshData gunMeshData = model.back();
+			//model.pop_back();
+
+			((SkinnedMeshModel*)skinnedModel)->Initialize(m_device, m_commandList, model, material, animData);
+			skinnedModel->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
+			skinnedModel->GetMaterialConstCPU().albedoFactor = Vector3(0.3f);
+			// skinnedModel->UpdateWorldMatrix(Matrix::CreateRotationY(XM_PI));
+			
+			//{
+			//	gun->Initialize(m_device, m_commandList, { gunMeshData });
+			//}
+		}
+		m_opaqueList.push_back(skinnedModel);
+		//m_opaqueList.push_back(gun);
+	}
+
 	{
 		m_terrain = new Terrain;
 		MeshData grid = GeometryGenerator::MakeSquareGrid(255, 255, 50.0f, Vector2(25.0f));
@@ -122,7 +168,7 @@ bool Engine::Initialize()
 			grid.vertices[i2].normal.Normalize();
 		}
 
-		m_terrain->Initialize(m_device, m_commandList, { grid });
+		m_terrain->Initialize(m_device, m_commandList, { grid }, m_opaqueList);
 	}
 
 	std::cout << m_terrain->GetMeshComponentSize() << std::endl;
@@ -131,51 +177,6 @@ bool Engine::Initialize()
 
 	m_DebugQaudTree = new DebugQuadTree;
 	m_DebugQaudTree->Initialize(m_device, m_commandList, m_terrain);
-
-	// Create the model.
-	{
-		Model* skinnedModel = new SkinnedMeshModel;
-		//Model* gun = new Model;
-		if (!skinnedModel)
-		{
-			return false;
-		}
-		{
-			std::string basePath = "../../Asset/Model/";
-			std::vector<std::string> animClips = { "Idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx",
-												  "Left Strafe Walking.fbx", "Walking Backward.fbx" };
-
-			AnimationData animData = {};
-			for (const auto& clip : animClips)
-			{
-				auto [_, anim] = GeometryGenerator::ReadFromAnimationFile(basePath.c_str(), clip.c_str());
-
-				if (animData.clips.empty())
-				{
-					animData = anim;
-				}
-				else
-				{
-					animData.clips.push_back(anim.clips.front());
-				}
-			}
-
-			auto [model, material] = GeometryGenerator::ReadFromModelFile(basePath.c_str(), "comp_model.fbx", true);
-			//MeshData gunMeshData = model.back();
-			//model.pop_back();
-
-			((SkinnedMeshModel*)skinnedModel)->Initialize(m_device, m_commandList, model, material, animData);
-			skinnedModel->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
-			skinnedModel->GetMaterialConstCPU().albedoFactor = Vector3(0.3f);
-			// skinnedModel->UpdateWorldMatrix(Matrix::CreateRotationY(XM_PI));
-			
-			//{
-			//	gun->Initialize(m_device, m_commandList, { gunMeshData });
-			//}
-		}
-		m_opaqueList.push_back(skinnedModel);
-		//m_opaqueList.push_back(gun);
-	}
 
 	// 태양 구현
 	m_billBoardSun = new BillboardModel;

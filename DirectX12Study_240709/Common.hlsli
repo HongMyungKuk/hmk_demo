@@ -23,11 +23,14 @@ Texture2D shadowMap1 : register(t12);
 Texture2D shadowMap2 : register(t13);
 // #define SKINNED 1
 
+//#ifdef SKINNED
+//cbuffer SkinnedMeshConsts : register(b3)
+//{
+//    Matrix bonesTransform[67];
+//}
+//#endif
 #ifdef SKINNED
-cbuffer SkinnedMeshConsts : register(b3)
-{
-    Matrix bonesTransform[67];
-}
+StructuredBuffer<Matrix> bonesTransform : register(t14);
 #endif
 
 struct Light

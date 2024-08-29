@@ -35,7 +35,8 @@ void SkinnedMeshModel::UpdateAnimation(int clipID, int frameCount)
 
 void SkinnedMeshModel::Render(ID3D12GraphicsCommandList *commandList)
 {
-    commandList->SetGraphicsRootConstantBufferView(7, m_boneTransform.GetResource()->GetGPUVirtualAddress());
+    //commandList->SetGraphicsRootConstantBufferView(7, m_boneTransform.GetResource()->GetGPUVirtualAddress());
+    commandList->SetGraphicsRootShaderResourceView(7, m_boneTransform.GetResource()->GetGPUVirtualAddress());
 
     Model::Render(commandList);
 }

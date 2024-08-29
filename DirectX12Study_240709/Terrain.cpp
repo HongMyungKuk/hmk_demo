@@ -6,7 +6,7 @@
 
 #define TRIANGLE_MAX_COUNT 5000
 
-void Terrain::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *cmdList, std::vector<MeshData> meshData)
+void Terrain::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *cmdList, std::vector<MeshData> meshData, std::vector<Model*>& opaqueLists)
 {
     m_device      = device;
     m_commandList = cmdList;
@@ -35,7 +35,7 @@ void Terrain::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *cmdLis
     float cz     = (minV.y + maxV.y) * 0.5f;
     float radius = XMMax(lenX, lenY) * 0.5f;
 
-    InitDivideQuad(&m_rootNode, cx, cz, radius, m);
+    InitDivideQuad(&m_rootNode, cx, cz, radius, m, opaqueLists);
 }
 
 void Terrain::Destroy()
@@ -59,7 +59,7 @@ void Terrain::Update()
     UpdateNode(m_rootNode);
 }
 
-void Terrain::InitDivideQuad(QuadTree **node, const float cx, const float cz, const float radius, const MeshData &m)
+void Terrain::InitDivideQuad(QuadTree **node, const float cx, const float cz, const float radius, const MeshData &m, std::vector<Model*>& opaqueLists)
 {
     *node = new QuadTree;
     assert(node);
@@ -77,10 +77,10 @@ void Terrain::InitDivideQuad(QuadTree **node, const float cx, const float cz, co
     // 삼각형의 갯수가 초과하면 Tree에 공간을 분할하여 저장한다.
     if (triangleCount > TRIANGLE_MAX_COUNT)
     {
-        InitDivideQuad(&(*node)->child[0], cx - radius * 0.5f, cz - radius * 0.5f, radius * 0.5f, _m);
-        InitDivideQuad(&(*node)->child[1], cx - radius * 0.5f, cz + radius * 0.5f, radius * 0.5f, _m);
-        InitDivideQuad(&(*node)->child[2], cx + radius * 0.5f, cz - radius * 0.5f, radius * 0.5f, _m);
-        InitDivideQuad(&(*node)->child[3], cx + radius * 0.5f, cz + radius * 0.5f, radius * 0.5f, _m);
+        InitDivideQuad(&(*node)->child[0], cx - radius * 0.5f, cz - radius * 0.5f, radius * 0.5f, _m, opaqueLists);
+        InitDivideQuad(&(*node)->child[1], cx - radius * 0.5f, cz + radius * 0.5f, radius * 0.5f, _m, opaqueLists);
+        InitDivideQuad(&(*node)->child[2], cx + radius * 0.5f, cz - radius * 0.5f, radius * 0.5f, _m, opaqueLists);
+        InitDivideQuad(&(*node)->child[3], cx + radius * 0.5f, cz + radius * 0.5f, radius * 0.5f, _m, opaqueLists);
 
         parentPassFlag++;
     }
@@ -98,6 +98,9 @@ void Terrain::InitDivideQuad(QuadTree **node, const float cx, const float cz, co
     (*node)->model->GetMaterialConstCPU().useAlbedoMap = true;
     (*node)->model->GetMaterialConstCPU().metalnessFactor = 0.0f;
     (*node)->model->GetMaterialConstCPU().roughnessFactor = 1.0f;
+    (*node)->model->m_isDraw = false;
+
+    opaqueLists.push_back((*node)->model);
 
     m_meshCompCount++;
 }
@@ -309,7 +312,9 @@ void Terrain::RenderNode(QuadTree *node)
 
     if (m_frustum->CheckCube(node->cx, 0.0f, node->cz, node->radius) == true)
     {
-        node->model->Render(m_commandList);
+        // node->model->Render(m_commandList);
+        
+        node->model->m_isDraw = true;
         m_meshCompRenderCount++;
     }
 }
@@ -334,7 +339,7 @@ void Terrain::DestroyNode(QuadTree *node)
         return;
     }
 
-    delete node->model;
+    // delete node->model; // opqaueList 에서 제거
     delete node;
 }
 
