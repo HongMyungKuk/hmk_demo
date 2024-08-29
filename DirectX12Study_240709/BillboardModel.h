@@ -18,10 +18,10 @@ class BillboardModel : public Model
         SAFE_RELEASE(m_mesh.vertexBuffer);
     }
 
-    void Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, std::vector<Vector4> points,
-                    float width);
+    void Initialize(ID3D12Device* device, ID3D12GraphicsCommandList* commandList,
+        std::vector<Vector4> points, float width, bool useFrameResource = true);
 
-    virtual void Update();
+    virtual void Update(UploadBuffer<MeshConsts>* meshGPU, UploadBuffer<MaterialConsts>* materialGPU);
     virtual void Render(ID3D12GraphicsCommandList *commandList);
 
     virtual ID3D12PipelineState *GetPSO(bool isWireFrame)

@@ -7,6 +7,7 @@
 #include "Model.h"
 #include "ModelViewer.h"
 #include "SkinnedMeshModel.h"
+#include "FrameResource.h"
 
 ModelViewer::ModelViewer() : AppBase()
 {
@@ -377,7 +378,7 @@ void ModelViewer::Render()
 
     // Root signature 이후에 변경 .... 방법 찾기
     m_commandList->SetGraphicsRootSignature(Graphics::defaultRootSignature);
-    m_commandList->SetGraphicsRootConstantBufferView(0, m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootConstantBufferView(0, m_curFrameResource->m_globalConstsBuffer->GetResource()->GetGPUVirtualAddress());
 
     m_commandList->SetGraphicsRootDescriptorTable(3, Graphics::s_Texture[1]);
 
@@ -637,7 +638,7 @@ void ModelViewer::UpdateLights()
 
     for (const auto &l : m_lightSpheres)
     {
-        l->Update();
+        //l->Update();
     }
 }
 

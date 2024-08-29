@@ -6,38 +6,38 @@
 
 DebugQuadTree::~DebugQuadTree()
 {
-    for (auto m : m_modelList)
-    {
-        SAFE_DELETE(m);
-    }
+    //for (auto m : m_modelList)
+    //{
+    //    SAFE_DELETE(m);
+    //}
 }
 
-void DebugQuadTree::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, Terrain *quadTree)
+void DebugQuadTree::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, Terrain *quadTree, std::vector<Model*>& opaqueLists)
 {
     m_device = device;
     m_commandList = commandList;
 
-    CreateCubeMeshs(quadTree->m_rootNode);
+    CreateCubeMeshs(quadTree->m_rootNode, opaqueLists);
 }
 
 void DebugQuadTree::Update()
 {
-    for (auto m : m_modelList)
-    {
-        m->Update();
-    }
+    //for (auto m : m_modelList)
+    //{
+    //    m->Update();
+    //}
 }
 
 void DebugQuadTree::Render(ID3D12GraphicsCommandList *commandList)
 {
-    for (auto m : m_modelList)
-    {
-        m->GetPSO(true);
-        m->Render(commandList);
-    }
+    //for (auto m : m_modelList)
+    //{
+    //    m->GetPSO(true);
+    //    m->Render(commandList);
+    //}
 }
 
-void DebugQuadTree::CreateCubeMeshs(Terrain::QuadTree* node)
+void DebugQuadTree::CreateCubeMeshs(Terrain::QuadTree* node, std::vector<Model*>& opaqueLists)
 {
     int count = 0;
     
@@ -47,7 +47,7 @@ void DebugQuadTree::CreateCubeMeshs(Terrain::QuadTree* node)
         {
             count++;
 
-            CreateCubeMeshs(node->child[i]);
+            CreateCubeMeshs(node->child[i], opaqueLists);
         }
     }
 
@@ -64,5 +64,5 @@ void DebugQuadTree::CreateCubeMeshs(Terrain::QuadTree* node)
     model->GetMaterialConstCPU().useEmissiveMap = false;
     model->GetMaterialConstCPU().emissionFactor = Vector3(0.0f, 1.0f, 0.0f);
 
-    m_modelList.push_back(model);
+    opaqueLists.push_back(model);
 }

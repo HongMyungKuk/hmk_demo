@@ -9,6 +9,7 @@
 #include "Input.h"
 #include "Model.h"
 #include "Timer.h"
+#include "FrameResource.h"
 
 AppBase* g_appBase = nullptr;
 DXGI_FORMAT g_BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -47,7 +48,6 @@ AppBase::AppBase()
 AppBase::~AppBase()
 {
 	WaitForGpu();
-	CloseHandle(m_fenceEvent);
 
 	Graphics::DestroyGraphicsCommon();
 
@@ -69,10 +69,7 @@ AppBase::~AppBase()
 	SAFE_DELETE(m_timer);
 	SAFE_RELEASE(m_fence);
 	SAFE_RELEASE(m_commandList);
-	for (uint32_t i = 0; i < s_frameCount; i++)
-	{
-		SAFE_RELEASE(m_commandAllocator[i]);
-	}
+	SAFE_RELEASE(m_commandAllocator);
 	SAFE_RELEASE(m_swapChain);
 	SAFE_RELEASE(m_commandQueue);
 	SAFE_RELEASE(m_device);
@@ -100,14 +97,12 @@ bool AppBase::Initialize()
 	// Mouse & Keyboard input initialize.
 	GameInput::Initialize();
 
-	// this->BuildSRVDesriptorHeap();
 	this->InitGlobalConsts();
 
 	// Init graphics common.
 	Graphics::InitGraphicsCommon(m_device);
 
-	// Init Light
-	InitLights();
+	ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
 
 	// Create sky box.
 	CREATE_OBJ(m_skybox, Model);
@@ -121,19 +116,30 @@ bool AppBase::Initialize()
 	CREATE_OBJ(m_depthMap, Model)
 	{
 		MeshData square = GeometryGenerator::MakeSquare(2.0f, 2.0f);
-		m_depthMap->Initialize(m_device, m_commandList, { square });
+		m_depthMap->Initialize(m_device, m_commandList, { square }, {}, false, false);
 	}
 
 	// Initialize the post effects.
 	m_postEffects.Initialize();
 	// Initialize the post process.
 	m_postProcess.Initialize(m_device, m_commandList, { &m_postEffectsBuffer },
-		{ &Graphics::g_DisplayPlane[0]}, Display::g_screenWidth, Display::g_screenHeight, 4);
+		{ &Graphics::g_DisplayPlane[0] }, Display::g_screenWidth, Display::g_screenHeight, 4);
 
 	return true;
 }
 void AppBase::Update(const float dt)
 {
+	m_curFrameResourceIndex = (m_curFrameResourceIndex + 1) % 3;
+	m_curFrameResource = m_frameResources[m_curFrameResourceIndex];
+
+	if (m_curFrameResource->m_fence != 0 && m_fence->GetCompletedValue() < m_curFrameResource->m_fence)
+	{
+		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+		ThrowIfFailed(m_fence->SetEventOnCompletion(m_curFrameResource->m_fence, eventHandle));
+		WaitForSingleObject(eventHandle, INFINITE);
+		CloseHandle(eventHandle);
+	}
+
 	m_timer->Update();
 
 	GameInput::Update(dt);
@@ -152,18 +158,19 @@ void AppBase::Update(const float dt)
 	{
 		e->GetMaterialConstCPU().metalnessFactor = m_metalness;
 		e->GetMaterialConstCPU().roughnessFactor = m_roughness;
-		e->Update();
+		e->Update(m_curFrameResource->m_meshConstsBuffer, m_curFrameResource->m_materialConstsBuffer);
 	}
 
-	m_skybox->Update();
-
-	m_postEffects.Update(m_globalConstsData);
+	m_skybox->Update(m_curFrameResource->m_meshConstsBuffer, m_curFrameResource->m_materialConstsBuffer);
 }
 
 void AppBase::Render()
 {
-	ThrowIfFailed(m_commandAllocator[m_frameIndex]->Reset());
-	ThrowIfFailed(m_commandList->Reset(m_commandAllocator[m_frameIndex], nullptr));
+	auto cmdAlloc = m_curFrameResource->m_commandAllocator;
+
+	ThrowIfFailed(cmdAlloc->Reset());
+	ThrowIfFailed(m_commandList->Reset(cmdAlloc, nullptr));
+
 	// Depth only pass.
 	RenderDepthOnlyPass();
 	// Render Object.
@@ -220,7 +227,11 @@ int32_t AppBase::Run()
 			// Present the frame.
 			ThrowIfFailed(m_swapChain->Present(1, 0));
 
-			MoveToNextFrame();
+			m_frameIndex = (m_frameIndex + 1) % s_frameCount;
+
+			m_curFrameResource->m_fence = ++m_curFence;
+
+			m_commandQueue->Signal(m_fence, m_curFence);
 		}
 	}
 	// Return this part of the WM_QUIT message to Windows.
@@ -321,16 +332,13 @@ bool AppBase::InitD3D()
 	m_swapChain = swapChain;
 	swapChain = nullptr;
 
-	for (uint32_t i = 0; i < s_frameCount; i++)
-	{
-		ThrowIfFailed(
-			m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator[i])));
-	}
+	ThrowIfFailed(
+		m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
 
 	m_frameIndex = 0;
 
 	// Create the command list.
-	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator[m_frameIndex],
+	ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator,
 		nullptr, IID_PPV_ARGS(&m_commandList)));
 
 	// Command lists are created in the recording state, but there is nothing
@@ -338,17 +346,7 @@ bool AppBase::InitD3D()
 	ThrowIfFailed(m_commandList->Close());
 
 	// Create synchronization objects.
-	{
-		ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-		m_fenceValue[m_frameIndex] = 1;
-
-		// Create an event handle to use for frame synchronization.
-		m_fenceEvent = CreateEvent(nullptr, false, false, nullptr);
-		if (m_fenceEvent == nullptr)
-		{
-			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-		}
-	}
+	ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
 
 	InitSRVAandSamplerDesriptorHeap();
 
@@ -449,8 +447,8 @@ void AppBase::GetHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdap
 
 void AppBase::InitGlobalConsts()
 {
-	m_globalConstsBuffer.Initialize(m_device, 1);
-	m_shadowConstBuffers.Initialize(m_device, MAX_LIGHTS);
+	//m_globalConstsBuffer.Initialize(m_device, 1);
+	//m_shadowConstBuffers.Initialize(m_device, MAX_LIGHTS);
 }
 
 void AppBase::UpdateGlobalConsts(const float dt)
@@ -502,10 +500,10 @@ void AppBase::UpdateGlobalConsts(const float dt)
 	m_globalConstsData.lights[2].proj = m_shadowConstsData[2].proj;
 
 	// update to gpu.
-	m_globalConstsBuffer.Upload(0, &m_globalConstsData);
+	m_curFrameResource->m_globalConstsBuffer->Upload(0, &m_globalConstsData);
 	for (uint32_t i = 0; i < 3; i++)
 	{
-		m_shadowConstBuffers.Upload(i, &m_shadowConstsData[i]);
+		m_curFrameResource->m_shadowConstsBuffer->Upload(i, &m_shadowConstsData[i]);
 	}
 }
 
@@ -534,6 +532,15 @@ void AppBase::UpdateCamera(const float dt)
 	if (GameInput::IsPressed(GameInput::kKey_e))
 	{
 		m_camera->MoveDown(dt);
+	}
+}
+
+void AppBase::SetFrameResource(uint32_t numModels, uint32_t numLights)
+{
+	for (uint32_t i = 0; i < 3; i++)
+	{
+		FrameResource* newFrameResource = new FrameResource(int(numModels), int(numLights), Graphics::defaultSolidPSO);
+		m_frameResources.push_back(newFrameResource);
 	}
 }
 
@@ -645,7 +652,7 @@ void AppBase::RenderDepthOnlyPass()
 
 	for (uint32_t i = 0; i < MAX_LIGHTS; i++)
 	{
-		m_commandList->SetGraphicsRootConstantBufferView(0, m_shadowConstBuffers.GetResource()->GetGPUVirtualAddress() +
+		m_commandList->SetGraphicsRootConstantBufferView(0, m_curFrameResource->m_shadowConstsBuffer->GetResource()->GetGPUVirtualAddress() +
 			i * sizeof(GlobalConsts));
 		m_commandList->OMSetRenderTargets(0, nullptr, false, &m_shadowMap[i].GetDSV());
 		m_commandList->ClearDepthStencilView(m_shadowMap[i].GetDSV(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
@@ -677,7 +684,7 @@ void AppBase::RenderOpaqueObject()
 	m_commandList->ClearDepthStencilView(m_depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_STENCIL | D3D12_CLEAR_FLAG_DEPTH,
 		1.0f, 0, 0, nullptr);
 
-	m_commandList->SetGraphicsRootConstantBufferView(0, m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
+	m_commandList->SetGraphicsRootConstantBufferView(0, m_curFrameResource->m_globalConstsBuffer->GetResource()->GetGPUVirtualAddress());
 	// shadow map srv.
 	m_commandList->SetGraphicsRootDescriptorTable(5, D3D12_GPU_DESCRIPTOR_HANDLE(m_shadowMap[0].GetSRV()));
 	m_commandList->SetGraphicsRootDescriptorTable(6, D3D12_GPU_DESCRIPTOR_HANDLE(Graphics::s_Sampler[0]));
@@ -880,24 +887,24 @@ LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 		return 0;
 
 	case WM_SIZE: {
-		using namespace Display;
+		//using namespace Display;
 
-		RECT rect = {};
-		GetClientRect(hWnd, &rect);
-		g_screenWidth = uint32_t(rect.right - rect.left);
-		g_screenHeight = uint32_t(rect.bottom - rect.top);
+		//RECT rect = {};
+		//GetClientRect(hWnd, &rect);
+		//g_screenWidth = uint32_t(rect.right - rect.left);
+		//g_screenHeight = uint32_t(rect.bottom - rect.top);
 
-		if (m_swapChain)
-		{
-			if (g_screenWidth && g_screenHeight)
-			{
-				this->Resize();
+		//if (m_swapChain)
+		//{
+		//	if (g_screenWidth && g_screenHeight)
+		//	{
+		//		this->Resize();
 
-				Graphics::mainViewport =
-					D3DUtils::CreateViewport(0.0f, 0.0f, (float)g_screenWidth, (float)g_screenHeight);
-				Graphics::mainSissorRect = D3DUtils::CreateScissorRect(0, 0, (long)g_screenWidth, (long)g_screenHeight);
-			}
-		}
+		//		Graphics::mainViewport =
+		//			D3DUtils::CreateViewport(0.0f, 0.0f, (float)g_screenWidth, (float)g_screenHeight);
+		//		Graphics::mainSissorRect = D3DUtils::CreateScissorRect(0, 0, (long)g_screenWidth, (long)g_screenHeight);
+		//	}
+		//}
 	}
 				break;
 	case WM_KEYDOWN:
@@ -937,45 +944,21 @@ LRESULT AppBase::MemberWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 
 void AppBase::WaitForGpu()
 {
-	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-	// This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
-	// sample illustrates how to use fences for efficient resource usage and to
-	// maximize GPU utilization.
+	m_curFence++;
 
-	// Signal and increment the fence value.
-	const UINT64 fence = m_fenceValue[m_frameIndex];
-	ThrowIfFailed(m_commandQueue->Signal(m_fence, fence));
-	m_fenceValue[m_frameIndex]++;
+	ThrowIfFailed(m_commandQueue->Signal(m_fence, m_curFence));
 
 	// Wait until the previous frame is finished.
-	if (m_fence->GetCompletedValue() < fence)
+	if (m_fence->GetCompletedValue() < m_curFence)
 	{
-		ThrowIfFailed(m_fence->SetEventOnCompletion(fence, m_fenceEvent));
-		WaitForSingleObject(m_fenceEvent, INFINITE);
+		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+		assert(eventHandle);
+
+		ThrowIfFailed(m_fence->SetEventOnCompletion(m_curFence, eventHandle));
+
+		WaitForSingleObject(eventHandle, INFINITE);
+		CloseHandle(eventHandle);
 	}
-}
-
-void AppBase::MoveToNextFrame()
-{
-	// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-	// This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
-	// sample illustrates how to use fences for efficient resource usage and to
-	// maximize GPU utilization.
-
-	// Signal and increment the fence value.
-	const UINT64 currentFenceValue = m_fenceValue[m_frameIndex];
-	ThrowIfFailed(m_commandQueue->Signal(m_fence, currentFenceValue));
-
-	m_frameIndex = (m_frameIndex + 1) % s_frameCount;
-
-	// Wait until the previous frame is finished.
-	if (m_fence->GetCompletedValue() < m_fenceValue[m_frameIndex])
-	{
-		ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValue[m_frameIndex], m_fenceEvent));
-		WaitForSingleObject(m_fenceEvent, INFINITE);
-	}
-
-	m_fenceValue[m_frameIndex] = currentFenceValue + 1;
 }
 
 void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename, std::wstring diffuseFilename,
@@ -993,8 +976,6 @@ void AppBase::InitCubemap(std::wstring basePath, std::wstring envFilename, std::
 
 void AppBase::InitLights()
 {
-	ThrowIfFailed(m_commandList->Reset(m_commandAllocator[m_frameIndex], nullptr));
-
 	// directional light
 	{
 		m_light[0].type |= DIRECTIONAL_LIGHT;
@@ -1011,7 +992,7 @@ void AppBase::InitLights()
 		lightSphere->GetMaterialConstCPU().albedoFactor = Vector3(0.0f);
 		lightSphere->GetMaterialConstCPU().emissionFactor = Vector3(1.0f, 1.0f, 0.0f);
 		lightSphere->UpdateWorldMatrix(Matrix::CreateTranslation(m_light[1].position));
-		m_lightSpheres.push_back(lightSphere);
+		m_opaqueList.push_back(lightSphere);
 	}
 	// spot light
 	{
@@ -1026,7 +1007,7 @@ void AppBase::InitLights()
 		lightSphere->GetMaterialConstCPU().albedoFactor = Vector3(0.0f);
 		lightSphere->GetMaterialConstCPU().emissionFactor = Vector3(1.0f, 1.0f, 0.0f);
 		lightSphere->UpdateWorldMatrix(Matrix::CreateTranslation(m_light[2].position));
-		m_lightSpheres.push_back(lightSphere);
+		m_opaqueList.push_back(lightSphere);
 	}
 }
 
@@ -1044,7 +1025,13 @@ void AppBase::Resize()
 	using namespace Display;
 	using namespace Graphics;
 
-	m_commandList->Reset(m_commandAllocator[m_frameIndex], nullptr);
+	assert(g_Device);
+	assert(m_swapChain);
+	assert(m_commandAllocator);
+
+	WaitForGpu();
+
+	m_commandList->Reset(m_commandAllocator, nullptr);
 
 	// Reset a RTV for each frame.
 	if (g_DisplayPlane[0].GetResource())

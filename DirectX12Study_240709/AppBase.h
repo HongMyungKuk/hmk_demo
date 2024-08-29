@@ -12,6 +12,7 @@ class Model;
 class Camera;
 class Timer;
 class ColorBuffer;
+class FrameResource;
 
 extern EventHandler g_EvnetHandler;
 
@@ -57,13 +58,12 @@ public:
 
 protected:
 	void WaitForGpu();
-	void MoveToNextFrame();
-
 	void InitCubemap(std::wstring basePath, std::wstring envFilename, std::wstring diffuseFilename,
 		std::wstring specularFilename, std::wstring brdfFilename);
 	virtual void InitLights();
 	virtual void UpdateLights();
 	void UpdateCamera(const float dt);
+	void SetFrameResource(uint32_t numModels, uint32_t numLights);
 
 private:
 	bool InitWindow();
@@ -102,14 +102,14 @@ protected:
 	// Pipeline objects.
 	IDXGISwapChain1* m_swapChain = nullptr;
 	ID3D12Device* m_device = nullptr;
-	ID3D12CommandAllocator* m_commandAllocator[s_frameCount] = {};
+	ID3D12CommandAllocator* m_commandAllocator = nullptr;
 	ID3D12CommandQueue* m_commandQueue = nullptr;
 	ID3D12GraphicsCommandList* m_commandList = nullptr;
 
 	GlobalConsts m_globalConstsData = {};
 	GlobalConsts m_shadowConstsData[MAX_LIGHTS] = {};
-	UploadBuffer<GlobalConsts> m_globalConstsBuffer;
-	UploadBuffer<GlobalConsts> m_shadowConstBuffers;
+	//UploadBuffer<GlobalConsts> m_globalConstsBuffer;
+	//UploadBuffer<GlobalConsts> m_shadowConstBuffers;
 
 	ColorBuffer m_floatBuffer;
 	ColorBuffer m_resolvedBuffer;
@@ -121,12 +121,6 @@ protected:
 	DescriptorHandle m_cubeMapHandle[4];
 	ID3D12Resource* m_cubeMapResource[4] = {};
 	int m_cubeMapType = 2;
-
-	// Synchronization objects.
-	uint32_t m_frameIndex = 0;
-	HANDLE m_fenceEvent = nullptr;
-	ID3D12Fence* m_fence = nullptr;
-	uint64_t m_fenceValue[s_frameCount] = {};
 
 	HWND m_hwnd = nullptr;
 	bool m_useWarpDevice = false;
@@ -167,4 +161,13 @@ protected:
 	float m_metalness = 0.0f;
 	float m_roughness = 0.0f;
 	bool m_useNormalMap = false;
+
+	std::vector<FrameResource*> m_frameResources = {};
+	FrameResource* m_curFrameResource = nullptr;
+	uint32_t m_curFrameResourceIndex = 0;
+
+	// Synchronization objects.
+	uint32_t m_frameIndex = 0;
+	ID3D12Fence* m_fence = nullptr;
+	uint64_t m_curFence = 0;
 };

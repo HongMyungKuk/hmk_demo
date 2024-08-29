@@ -368,7 +368,8 @@ void QuadTree::UpdateNode(NodeType *node)
         return;
     }
 
-    node->model->Update();
+    // opaqueList ¿¡¼­ Update ÇØÁÜ.
+    // node->model->Update();
 }
 
 void QuadTree::RenderNode(Frustum *frustum, NodeType *node, ID3D12GraphicsCommandList *commandList)

@@ -288,7 +288,8 @@ void Terrain::UpdateNode(QuadTree *node)
         return;
     }
 
-    node->model->Update();
+    // opaqueList에서 Update 진행.
+    // node->model->Update();
 }
 
 void Terrain::RenderNode(QuadTree *node)

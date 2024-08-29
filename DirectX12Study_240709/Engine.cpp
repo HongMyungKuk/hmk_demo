@@ -12,6 +12,7 @@
 // #include "QuadTree.h"
 #include "OceanModel.h"
 #include "Terrain.h"
+#include "FrameResource.h"
 // https://sketchfab.com/3d-models/gm-bigcity-f80855b6286944459392fc723ed0b50f#download
 // https://free3d.com/3d-model/sci-fi-downtown-city-53758.html
 
@@ -45,23 +46,6 @@ bool Engine::Initialize()
 	AppBase::InitCubemap(L"../../Asset/Skybox/HDRI/", L"SkyboxEnvHDR.dds", L"SkyboxDiffuseHDR.dds",
 		L"SkyboxSpecularHDR.dds", L"SkyboxBrdf.dds");
 
-	//// Create the grid.
-	//{
-	//    Model *obj = nullptr;
-	//    CREATE_MODEL_OBJ(obj);
-	//    {
-	//        const float texCoordSacle = 25.0f;
-	//        float radius              = 0.2f;
-	//        MeshData sphere           = GeometryGenerator::MakeSphere(radius, 25, 25);
-
-	//        obj->Initialize(m_device, m_commandList, {sphere});
-	//        obj->GetMaterialConstCPU().albedoFactor = Vector3(0.2f, 0.6f, 0.2f);
-	//        obj->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(0.0f, 5.0f, 0.0f)));
-	//    }
-	//    m_opaqueList.push_back(obj);
-	//}
-
-
 	// Create the model.
 	{
 		Model* skinnedModel = new SkinnedMeshModel;
@@ -91,20 +75,12 @@ bool Engine::Initialize()
 			}
 
 			auto [model, material] = GeometryGenerator::ReadFromModelFile(basePath.c_str(), "comp_model.fbx", true);
-			//MeshData gunMeshData = model.back();
-			//model.pop_back();
 
 			((SkinnedMeshModel*)skinnedModel)->Initialize(m_device, m_commandList, model, material, animData);
 			skinnedModel->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
 			skinnedModel->GetMaterialConstCPU().albedoFactor = Vector3(0.3f);
-			// skinnedModel->UpdateWorldMatrix(Matrix::CreateRotationY(XM_PI));
-			
-			//{
-			//	gun->Initialize(m_device, m_commandList, { gunMeshData });
-			//}
 		}
 		m_opaqueList.push_back(skinnedModel);
-		//m_opaqueList.push_back(gun);
 	}
 
 	{
@@ -175,8 +151,8 @@ bool Engine::Initialize()
 
 	m_frustum = new Frustum;
 
-	m_DebugQaudTree = new DebugQuadTree;
-	m_DebugQaudTree->Initialize(m_device, m_commandList, m_terrain);
+	//m_DebugQaudTree = new DebugQuadTree;
+	//m_DebugQaudTree->Initialize(m_device, m_commandList, m_terrain, m_opaqueList);
 
 	// 태양 구현
 	m_billBoardSun = new BillboardModel;
@@ -196,6 +172,10 @@ bool Engine::Initialize()
 		m_opaqueList.push_back(m_ocean);
 	}
 
+	//std::cout << m_opaqueList.size() << std::endl;
+
+	InitLights();
+
 	ThrowIfFailed(m_commandList->Close());
 	// Execute the command list.
 	ID3D12CommandList* ppCommandLists[] = { m_commandList };
@@ -213,6 +193,8 @@ bool Engine::Initialize()
 
 	// global const setting.
 	m_globalConstsData.envStrength = 0.0f;
+
+	AppBase::SetFrameResource(m_opaqueList.size() + 1, MAX_LIGHTS);
 
 	return true;
 }
@@ -379,7 +361,7 @@ void Engine::Update(const float dt)
 	m_frustum->ConstructFrustum(m_camera->GetFarZ(), m_globalConstsData.view.Transpose(),
 		m_globalConstsData.proj.Transpose());
 
-	m_DebugQaudTree->Update();
+	//m_DebugQaudTree->Update();
 
 	//m_postProcess.GetConstCPU().exposure     = m_exposureFactor;
 	//m_postProcess.GetConstCPU().gammeaFactor = m_gammaFactor;
@@ -422,22 +404,22 @@ void Engine::UpdateLights()
 	m_globalConstsData.lights[1] = m_light[1];
 	m_globalConstsData.lights[2] = m_light[2];
 
-	for (uint32_t i = 0; i < 3; i++)
-	{
-		if (m_light[i].type & POINT_LIGHT)
-		{
-			m_lightSpheres[0]->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(m_light[i].position)));
-		}
-		if (m_light[i].type & SPOT_LIGHT)
-		{
-			m_lightSpheres[1]->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(m_light[i].position)));
-		}
-	}
+	//for (uint32_t i = 0; i < 3; i++)
+	//{
+	//	if (m_light[i].type & POINT_LIGHT)
+	//	{
+	//		m_lightSpheres[0]->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(m_light[i].position)));
+	//	}
+	//	if (m_light[i].type & SPOT_LIGHT)
+	//	{
+	//		m_lightSpheres[1]->UpdateWorldMatrix(Matrix::CreateTranslation(Vector3(m_light[i].position)));
+	//	}
+	//}
 
-	for (const auto& l : m_lightSpheres)
-	{
-		l->Update();
-	}
+	//for (const auto& l : m_lightSpheres)
+	//{
+	//	l->Update(m_curFrameResource->m_meshConstsBuffer, m_curFrameResource->m_materialConstsBuffer);
+	//}
 
 	if (GameInput::IsFirstPressed(GameInput::kKey_b))
 	{
@@ -454,32 +436,32 @@ void Engine::Render()
 
 	// Root signature 이후에 변경 .... 방법 찾기
 	m_commandList->SetGraphicsRootSignature(Graphics::defaultRootSignature);
-	m_commandList->SetGraphicsRootConstantBufferView(0, m_globalConstsBuffer.GetResource()->GetGPUVirtualAddress());
+	m_commandList->SetGraphicsRootConstantBufferView(0, m_curFrameResource->m_globalConstsBuffer->GetResource()->GetGPUVirtualAddress());
 
 	m_commandList->SetGraphicsRootDescriptorTable(3, Graphics::s_Texture[1]);
 
-	for (uint32_t i = 0; i < 3; i++)
-	{
-		if (m_light[i].type & POINT_LIGHT)
-		{
-			m_commandList->SetPipelineState(m_lightSpheres[0]->GetPSO(m_isWireFrame));
-			m_lightSpheres[0]->Render(m_commandList);
-		}
-		if (m_light[i].type & SPOT_LIGHT)
-		{
-			m_commandList->SetPipelineState(m_lightSpheres[1]->GetPSO(m_isWireFrame));
-			m_lightSpheres[1]->Render(m_commandList);
-		}
-	}
+	//for (uint32_t i = 0; i < 3; i++)
+	//{
+	//	if (m_light[i].type & POINT_LIGHT)
+	//	{
+	//		m_commandList->SetPipelineState(m_lightSpheres[0]->GetPSO(m_isWireFrame));
+	//		m_lightSpheres[0]->Render(m_commandList);
+	//	}
+	//	if (m_light[i].type & SPOT_LIGHT)
+	//	{
+	//		m_commandList->SetPipelineState(m_lightSpheres[1]->GetPSO(m_isWireFrame));
+	//		m_lightSpheres[1]->Render(m_commandList);
+	//	}
+	//}
 
 	m_commandList->SetPipelineState(m_isWireFrame ? Graphics::defaultWirePSO : Graphics::defaultSolidPSO);
 	m_terrain->Render(m_frustum);
 
-	if (m_isDebugTreeFlag)
-	{
-		m_commandList->SetPipelineState(Graphics::defaultWirePSO);
-		m_DebugQaudTree->Render(m_commandList);
-	}
+	//if (m_isDebugTreeFlag)
+	//{
+	//	m_commandList->SetPipelineState(Graphics::defaultWirePSO);
+	//	m_DebugQaudTree->Render(m_commandList);
+	//}
 
 	AppBase::RenderPostEffects();
 	AppBase::RenderPostProcess();

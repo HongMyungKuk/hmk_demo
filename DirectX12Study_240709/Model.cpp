@@ -4,6 +4,7 @@
 #include "Model.h"
 
 DescriptorHandle s_TerrainSRV;
+int32_t s_cbIndex;
 
 Model::Model()
 {
@@ -19,12 +20,13 @@ Model::~Model()
 }
 
 void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandList, std::vector<MeshData> meshes,
-                       std::vector<MaterialConsts> materials, bool isTerrian)
+                       std::vector<MaterialConsts> materials, bool isTerrian, bool useFrameResource)
 {
+    m_useFrameResource = useFrameResource;
     m_isTerrian = isTerrian;
 
-    m_meshUpload.Initialize(device, 1);
-    m_materialUpload.Initialize(device, 1);
+    //m_meshUpload.Initialize(device, 1);
+    //m_materialUpload.Initialize(device, 1);
 
     for (auto &m : meshes)
     {
@@ -65,12 +67,24 @@ void Model::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList *commandL
 
         m_meshes.push_back(newMesh);
     }
+
+    if (m_useFrameResource)
+    {
+        m_cbIndex = s_cbIndex;
+        s_cbIndex++;
+    }
 }
 
-void Model::Update()
+void Model::Update(UploadBuffer<MeshConsts>* meshGPU, UploadBuffer<MaterialConsts>* materialGPU)
 {
-    m_meshUpload.Upload(0, &m_meshConstsData);
-    m_materialUpload.Upload(0, &m_materialConstData);
+    if (m_useFrameResource)
+    {
+        m_meshUpload = meshGPU;
+        m_materialUpload = materialGPU;
+
+        m_meshUpload->Upload(m_cbIndex, &m_meshConstsData);
+        m_materialUpload->Upload(m_cbIndex, &m_materialConstData);
+    }
 }
 
 void Model::Render(ID3D12GraphicsCommandList *commandList)
@@ -82,8 +96,8 @@ void Model::Render(ID3D12GraphicsCommandList *commandList)
         else
             commandList->SetGraphicsRootDescriptorTable(4, s_TerrainSRV);
 
-        commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload.GetResource()->GetGPUVirtualAddress());
-        commandList->SetGraphicsRootConstantBufferView(2, m_materialUpload.GetResource()->GetGPUVirtualAddress());
+        commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload->GetResource()->GetGPUVirtualAddress() + m_cbIndex * sizeof(MeshConsts));
+        commandList->SetGraphicsRootConstantBufferView(2, m_materialUpload->GetResource()->GetGPUVirtualAddress() + m_cbIndex * sizeof(MaterialConsts));
 
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         commandList->IASetVertexBuffers(0, 1, &m.VertexBufferView());
@@ -100,7 +114,7 @@ void Model::RenderNormal(ID3D12GraphicsCommandList *commandList)
 {
     for (auto &m : m_meshes)
     {
-        commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload.GetResource()->GetGPUVirtualAddress());
+        commandList->SetGraphicsRootConstantBufferView(1, m_meshUpload->GetResource()->GetGPUVirtualAddress());
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
         commandList->IASetVertexBuffers(0, 1, &m.VertexBufferView());
         commandList->DrawInstanced(m.vertexCount, 1, 0, 0);
