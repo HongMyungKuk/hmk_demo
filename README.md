@@ -1,4 +1,4 @@
-1. Run demo.sln.
+    1. Run demo.sln.
 
 
-2. hmk-demo project > Properties > Debugging > Command arguments > 3
+    2. hmk-demo project > Properties > Debugging > Command arguments > 3
