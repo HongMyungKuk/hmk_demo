@@ -177,15 +177,32 @@ void AppBase::Render()
 {
 	BeginFrame();
 
-#if true
+#if SINGLETHREADED
 	for (int i = 0; i < g_NumContext; i++)
 	{
 		WorkerThread(i);
 	}
+
 	MidFrame();
 	EndFrame();
 	m_commandQueue->ExecuteCommandLists(_countof(m_curFrameResource->m_batchSubmit), m_curFrameResource->m_batchSubmit);
 #endif
+	for (int i = 0; i < g_NumContext; i++)
+	{
+		SetEvent(m_workerBeginRenderFrame[i]); // Tell each worker to start drawing.
+	}
+
+	MidFrame();
+	EndFrame();
+
+	WaitForMultipleObjects(g_NumContext, m_workerFinishShadowPass, TRUE, INFINITE);
+
+	m_commandQueue->ExecuteCommandLists(g_NumContext + 2, m_curFrameResource->m_batchSubmit); // Submit PRE, MID and shadows.
+
+	WaitForMultipleObjects(g_NumContext, m_workerFinishedRenderFrame, TRUE, INFINITE);
+
+	// Submit remaining command lists.
+	m_commandQueue->ExecuteCommandLists(_countof(m_curFrameResource->m_batchSubmit) - g_NumContext - 2, m_curFrameResource->m_batchSubmit + g_NumContext + 2);
 }
 
 int32_t AppBase::Run()
@@ -217,6 +234,9 @@ int32_t AppBase::Run()
 			this->Update(ImGui::GetIO().DeltaTime);
 
 			this->Render();
+
+			ThrowIfFailed(m_commandAllocator->Reset());
+			ThrowIfFailed(m_commandList->Reset(m_commandAllocator, nullptr));
 
 			ID3D12DescriptorHeap* descHeaps[] = { m_imguiInitHeap.Get() };
 			m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
@@ -602,7 +622,7 @@ void AppBase::SetFrameResource(uint32_t numModels, uint32_t numLights)
 {
 	for (uint32_t i = 0; i < 3; i++)
 	{
-		FrameResource* newFrameResource = new FrameResource(int(numModels), int(numLights), Graphics::defaultSolidPSO);
+		FrameResource* newFrameResource = new FrameResource(int(numModels), int(numLights), Graphics::defaultSolidPSO, Graphics::depthOnlyPSO);
 		m_frameResources.push_back(newFrameResource);
 	}
 }
@@ -704,124 +724,49 @@ void AppBase::UpdateGui(const float frameRate)
 	}
 }
 
-void AppBase::RenderDepthOnlyPass()
+void AppBase::RenderPostEffects(ID3D12GraphicsCommandList* cmdList)
 {
-	m_commandList->RSSetViewports(1, &Graphics::shadowViewport);
-	m_commandList->RSSetScissorRects(1, &Graphics::shadowSissorRect);
-	m_commandList->SetGraphicsRootSignature(Graphics::defaultRootSignature);
-	ID3D12DescriptorHeap* descHeaps[] = { Graphics::s_Texture.Get(), Graphics::s_Sampler.Get() };
-	m_commandList->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
-	m_commandList->SetGraphicsRootDescriptorTable(3, m_cubeMapHandle[0]);
-
-	for (uint32_t i = 0; i < MAX_LIGHTS; i++)
-	{
-		m_commandList->SetGraphicsRootConstantBufferView(0, m_curFrameResource->m_shadowConstsBuffer->GetResource()->GetGPUVirtualAddress() +
-			i * sizeof(GlobalConsts));
-		m_commandList->OMSetRenderTargets(0, nullptr, false, &m_shadowMap[i].GetDSV());
-		m_commandList->ClearDepthStencilView(m_shadowMap[i].GetDSV(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-		// render object.
-		for (auto& e : m_opaqueList)
-		{
-			if (e->m_castShadow)
-			{
-				m_commandList->SetPipelineState(e->GetDepthOnlyPSO());
-				e->Render(m_commandList);
-			}
-		}
-		// render skybox
-		m_commandList->SetPipelineState(Graphics::depthOnlyPSO);
-		m_skybox->Render(m_commandList);
-	}
-}
-
-void AppBase::RenderOpaqueObject()
-{
-	m_commandList->RSSetViewports(1, &Graphics::mainViewport);
-	m_commandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
-
-	m_commandList->OMSetRenderTargets(1, &m_floatBuffer.GetRTV(), false, &m_depthBuffer.GetDSV());
-	// Record commands.
-	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-	m_commandList->ClearRenderTargetView(m_floatBuffer.GetRTV(), clearColor, 0, nullptr);
-	m_commandList->ClearDepthStencilView(m_depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_STENCIL | D3D12_CLEAR_FLAG_DEPTH,
-		1.0f, 0, 0, nullptr);
-
-	m_commandList->SetGraphicsRootConstantBufferView(0, m_curFrameResource->m_globalConstsBuffer->GetResource()->GetGPUVirtualAddress());
-	// shadow map srv.
-	m_commandList->SetGraphicsRootDescriptorTable(5, D3D12_GPU_DESCRIPTOR_HANDLE(m_shadowMap[0].GetSRV()));
-	m_commandList->SetGraphicsRootDescriptorTable(6, D3D12_GPU_DESCRIPTOR_HANDLE(Graphics::s_Sampler[0]));
-
-	// render object.
-	int count = 0;
-	for (auto& e : m_opaqueList)
-	{
-		if (e->m_isDraw == true)
-		{
-			m_commandList->SetPipelineState(e->GetPSO(m_isWireFrame));
-			e->Render(m_commandList);
-
-			if (m_drawAsNormal)
-			{
-				m_commandList->SetPipelineState(Graphics::normalPSO);
-				e->RenderNormal(m_commandList);
-			}
-		}
-		//else
-		//{
-		//	std::cout << "Number of frustum culling object. " << std::endl;
-		//	count++;
-		//	std::cout << count << std::endl;
-		//}
-	}
-	// render skybox
-	m_commandList->SetPipelineState(Graphics::skyboxPSO);
-	m_skybox->Render(m_commandList);
-}
-
-void AppBase::RenderPostEffects()
-{
-	m_curFrameResource->m_commandLists[CommandListPost]->RSSetViewports(1, &Graphics::mainViewport);
-	m_curFrameResource->m_commandLists[CommandListPost]->RSSetScissorRects(1, &Graphics::mainSissorRect);
+	cmdList->RSSetViewports(1, &Graphics::mainViewport);
+	cmdList->RSSetScissorRects(1, &Graphics::mainSissorRect);
 	// PSO 설정
-	m_curFrameResource->m_commandLists[CommandListPost]->SetPipelineState(Graphics::postEffectsPSO);
+	cmdList->SetPipelineState(Graphics::postEffectsPSO);
 
 	// Transition the resource from its initial state to be used as a depth buffer.
-	m_curFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[0].GetResource(),
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[0].GetResource(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		D3D12_RESOURCE_STATE_GENERIC_READ));
 
-	m_curFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_floatBuffer.GetResource(),
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_floatBuffer.GetResource(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_STATE_RESOLVE_SOURCE));
-	m_curFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
 		m_resolvedBuffer.GetResource(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_RESOLVE_DEST));
 	// float msaa on => float mass off
-	m_curFrameResource->m_commandLists[CommandListPost]->ResolveSubresource(m_resolvedBuffer.GetResource(), 0,
+	cmdList->ResolveSubresource(m_resolvedBuffer.GetResource(), 0,
 		m_floatBuffer.GetResource(), 0, DXGI_FORMAT_R16G16B16A16_FLOAT);
-	m_curFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
 		m_resolvedBuffer.GetResource(),
 		D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET));
-	m_curFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_floatBuffer.GetResource(),
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_floatBuffer.GetResource(),
 		D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
 		D3D12_RESOURCE_STATE_RENDER_TARGET));
 	// post effects rtv 에 출력
-	m_curFrameResource->m_commandLists[CommandListPost]->SetGraphicsRootDescriptorTable(3, m_resolvedBuffer.GetSRV());
-	m_curFrameResource->m_commandLists[CommandListPost]->SetGraphicsRootDescriptorTable(5, D3D12_GPU_DESCRIPTOR_HANDLE(m_shadowMap[0].GetSRV()));
-	m_curFrameResource->m_commandLists[CommandListPost]->OMSetRenderTargets(1, &m_postEffectsBuffer.GetRTV(), false, nullptr);
+	cmdList->SetGraphicsRootDescriptorTable(3, m_resolvedBuffer.GetSRV());
+	cmdList->SetGraphicsRootDescriptorTable(5, D3D12_GPU_DESCRIPTOR_HANDLE(m_shadowMap[0].GetSRV()));
+	cmdList->OMSetRenderTargets(1, &m_postEffectsBuffer.GetRTV(), false, nullptr);
 
-	m_postEffects.Render(m_commandList);
+	m_postEffects.Render(cmdList);
 
 	// Transition the resource from its initial state to be used as a depth buffer.
-	m_curFrameResource->m_commandLists[CommandListPost]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[0].GetResource(),
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowMap[0].GetResource(),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE));
 }
 
-void AppBase::RenderPostProcess()
+void AppBase::RenderPostProcess(ID3D12GraphicsCommandList* cmdList)
 {
-	m_postProcess.Render(m_curFrameResource->m_commandLists[CommandListPost], m_frameIndex);
+	m_postProcess.Render(cmdList, m_frameIndex);
 }
 
 void AppBase::DestroyPSO()
@@ -834,34 +779,17 @@ void AppBase::BeginFrame()
 {
 	m_curFrameResource->Init();
 
-	m_curFrameResource->m_commandLists[CommandListPre]->RSSetViewports(1, &Graphics::shadowViewport);
-	m_curFrameResource->m_commandLists[CommandListPre]->RSSetScissorRects(1, &Graphics::shadowSissorRect);
-	m_curFrameResource->m_commandLists[CommandListPre]->SetGraphicsRootSignature(Graphics::defaultRootSignature);
-	ID3D12DescriptorHeap* descHeaps[] = { Graphics::s_Texture.Get(), Graphics::s_Sampler.Get() };
-	m_curFrameResource->m_commandLists[CommandListPre]->SetDescriptorHeaps(_countof(descHeaps), descHeaps);
-	m_curFrameResource->m_commandLists[CommandListPre]->SetGraphicsRootDescriptorTable(3, m_cubeMapHandle[0]);
+	ThrowIfFailed(m_curFrameResource->m_commandLists[CommandListPre]->Close());
 }
 
 void AppBase::MidFrame()
 {
-	m_curFrameResource->m_commandLists[CommandListMid]->RSSetViewports(1, &Graphics::mainViewport);
-	m_curFrameResource->m_commandLists[CommandListMid]->RSSetScissorRects(1, &Graphics::mainSissorRect);
-
-	m_curFrameResource->m_commandLists[CommandListMid]->OMSetRenderTargets(1, &m_floatBuffer.GetRTV(), false, &m_depthBuffer.GetDSV());
-	// Record commands.
-	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-	m_curFrameResource->m_commandLists[CommandListMid]->ClearRenderTargetView(m_floatBuffer.GetRTV(), clearColor, 0, nullptr);
-	m_curFrameResource->m_commandLists[CommandListMid]->ClearDepthStencilView(m_depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_STENCIL | D3D12_CLEAR_FLAG_DEPTH,
-		1.0f, 0, 0, nullptr);
-
-	m_curFrameResource->m_commandLists[CommandListMid]->SetGraphicsRootConstantBufferView(0, m_curFrameResource->m_globalConstsBuffer->GetResource()->GetGPUVirtualAddress());
-	// shadow map srv.
-	m_curFrameResource->m_commandLists[CommandListMid]->SetGraphicsRootDescriptorTable(5, D3D12_GPU_DESCRIPTOR_HANDLE(m_shadowMap[0].GetSRV()));
-	m_curFrameResource->m_commandLists[CommandListMid]->SetGraphicsRootDescriptorTable(6, D3D12_GPU_DESCRIPTOR_HANDLE(Graphics::s_Sampler[0]));
+	ThrowIfFailed(m_curFrameResource->m_commandLists[CommandListMid]->Close());
 }
 
 void AppBase::EndFrame()
 {
+	ThrowIfFailed(m_curFrameResource->m_commandLists[CommandListPost]->Close());
 }
 
 void AppBase::CreateBuffers()
@@ -1154,4 +1082,83 @@ void AppBase::Resize()
 
 void AppBase::WorkerThread(int threadIndex)
 {
+	WaitForSingleObject(m_workerBeginRenderFrame[threadIndex], INFINITE);
+
+	ID3D12GraphicsCommandList* pShadowCommandList = m_curFrameResource->m_shadowCommandLists[threadIndex];
+	ID3D12GraphicsCommandList* pSceneCommandList = m_curFrameResource->m_sceneCommandLists[threadIndex];
+
+
+	pShadowCommandList->RSSetViewports(1, &Graphics::shadowViewport);
+	pShadowCommandList->RSSetScissorRects(1, &Graphics::shadowSissorRect);
+	pShadowCommandList->SetGraphicsRootSignature(Graphics::defaultRootSignature);
+	pShadowCommandList->SetGraphicsRootDescriptorTable(3, m_cubeMapHandle[0]);
+
+	for (uint32_t i = 0; i < MAX_LIGHTS; i++)
+	{
+		pShadowCommandList->SetGraphicsRootConstantBufferView(0, m_curFrameResource->m_shadowConstsBuffer->GetResource()->GetGPUVirtualAddress() +
+			i * sizeof(GlobalConsts));
+		pShadowCommandList->OMSetRenderTargets(0, nullptr, false, &m_shadowMap[i].GetDSV());
+		pShadowCommandList->ClearDepthStencilView(m_shadowMap[i].GetDSV(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+		// render object.
+		for (auto& e : m_opaqueList)
+		{
+			if (e->m_castShadow)
+			{
+				pShadowCommandList->SetPipelineState(e->GetDepthOnlyPSO());
+				e->Render(pShadowCommandList);
+			}
+		}
+		// render skybox
+		pShadowCommandList->SetPipelineState(Graphics::depthOnlyPSO);
+		m_skybox->Render(pShadowCommandList);
+	}
+
+	ThrowIfFailed(pShadowCommandList->Close());
+
+#if !SINGLETHREADED
+	// Submit shadow pass.
+	SetEvent(m_workerFinishShadowPass[threadIndex]);
+#endif
+
+	pSceneCommandList->RSSetViewports(1, &Graphics::mainViewport);
+	pSceneCommandList->RSSetScissorRects(1, &Graphics::mainSissorRect);
+
+	pSceneCommandList->OMSetRenderTargets(1, &m_floatBuffer.GetRTV(), false, &m_depthBuffer.GetDSV());
+	// Record commands.
+	const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+	pSceneCommandList->ClearRenderTargetView(m_floatBuffer.GetRTV(), clearColor, 0, nullptr);
+	pSceneCommandList->ClearDepthStencilView(m_depthBuffer.GetDSV(), D3D12_CLEAR_FLAG_STENCIL | D3D12_CLEAR_FLAG_DEPTH,
+		1.0f, 0, 0, nullptr);
+
+	pSceneCommandList->SetGraphicsRootConstantBufferView(0, m_curFrameResource->m_globalConstsBuffer->GetResource()->GetGPUVirtualAddress());
+	// shadow map srv.
+	pSceneCommandList->SetGraphicsRootDescriptorTable(5, D3D12_GPU_DESCRIPTOR_HANDLE(m_shadowMap[0].GetSRV()));
+	pSceneCommandList->SetGraphicsRootDescriptorTable(6, D3D12_GPU_DESCRIPTOR_HANDLE(Graphics::s_Sampler[0]));
+
+	// render object.
+	int count = 0;
+	for (auto& e : m_opaqueList)
+	{
+		if (e->m_isDraw == true)
+		{
+			pSceneCommandList->SetPipelineState(e->GetPSO(m_isWireFrame));
+			e->Render(pSceneCommandList);
+
+			if (m_drawAsNormal)
+			{
+				pSceneCommandList->SetPipelineState(Graphics::normalPSO);
+				e->RenderNormal(pSceneCommandList);
+			}
+		}
+		//else
+		//{
+		//	std::cout << "Number of frustum culling object. " << std::endl;
+		//	count++;
+		//	std::cout << count << std::endl;
+		//}
+	}
+	// render skybox
+	pSceneCommandList->SetPipelineState(Graphics::skyboxPSO);
+	m_skybox->Render(pSceneCommandList);
 }

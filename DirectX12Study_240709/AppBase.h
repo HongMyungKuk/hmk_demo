@@ -94,8 +94,8 @@ protected:
 	void EndFrame();
 
 protected:
-	void RenderPostEffects();
-	void RenderPostProcess();
+	void RenderPostEffects(ID3D12GraphicsCommandList* cmdList);
+	void RenderPostProcess(ID3D12GraphicsCommandList* cmdList);
 
 public:
 	static float GetAspect()

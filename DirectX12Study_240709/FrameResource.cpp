@@ -76,8 +76,15 @@ void FrameResource::Init()
 	{
 		ThrowIfFailed(m_commandAllocators[i]->Reset());
 		ThrowIfFailed(m_commandLists[i]->Reset(m_commandAllocators[i], m_scenePSO));
+	}
 
-		// Clear the depth stencil buffer in preparation for rendering the shadow map.
-		m_commandLists[CommandListPre]->ClearDepthStencilView(m_shadowHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	// Reset the worker command allocators and lists.
+	for (int i = 0; i < g_NumContext; i++)
+	{
+		ThrowIfFailed(m_shadowCommandAllocators[i]->Reset());
+		ThrowIfFailed(m_shadowCommandLists[i]->Reset(m_shadowCommandAllocators[i], m_shadowPSO));
+
+		ThrowIfFailed(m_sceneCommandAllocators[i]->Reset());
+		ThrowIfFailed(m_sceneCommandLists[i]->Reset(m_sceneCommandAllocators[i], m_scenePSO));
 	}
 }

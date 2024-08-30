@@ -21,6 +21,7 @@ class Engine : public AppBase
     virtual void Render() override;
     virtual void UpdateGui(const float frameRate) override;
     virtual void EndFrame();
+    virtual void WorkerThread(int threadIndex);
 
   private:
     std::string m_basePath = "";
