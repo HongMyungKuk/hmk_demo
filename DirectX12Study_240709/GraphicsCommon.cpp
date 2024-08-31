@@ -45,12 +45,14 @@ namespace Graphics
 	ID3DBlob* bloomUpPS;
 	ID3DBlob* combinePS;
 	ID3DBlob* samplingVS;
+	ID3DBlob* basicCS;
 
 	D3D12_BLEND_DESC coverBS;
 	D3D12_BLEND_DESC alphaBS;
 
 	ID3D12RootSignature* postProcessRootSignature = nullptr;
 	ID3D12RootSignature* defaultRootSignature = nullptr;
+	ID3D12RootSignature* computeRootSignature = nullptr;
 
 	D3D12_VIEWPORT mainViewport;
 	D3D12_VIEWPORT shadowViewport;
@@ -73,6 +75,7 @@ namespace Graphics
 	ID3D12PipelineState* billBoardPointsPSO;
 	ID3D12PipelineState* depthOnlyBillboardPSO;
 	ID3D12PipelineState* oceanPSO;
+	ID3D12PipelineState* computePSO;
 
 	void InitGraphicsCommon(ID3D12Device* device)
 	{
@@ -190,6 +193,8 @@ namespace Graphics
 		D3DUtils::CreateShader(L"BloomDownPS.hlsl", &bloomDownPS, "main", "ps_5_0");
 
 		D3DUtils::CreateShader(L"CombinePS.hlsl", &combinePS, "main", "ps_5_0");
+
+		D3DUtils::CreateShader(L"DefaultCS.hlsl", &basicCS, "main", "cs_5_0");
 
 		basicILDesc = { {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 					   {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -322,6 +327,31 @@ namespace Graphics
 
 			ThrowIfFailed(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(),
 				IID_PPV_ARGS(&postProcessRootSignature)));
+		}
+
+		{
+			// Create root signature.
+			CD3DX12_DESCRIPTOR_RANGE uavTable[1] = {};
+			uavTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+
+			D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+			CD3DX12_ROOT_PARAMETER rootParameters[1] = {};
+			//rootParameters[0].InitAsConstantBufferView(0);
+			rootParameters[0].InitAsDescriptorTable(1, uavTable);
+
+			CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+			rootSignatureDesc.Init(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
+
+			ID3DBlob* signature = nullptr;
+			ID3DBlob* error = nullptr;
+			HRESULT hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error);
+			if (error)
+				std::cout << (char*)error->GetBufferPointer() << std::endl;
+			ThrowIfFailed(hr);
+
+			ThrowIfFailed(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(),
+				IID_PPV_ARGS(&computeRootSignature)));
 		}
 	}
 
@@ -513,10 +543,17 @@ namespace Graphics
 		//psoDesc.SampleDesc.Count = 1;
 		//psoDesc.SampleDesc.Quality = 0;
 		//ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&postProcessPSO)));
+
+		D3D12_COMPUTE_PIPELINE_STATE_DESC computePsoDesc = {};
+		computePsoDesc.pRootSignature = computeRootSignature;
+		computePsoDesc.CS = CD3DX12_SHADER_BYTECODE(basicCS);
+		computePsoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+		ThrowIfFailed(device->CreateComputePipelineState(&computePsoDesc, IID_PPV_ARGS(&computePSO)));
 	}
 
 	void DestroyPipeLineState()
 	{
+		SAFE_RELEASE(computePSO);
 		SAFE_RELEASE(oceanPSO);
 		SAFE_RELEASE(depthOnlyBillboardPSO);
 		SAFE_RELEASE(postProcessPSO);
@@ -535,6 +572,7 @@ namespace Graphics
 
 	void DestroyShader()
 	{
+		SAFE_RELEASE(basicCS);
 		SAFE_RELEASE(combinePS);
 		SAFE_RELEASE(samplingVS);
 		SAFE_RELEASE(bloomUpPS);
@@ -561,6 +599,7 @@ namespace Graphics
 	void DestroyGraphicsCommon()
 	{
 		DestroyPipeLineState();
+		SAFE_RELEASE(computeRootSignature);
 		SAFE_RELEASE(defaultRootSignature);
 		SAFE_RELEASE(postProcessRootSignature);
 		DestroyShader();

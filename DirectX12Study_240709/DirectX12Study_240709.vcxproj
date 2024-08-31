@@ -146,6 +146,7 @@
     <ClCompile Include="CollisionSample.cpp" />
     <ClCompile Include="ColorBuffer.cpp" />
     <ClCompile Include="Command.cpp" />
+    <ClCompile Include="ComputeShader.cpp" />
     <ClCompile Include="ConstantBuffer.cpp" />
     <ClCompile Include="D3DUtils.cpp" />
     <ClCompile Include="DebugQuadTree.cpp" />
@@ -193,6 +194,7 @@
     <ClInclude Include="CollisionSample.h" />
     <ClInclude Include="ColorBuffer.h" />
     <ClInclude Include="Command.h" />
+    <ClInclude Include="ComputeShader.h" />
     <ClInclude Include="ConstantBuffer.h" />
     <ClInclude Include="D3DUtils.h" />
     <ClInclude Include="d3dx12.h" />
@@ -259,6 +261,16 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="DefaultCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
     </FxCompile>
     <FxCompile Include="DefaultVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>

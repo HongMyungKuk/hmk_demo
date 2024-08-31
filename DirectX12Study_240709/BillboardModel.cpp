@@ -16,7 +16,7 @@ void BillboardModel::Initialize(ID3D12Device *device, ID3D12GraphicsCommandList 
     m_billBoardConstData.width = width;
 
     m_srv       = Graphics::s_Texture.Alloc(1);
-    m_uploadTex = D3DUtils::CreateTexture(device, commandList, "../../Asset/shadertoy_fireball.jpg", &m_texture,
+    m_uploadTex = D3DUtils::CreateTexture(device, commandList, "../Assets/shadertoy_fireball.jpg", &m_texture,
                                           D3D12_CPU_DESCRIPTOR_HANDLE(m_srv));
     if (m_useFrameResource)
     {

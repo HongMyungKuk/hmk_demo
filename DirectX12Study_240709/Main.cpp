@@ -4,7 +4,7 @@
 #include "MapTool.h"
 #include "Engine.h"
 #include "CollisionSample.h"
-
+#include "ComputeShader.h"
 
 int main(int argc, char *argv[])
 {
@@ -27,8 +27,13 @@ int main(int argc, char *argv[])
         break;
     case 2:
         app = new CollisionSample;
+        break;
     case 3:
         app = new Engine;
+        break;
+    case 4:
+        app = new ComputeShader;
+        break;
     }
 
     if (!app->Initialize())

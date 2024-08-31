@@ -52,12 +52,14 @@ namespace Graphics
 	extern ID3DBlob* bloomUpPS;
 	extern ID3DBlob* combinePS;
 	extern ID3DBlob* samplingVS;
+	extern ID3DBlob* basicCS;
 
 	extern D3D12_BLEND_DESC coverBS;
 	extern D3D12_BLEND_DESC alphaBS;
 
 	extern ID3D12RootSignature* postProcessRootSignature;
 	extern ID3D12RootSignature* defaultRootSignature;
+	extern ID3D12RootSignature* computeRootSignature;
 
 	extern D3D12_VIEWPORT mainViewport;
 	extern D3D12_VIEWPORT shadowViewport;
@@ -80,6 +82,7 @@ namespace Graphics
 	extern ID3D12PipelineState* billBoardPointsPSO;
 	extern ID3D12PipelineState* depthOnlyBillboardPSO;
 	extern ID3D12PipelineState* oceanPSO;
+	extern ID3D12PipelineState* computePSO;
 
 
 	void InitGraphicsCommon(ID3D12Device* device);

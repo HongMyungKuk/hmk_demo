@@ -19,6 +19,9 @@
     <Filter Include="Engine">
       <UniqueIdentifier>{42d71ec4-d989-4ee9-8cdf-49b5e797b245}</UniqueIdentifier>
     </Filter>
+    <Filter Include="CSExample">
+      <UniqueIdentifier>{b1f5cafa-0a0f-4cb2-a229-1328ffe544d0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -140,6 +143,9 @@
     </ClCompile>
     <ClCompile Include="FrameResource.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ComputeShader.cpp">
+      <Filter>CSExample</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -266,6 +272,9 @@
     <ClInclude Include="FrameResource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ComputeShader.h">
+      <Filter>CSExample</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Common.hlsli">
@@ -327,6 +336,9 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="BloomUpPS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="DefaultCS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

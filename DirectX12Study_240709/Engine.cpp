@@ -45,7 +45,7 @@ bool Engine::Initialize()
 		CREATE_OBJ(m_camera, Camera);
 	}
 
-	AppBase::InitCubemap(L"../../Asset/Skybox/HDRI/", L"SkyboxEnvHDR.dds", L"SkyboxDiffuseHDR.dds",
+	AppBase::InitCubemap(L"../Assets/Skybox/HDRI/", L"SkyboxEnvHDR.dds", L"SkyboxDiffuseHDR.dds",
 		L"SkyboxSpecularHDR.dds", L"SkyboxBrdf.dds");
 
 	// Create the model.
@@ -57,7 +57,7 @@ bool Engine::Initialize()
 			return false;
 		}
 		{
-			std::string basePath = "../../Asset/Model/";
+			std::string basePath = "../Assets/Model/";
 			std::vector<std::string> animClips = { "Idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx",
 												  "Left Strafe Walking.fbx", "Walking Backward.fbx" };
 
@@ -87,16 +87,18 @@ bool Engine::Initialize()
 
 	{
 		m_terrain = new Terrain;
+		
+		std::string basePath = "../Assets/Terrain/";
 		MeshData grid = GeometryGenerator::MakeSquareGrid(255, 255, 50.0f, Vector2(25.0f));
 		s_TerrainSRV = Graphics::s_Texture.Alloc(1);
-		m_uploadResource = D3DUtils::CreateTexture(m_device, m_commandList, "../../Asset/GroundDirtRocky020_COL_4K.jpg",
+		m_uploadResource = D3DUtils::CreateTexture(m_device, m_commandList, basePath + "GroundDirtRocky020_COL_4K.jpg",
 			&m_terrainTexResource, D3D12_CPU_DESCRIPTOR_HANDLE(s_TerrainSRV));
 
 		uint8_t* image = nullptr;
 		int width = 0;
 		int height = 0;
 		int channel = 0;
-		ReadImage(&image, "../../Asset/heightmap01.bmp", width, height, channel);
+		ReadImage(&image, basePath + "heightmap01.bmp", width, height, channel);
 
 		for (auto& v : grid.vertices)
 		{
