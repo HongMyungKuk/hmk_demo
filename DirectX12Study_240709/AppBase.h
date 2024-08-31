@@ -8,6 +8,8 @@
 #include "PostEffects.h"
 #include "PostProcess.h"
 
+extern AppBase* g_appBase;
+
 class Model;
 class Camera;
 class Timer;
@@ -69,6 +71,7 @@ protected:
 private:
 	bool InitWindow();
 	bool InitD3D();
+	void InitContext();
 	virtual bool InitGui();
 
 	void Resize();
@@ -77,8 +80,6 @@ private:
 	void InitSRVAandSamplerDesriptorHeap();
 
 	void UpdateGlobalConsts(const float dt);
-	void RenderDepthOnlyPass();
-	void RenderOpaqueObject();
 
 	void OnMouse(const float x, const float y);
 
@@ -88,14 +89,21 @@ private:
 	void DestroyPSO();
 
 protected:
-	void RenderPostEffects();
-	void RenderPostProcess();
+	void BeginFrame();
+	void MidFrame();
+	void EndFrame();
+
+protected:
+	void RenderPostEffects(ID3D12GraphicsCommandList* cmdList);
+	void RenderPostProcess(ID3D12GraphicsCommandList* cmdList);
 
 public:
 	static float GetAspect()
 	{
 		return ((float)Display::g_screenWidth - Display::g_imguiWidth) / Display::g_screenHeight;
 	}
+	static AppBase* Get() { return g_appBase; }
+	void WorkerThread(int threadIndex);
 
 protected:
 	Camera* m_camera = nullptr;
@@ -145,6 +153,11 @@ private:
 	Timer* m_timer = nullptr;
 	// Key control
 	bool m_isKeyDown[256] = {};
+	struct ThreadParameter
+	{
+		int threadIndex;
+	};
+	ThreadParameter m_threadParameters[g_NumContext];
 
 protected:
 	// Object list.
@@ -171,4 +184,9 @@ protected:
 	uint32_t m_frameIndex = 0;
 	ID3D12Fence* m_fence = nullptr;
 	uint64_t m_curFence = 0;
+
+	HANDLE m_workerBeginRenderFrame[g_NumContext];
+	HANDLE m_workerFinishShadowPass[g_NumContext];
+	HANDLE m_workerFinishedRenderFrame[g_NumContext];
+	HANDLE m_threadHandles[g_NumContext];
 };
