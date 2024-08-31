@@ -29,6 +29,8 @@ Engine::~Engine()
 	SAFE_DELETE(m_terrain);
 	SAFE_RELEASE(m_uploadResource);
 	SAFE_RELEASE(m_terrainTexResource);
+
+	int test;
 }
 
 bool Engine::Initialize()
