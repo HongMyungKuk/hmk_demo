@@ -205,63 +205,63 @@ void Engine::Update(const float dt)
 {
 	AppBase::Update(dt);
 
-	UpdateCamera(dt);
+	// UpdateCamera(dt);
 
 	m_opaqueList[0]->SetVelocity(Vector3(0.0f));
 	m_opaqueList[0]->SetSpeed(2.5f);
 
-	//Vector3 translation = m_opaqueList[0]->GetWorldRow().Translation();
-	//m_opaqueList[0]->GetWorldRow().Translation(Vector3(0.0f));
-	//m_opaqueList[0]->UpdateWorldMatrix(Matrix::CreateRotationY(XM_PI) * Matrix::CreateRotationY(m_camera->GetPitch()) *
-	//                                   Matrix::CreateTranslation(translation));
+	Vector3 translation = m_opaqueList[0]->GetWorldRow().Translation();
+	m_opaqueList[0]->GetWorldRow().Translation(Vector3(0.0f));
+	m_opaqueList[0]->UpdateWorldMatrix(Matrix::CreateRotationY(XM_PI) * Matrix::CreateRotationY(m_camera->GetPitch()) *
+	                                   Matrix::CreateTranslation(translation));
 
 	m_terrain->Update();
 
-	//// 캐릭터가 튀는 현상이 발생.
-	//float height            = 0.0f; // object radius.
-	//static float prevHeight = 0.0f;
-	//// static bool heightFlag  = false;
-	//// if (heightFlag)
-	////{
-	////     m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, -prevHeight, 0.0f));
-	////     m_light[1].position =
-	////         Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, -prevHeight, 0.0f)));
-	////     heightFlag = false;
-	//// }
+	// 캐릭터가 튀는 현상이 발생.
+	float height            = 0.0f; // object radius.
+	static float prevHeight = 0.0f;
+	// static bool heightFlag  = false;
+	// if (heightFlag)
+	//{
+	//     m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, -prevHeight, 0.0f));
+	//     m_light[1].position =
+	//         Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, -prevHeight, 0.0f)));
+	//     heightFlag = false;
+	// }
 
-	//m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, -prevHeight, 0.0f));
-	//m_light[1].position =
-	//    Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, -prevHeight, 0.0f)));
+	m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, -prevHeight, 0.0f));
+	m_light[1].position =
+	    Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, -prevHeight, 0.0f)));
 
-	//m_terrain->GetObjectHeight(m_opaqueList[0]->GetPos().x, m_opaqueList[0]->GetPos().z, &height);
+	m_terrain->GetObjectHeight(m_opaqueList[0]->GetPos().x, m_opaqueList[0]->GetPos().z, &height);
 
-	//// if (height != prevHeight)
-	////{
-	////     translation = m_opaqueList[0]->GetWorldRow().Translation();
-	////     m_opaqueList[0]->GetWorldRow().Translation(Vector3(0.0f));
-	////     m_opaqueList[0]->UpdateWorldMatrix(
-	////         m_opaqueList[0]->GetWorldRow() *
-	////         Matrix::CreateTranslation(Vector3(m_opaqueList[0]->GetPos().x, height, m_opaqueList[0]->GetPos().z)));
+	// if (height != prevHeight)
+	//{
+	//     translation = m_opaqueList[0]->GetWorldRow().Translation();
+	//     m_opaqueList[0]->GetWorldRow().Translation(Vector3(0.0f));
+	//     m_opaqueList[0]->UpdateWorldMatrix(
+	//         m_opaqueList[0]->GetWorldRow() *
+	//         Matrix::CreateTranslation(Vector3(m_opaqueList[0]->GetPos().x, height, m_opaqueList[0]->GetPos().z)));
 
-	////    m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, height, 0.0f));
-	////    m_light[1].position =
-	////        Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, height, 0.0f)));
-	////    // heightFlag = true;
-	////}
+	//    m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, height, 0.0f));
+	//    m_light[1].position =
+	//        Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, height, 0.0f)));
+	//    // heightFlag = true;
+	//}
 
-	//// prevHeight = height;
+	// prevHeight = height;
 
-	//translation = m_opaqueList[0]->GetWorldRow().Translation();
-	//m_opaqueList[0]->GetWorldRow().Translation(Vector3(0.0f));
-	//m_opaqueList[0]->UpdateWorldMatrix(
-	//    m_opaqueList[0]->GetWorldRow() *
-	//    Matrix::CreateTranslation(Vector3(m_opaqueList[0]->GetPos().x, height, m_opaqueList[0]->GetPos().z)));
+	translation = m_opaqueList[0]->GetWorldRow().Translation();
+	m_opaqueList[0]->GetWorldRow().Translation(Vector3(0.0f));
+	m_opaqueList[0]->UpdateWorldMatrix(
+	    m_opaqueList[0]->GetWorldRow() *
+	    Matrix::CreateTranslation(Vector3(m_opaqueList[0]->GetPos().x, height, m_opaqueList[0]->GetPos().z)));
 
-	//prevHeight = height;
+	prevHeight = height;
 
-	//m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, height, 0.0f));
-	//m_light[1].position =
-	//    Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, height, 0.0f)));
+	m_camera->SetPosition(m_camera->GetPosition() + Vector3(0.0f, height, 0.0f));
+	m_light[1].position =
+	    Vector3::Transform(m_light[1].position, Matrix::CreateTranslation(Vector3(0.0f, height, 0.0f)));
 
 	if (((SkinnedMeshModel*)m_opaqueList[0])->GetAnim().clips.size() > 0)
 	{
@@ -271,90 +271,90 @@ void Engine::Update(const float dt)
 			static int frameCount = 0;
 			static int state = 0;
 
-			//if (GameInput::IsFirstPressed(GameInput::kKey_w))
-			//{
-			//    if (state == 0)
-			//    {
-			//        state = 1;
-			//    }
-			//}
-			//if (GameInput::IsFirstPressed(GameInput::kKey_d))
-			//{
-			//    if (state == 0)
-			//    {
-			//        state = 2;
-			//    }
-			//}
-			//if (GameInput::IsFirstPressed(GameInput::kKey_a))
-			//{
-			//    if (state == 0)
-			//    {
-			//        state = 3;
-			//    }
-			//}
-			//if (GameInput::IsFirstPressed(GameInput::kKey_s))
-			//{
-			//    if (state == 0)
-			//    {
-			//        state = 4;
-			//    }
-			//}
-			//if (GameInput::IsFirstReleased(GameInput::kKey_w) || GameInput::IsFirstReleased(GameInput::kKey_d) ||
-			//    GameInput::IsFirstReleased(GameInput::kKey_a) || GameInput::IsFirstReleased(GameInput::kKey_s))
-			//{
-			//    state = 0;
-			//}
+			if (GameInput::IsFirstPressed(GameInput::kKey_w))
+			{
+			    if (state == 0)
+			    {
+			        state = 1;
+			    }
+			}
+			if (GameInput::IsFirstPressed(GameInput::kKey_d))
+			{
+			    if (state == 0)
+			    {
+			        state = 2;
+			    }
+			}
+			if (GameInput::IsFirstPressed(GameInput::kKey_a))
+			{
+			    if (state == 0)
+			    {
+			        state = 3;
+			    }
+			}
+			if (GameInput::IsFirstPressed(GameInput::kKey_s))
+			{
+			    if (state == 0)
+			    {
+			        state = 4;
+			    }
+			}
+			if (GameInput::IsFirstReleased(GameInput::kKey_w) || GameInput::IsFirstReleased(GameInput::kKey_d) ||
+			    GameInput::IsFirstReleased(GameInput::kKey_a) || GameInput::IsFirstReleased(GameInput::kKey_s))
+			{
+			    state = 0;
+			}
 
-			//// TODO!!
-			//// 애니메시연 Event handler 통합하기
+			// TODO!!
+			// 애니메시연 Event handler 통합하기
 
-			//// m_opaqueList[0]->SetSpeed(0.005f);
+			// m_opaqueList[0]->SetSpeed(0.005f);
 
-			//if (GameInput::IsPressed(GameInput::kKey_w))
-			//{
-			//    state = 1;
-			//    m_opaqueList[0]->AddVelocity(m_camera->GetDirection());
-			//    m_camera->SetCameraSpeed(m_opaqueList[0]->GetSpeed());
-			//    m_camera->MoveFront(dt);
-			//    m_light[1].position = Vector3::Transform(
-			//        m_light[1].position,
-			//        Matrix::CreateTranslation(m_opaqueList[0]->GetSpeed() * m_opaqueList[0]->GetVelocity() * dt));
-			//}
-			//else if (GameInput::IsPressed(GameInput::kKey_d))
-			//{
-			//    state = 2;
-			//    m_opaqueList[0]->AddVelocity(m_camera->GetRightDirection());
-			//    m_camera->SetCameraSpeed(m_opaqueList[0]->GetSpeed());
-			//    m_camera->MoveRight(dt);
-			//    m_light[1].position = Vector3::Transform(
-			//        m_light[1].position,
-			//        Matrix::CreateTranslation(m_opaqueList[0]->GetSpeed() * m_opaqueList[0]->GetVelocity() * dt));
-			//}
-			//else if (GameInput::IsPressed(GameInput::kKey_a))
-			//{
-			//    state = 3;
-			//    m_opaqueList[0]->AddVelocity(-m_camera->GetRightDirection());
-			//    m_camera->SetCameraSpeed(m_opaqueList[0]->GetSpeed());
-			//    m_camera->MoveLeft(dt);
-			//    m_light[1].position = Vector3::Transform(
-			//        m_light[1].position,
-			//        Matrix::CreateTranslation(m_opaqueList[0]->GetSpeed() * m_opaqueList[0]->GetVelocity() * dt));
-			//}
-			//else if (GameInput::IsPressed(GameInput::kKey_s))
-			//{
-			//    state = 4;
-			//    m_opaqueList[0]->AddVelocity(-m_camera->GetDirection());
-			//    m_camera->SetCameraSpeed(m_opaqueList[0]->GetSpeed());
-			//    m_camera->MoveBack(dt);
-			//    m_light[1].position = Vector3::Transform(
-			//        m_light[1].position,
-			//        Matrix::CreateTranslation(m_opaqueList[0]->GetSpeed() * m_opaqueList[0]->GetVelocity() * dt));
-			//}
+			if (GameInput::IsPressed(GameInput::kKey_w))
+			{
+			    state = 1;
+			    m_opaqueList[0]->AddVelocity(m_camera->GetDirection());
+			    m_camera->SetCameraSpeed(m_opaqueList[0]->GetSpeed());
+			    m_camera->MoveFront(dt);
+			    m_light[1].position = Vector3::Transform(
+			        m_light[1].position,
+			        Matrix::CreateTranslation(m_opaqueList[0]->GetSpeed() * m_opaqueList[0]->GetVelocity() * dt));
+			}
+			else if (GameInput::IsPressed(GameInput::kKey_d))
+			{
+			    state = 2;
+			    m_opaqueList[0]->AddVelocity(m_camera->GetRightDirection());
+			    m_camera->SetCameraSpeed(m_opaqueList[0]->GetSpeed());
+			    m_camera->MoveRight(dt);
+			    m_light[1].position = Vector3::Transform(
+			        m_light[1].position,
+			        Matrix::CreateTranslation(m_opaqueList[0]->GetSpeed() * m_opaqueList[0]->GetVelocity() * dt));
+			}
+			else if (GameInput::IsPressed(GameInput::kKey_a))
+			{
+			    state = 3;
+			    m_opaqueList[0]->AddVelocity(-m_camera->GetRightDirection());
+			    m_camera->SetCameraSpeed(m_opaqueList[0]->GetSpeed());
+			    m_camera->MoveLeft(dt);
+			    m_light[1].position = Vector3::Transform(
+			        m_light[1].position,
+			        Matrix::CreateTranslation(m_opaqueList[0]->GetSpeed() * m_opaqueList[0]->GetVelocity() * dt));
+			}
+			else if (GameInput::IsPressed(GameInput::kKey_s))
+			{
+			    state = 4;
+			    m_opaqueList[0]->AddVelocity(-m_camera->GetDirection());
+			    m_camera->SetCameraSpeed(m_opaqueList[0]->GetSpeed());
+			    m_camera->MoveBack(dt);
+			    m_light[1].position = Vector3::Transform(
+			        m_light[1].position,
+			        Matrix::CreateTranslation(m_opaqueList[0]->GetSpeed() * m_opaqueList[0]->GetVelocity() * dt));
+			}
 
-			//// if (m_aniPlayFlag)
-			////     state = m_selectedAnim;
+			// if (m_aniPlayFlag)
+			//     state = m_selectedAnim;
 
-			//m_opaqueList[0]->Move(dt);
+			m_opaqueList[0]->Move(dt);
 
 			((SkinnedMeshModel*)m_opaqueList[0])->UpdateAnimation(state, frameCount++);
 		}

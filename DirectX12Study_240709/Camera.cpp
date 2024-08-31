@@ -2,19 +2,20 @@
 
 #include "Camera.h"
 
-Matrix Camera::GetViewMatrix()
-{
-    return Matrix::CreateTranslation(-m_eyePosition) * Matrix::CreateRotationY(-m_pitch) *
-           Matrix::CreateRotationX(m_yaw) * Matrix::CreateFromQuaternion(m_q);
-}
-//
+//// First person view caemra.
 //Matrix Camera::GetViewMatrix()
 //{
-//    m_view = Matrix::CreateTranslation(m_startEyePosition - m_eyePosition) * Matrix::CreateRotationY(-m_pitch) * Matrix::CreateRotationX(m_yaw) * Matrix::CreateFromQuaternion(m_q) *
-//             Matrix::CreateTranslation(-m_eyePosition) * Matrix::CreateTranslation(m_eyePosition - m_startEyePosition);
-//
-//    return m_view;
+//    return Matrix::CreateTranslation(-m_eyePosition) * Matrix::CreateRotationY(-m_pitch) *
+//           Matrix::CreateRotationX(m_yaw) * Matrix::CreateFromQuaternion(m_q);
 //}
+
+Matrix Camera::GetViewMatrix()
+{
+    m_view = Matrix::CreateTranslation(m_startEyePosition - m_eyePosition) * Matrix::CreateRotationY(-m_pitch) * Matrix::CreateRotationX(m_yaw) * Matrix::CreateFromQuaternion(m_q) *
+             Matrix::CreateTranslation(-m_eyePosition) * Matrix::CreateTranslation(m_eyePosition - m_startEyePosition);
+
+    return m_view;
+}
 
 Matrix Camera::GetProjectionMatrix()
 {
