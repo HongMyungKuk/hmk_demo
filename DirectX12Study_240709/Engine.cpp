@@ -56,7 +56,7 @@ bool Engine::Initialize()
 		}
 		{
 			std::string basePath = "../../Asset/Model/";
-			std::vector<std::string> animClips = { "Idle.fbx", "Running_60.fbx", "Right Strafe Walking.fbx",
+			std::vector<std::string> animClips = { "test4.fbx", "Running_60.fbx", "Right Strafe Walking.fbx",
 												  "Left Strafe Walking.fbx", "Walking Backward.fbx" };
 
 			AnimationData animData = {};
@@ -74,7 +74,7 @@ bool Engine::Initialize()
 				}
 			}
 
-			auto [model, material] = GeometryGenerator::ReadFromModelFile(basePath.c_str(), "comp_model.fbx", true);
+			auto [model, material] = GeometryGenerator::ReadFromModelFile(basePath.c_str(), "test4.fbx", true);
 
 			((SkinnedMeshModel*)skinnedModel)->Initialize(m_device, m_commandList, model, material, animData);
 			skinnedModel->GetMaterialConstCPU().useAlbedoMap = m_useTexture;
