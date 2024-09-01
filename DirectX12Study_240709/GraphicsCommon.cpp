@@ -152,49 +152,51 @@ namespace Graphics
 		UINT compileFlags = 0;
 #endif
 
-		D3DUtils::CreateShader(L"DefaultVS.hlsl", &basicVS, "main", "vs_5_1");
+		std::wstring basePath = L"../Shader/";
 
-		D3DUtils::CreateShader(L"DefaultVS.hlsl", &skinnedVS, "main", "vs_5_1", { {"SKINNED", "1"}, {NULL, NULL} });
+		D3DUtils::CreateShader(basePath + L"DefaultVS.hlsl", &basicVS, "main", "vs_5_1");
 
-		D3DUtils::CreateShader(L"UIShader.hlsl", &uiVS, "vsmain", "vs_5_1");
+		D3DUtils::CreateShader(basePath + L"DefaultVS.hlsl", &skinnedVS, "main", "vs_5_1", { {"SKINNED", "1"}, {NULL, NULL} });
 
-		D3DUtils::CreateShader(L"PostEffectsVS.hlsl", &postEffecstVS, "main", "vs_5_1");
+		D3DUtils::CreateShader(basePath + L"UIShader.hlsl", &uiVS, "vsmain", "vs_5_1");
 
-		D3DUtils::CreateShader(L"DepthOnlyPS.hlsl", &depthOnlyPS, "main", "ps_5_1");
+		D3DUtils::CreateShader(basePath + L"PostEffectsVS.hlsl", &postEffecstVS, "main", "vs_5_1");
 
-		D3DUtils::CreateShader(L"DefaultPS.hlsl", &basicPS, "main", "ps_5_1");
+		D3DUtils::CreateShader(basePath + L"DepthOnlyPS.hlsl", &depthOnlyPS, "main", "ps_5_1");
 
-		D3DUtils::CreateShader(L"NormalShader.hlsl", &normalVS, "vsmain", "vs_5_1");
+		D3DUtils::CreateShader(basePath + L"DefaultPS.hlsl", &basicPS, "main", "ps_5_1");
 
-		D3DUtils::CreateShader(L"NormalShader.hlsl", &normalGS, "gsmain", "gs_5_1");
+		D3DUtils::CreateShader(basePath + L"NormalShader.hlsl", &normalVS, "vsmain", "vs_5_1");
 
-		D3DUtils::CreateShader(L"NormalShader.hlsl", &normalPS, "psmain", "ps_5_1");
+		D3DUtils::CreateShader(basePath + L"NormalShader.hlsl", &normalGS, "gsmain", "gs_5_1");
 
-		D3DUtils::CreateShader(L"Skybox.hlsl", &skyboxVS, "vsmain", "vs_5_1");
+		D3DUtils::CreateShader(basePath + L"NormalShader.hlsl", &normalPS, "psmain", "ps_5_1");
 
-		D3DUtils::CreateShader(L"Skybox.hlsl", &skyboxPS, "psmain", "ps_5_1");
+		D3DUtils::CreateShader(basePath + L"Skybox.hlsl", &skyboxVS, "vsmain", "vs_5_1");
 
-		D3DUtils::CreateShader(L"DummyPS.hlsl", &dummyPS, "main", "ps_5_1");
+		D3DUtils::CreateShader(basePath + L"Skybox.hlsl", &skyboxPS, "psmain", "ps_5_1");
 
-		D3DUtils::CreateShader(L"PostProcessPS.hlsl", &postProcessPS, "main", "ps_5_1");
+		D3DUtils::CreateShader(basePath + L"DummyPS.hlsl", &dummyPS, "main", "ps_5_1");
 
-		D3DUtils::CreateShader(L"BillboardVS.hlsl", &billBoardVS, "main", "vs_5_0");
+		D3DUtils::CreateShader(basePath + L"PostProcessPS.hlsl", &postProcessPS, "main", "ps_5_1");
 
-		D3DUtils::CreateShader(L"BillboardGS.hlsl", &billBoardGS, "main", "gs_5_0");
+		D3DUtils::CreateShader(basePath + L"BillboardVS.hlsl", &billBoardVS, "main", "vs_5_0");
 
-		D3DUtils::CreateShader(L"SunPS.hlsl", &billBoardPS, "main", "ps_5_0");
+		D3DUtils::CreateShader(basePath + L"BillboardGS.hlsl", &billBoardGS, "main", "gs_5_0");
 
-		D3DUtils::CreateShader(L"OceanPS.hlsl", &oceanPS, "main", "ps_5_0");
+		D3DUtils::CreateShader(basePath + L"SunPS.hlsl", &billBoardPS, "main", "ps_5_0");
 
-		D3DUtils::CreateShader(L"SamplingVS.hlsl", &samplingVS, "main", "vs_5_0");
+		D3DUtils::CreateShader(basePath + L"OceanPS.hlsl", &oceanPS, "main", "ps_5_0");
 
-		D3DUtils::CreateShader(L"BloomUpPS.hlsl", &bloomUpPS, "main", "ps_5_0");
+		D3DUtils::CreateShader(basePath + L"SamplingVS.hlsl", &samplingVS, "main", "vs_5_0");
 
-		D3DUtils::CreateShader(L"BloomDownPS.hlsl", &bloomDownPS, "main", "ps_5_0");
+		D3DUtils::CreateShader(basePath + L"BloomUpPS.hlsl", &bloomUpPS, "main", "ps_5_0");
 
-		D3DUtils::CreateShader(L"CombinePS.hlsl", &combinePS, "main", "ps_5_0");
+		D3DUtils::CreateShader(basePath + L"BloomDownPS.hlsl", &bloomDownPS, "main", "ps_5_0");
 
-		D3DUtils::CreateShader(L"DefaultCS.hlsl", &basicCS, "main", "cs_5_0");
+		D3DUtils::CreateShader(basePath + L"CombinePS.hlsl", &combinePS, "main", "ps_5_0");
+
+		D3DUtils::CreateShader(basePath + L"DefaultCS.hlsl", &basicCS, "main", "cs_5_0");
 
 		basicILDesc = { {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 					   {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
